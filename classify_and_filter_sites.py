@@ -12,16 +12,6 @@ from best_duplex import parse_fasta, create_duplex_vectors
 # UTILITY AND PARSING FUNCTIONS
 # ============================================================================
 
-def parse_contrafold_file(file_path):
-    """Parses CONTRAfold output format."""
-    structures = []
-    with open(file_path, 'r') as f:
-        lines = f.readlines()
-        for i, line in enumerate(lines):
-            if line.strip() == '>structure' and (i + 1) < len(lines):
-                structures.append(lines[i + 1].strip())
-    return structures
-
 def get_phastcons_vector(bw_path, chrom, start, end, strand):
     """Retrieves a phastCons score vector for a given genomic region."""
     try:

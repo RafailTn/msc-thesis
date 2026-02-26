@@ -15,12 +15,6 @@ def write_fasta(col:str, path:str = './data/', output_path:str='./data/'):
             for i, seq in enumerate(df[col]):
                 infile.write(f">seq{i}\n{seq}\n")
 
-def make_chimeric(df: pd.DataFrame):
-    miRNA = df[1]
-    MRE = df[0]
-    chim = MRE + miRNA
-    return chim
-
 def run_rnaduplex_on_pairs(path:str=os.getcwd(), output_path='./data/'):
     """
     Parses two multi-fasta files, runs RNAduplex on each pair,
