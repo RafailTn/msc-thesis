@@ -13,7 +13,7 @@ Usage:
         --intarna best_intarna_results.tsv \
         --mre-fasta mre_sequences.fasta \
         --mirna-fasta mirna_sequences.fasta \
-        --conservation conservation_data.tsv \
+        --target_fasta_coordinates target_fasta_hg38coords.tsv \
         --output features.csv
 """
 
@@ -1011,8 +1011,8 @@ IntaRNA TSV should contain columns from --select-best output:
     #     '--contrafold', required=True,
     #     help='Path to CONTRAfold secondary structure predictions for MREs')
     parser.add_argument(
-        '--conservation', required=True,
-        help='Path to TSV file containing conservation vectors and metadata')
+        '--coords', required=True,
+        help='Path to TSV file containing MRE hg38 coordinates or conservation vectors and metadata')
     parser.add_argument(
         '--output', required=True,
         help='Path for output CSV file with extracted features')
@@ -1042,7 +1042,7 @@ IntaRNA TSV should contain columns from --select-best output:
         print(f"  miRNA sequences: {len(mirna_seqs)}")
         
         # Read conservation data
-        cons_vecs, mir_fam, labels = parse_conservation_tsv(args.conservation, args.bigwig)
+        cons_vecs, mir_fam, labels = parse_conservation_tsv(args.coords, args.bigwig)
         print(f"  Conservation vectors: {len(cons_vecs)}")
         
         # Validate counts match
