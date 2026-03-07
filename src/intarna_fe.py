@@ -24,6 +24,7 @@ import csv
 import argparse
 import numpy as np
 import pandas as pd
+from typing import Optional
 
 # Optional: pyBigWig for conservation scores
 try:
@@ -129,18 +130,6 @@ def parse_fasta_with_ids(file_path):
             sequences[current_id] = ''.join(current_seq).upper().replace('T', 'U')
     
     return sequences
-
-
-def parse_contrafold_file(file_path):
-    """Parse CONTRAfold output format."""
-    structures = []
-    with open(file_path, 'r') as f:
-        lines = f.readlines()
-        for i, line in enumerate(lines):
-            if line.strip() == '>structure' and (i + 1) < len(lines):
-                structures.append(lines[i + 1].strip())
-    return structures
-
 
 def parse_intarna_results(file_path):
     """Parse IntaRNA best results TSV file."""
@@ -514,7 +503,6 @@ def calculate_intarna_features(site_data, flank_size=10):
     - G:U wobble analysis
     - Base composition features
     - Conservation features
-    - Local secondary structure context (from CONTRAfold)
     
     Args:
         site_data: Dictionary containing IntaRNA results and auxiliary data
@@ -1007,9 +995,6 @@ IntaRNA TSV should contain columns from --select-best output:
     parser.add_argument(
         '--mirna-fasta', required=True,
         help='Path to FASTA file containing miRNA sequences')
-    # parser.add_argument(
-    #     '--contrafold', required=True,
-    #     help='Path to CONTRAfold secondary structure predictions for MREs')
     parser.add_argument(
         '--coords', required=True,
         help='Path to TSV file containing MRE hg38 coordinates or conservation vectors and metadata')
