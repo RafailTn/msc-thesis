@@ -57,11 +57,8 @@ def main():
     best_structs_cmd = f'python3 best_intarna.py --intarna ./temp/intarna_merged.tsv --mre-fasta {args.target_fasta} --mirna-fasta {args.query_fasta} --output ./temp/intarna_best.tsv'
     best_result = subprocess.run(best_structs_cmd, timeout=600)
 
-    feature_extraction_cmd = f'python3 intarna_fe.py --intarna ./temp/intarna_best.tsv --mre-fasta {args.target_fasta} --mirna-fasta {args.query_fasta} --conservation_path {args.coords} --output ./temp/samples_4_pred_noseq.csv'
+    feature_extraction_cmd = f'python3 feature_extraction.py --intarna ./temp/intarna_best.tsv --mre-fasta {args.target_fasta} --mirna-fasta {args.query_fasta} --conservation_path {args.coords} --output ./temp/samples_4_pred.csv'
     feature_extraction_result = subprocess.run(feature_extraction_cmd, timeout=600)
-    
-    seq_ft_extraction_cmd = f'python3 seq_features_ml.py ./temp/samples_4_pred_noseq.csv -o ./temp/samples_4_pred.csv'
-    seq_ft_extraction_result = subprocess.run(seq_ft_extraction_cmd, timeout=600)
     
     predictor = TabularPredictor.load()
     input4pred = pl.read_csv('./temp/samples_4_pred.csv')
