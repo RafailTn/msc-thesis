@@ -12,7 +12,7 @@ as well as usage instructions can be found below.
 ## Installation 
 **It is highly recommended that you use the Pixi package manager that 
 supports installing packages via either uv or conda. The dependency files can be immediately used by Pixi to install the 
-appropriate files and their versions (cd msc-thesis/dependencies :arrow_right: pixi install)**. 
+appropriate files and their versions (cd msc-thesis/dependencies :arrow_right: pixi install :arrow_right: pixi shell)**. 
 (https://pixi.prefix.dev/latest/installation/)
 
 ## Usage Instructions
