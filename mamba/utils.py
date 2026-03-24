@@ -167,18 +167,42 @@ class DnaOneHotEncoder(nn.Module):
     Output: (batch, seq_len, emb_size)   float32
     """
 
-    def __init__(self, input_dim: int = 5, emb_size: int = 128, max_seq_len: int = 256):
+    def __init__(self, input_dim: int = 5, emb_size: int = 128, max_seq_len: int = 256, dropout: float = 0.3):
         super().__init__()
         self.max_seq_len = max_seq_len
         self.proj    = nn.Linear(input_dim, emb_size)
         self.pos_emb = nn.Embedding(max_seq_len, emb_size)
+        self.dropout = nn.Dropout(dropout)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         seq_len = x.shape[1]
         if seq_len > self.max_seq_len:
-            raise ValueError(
-                f"Sequence length {seq_len} exceeds max_seq_len {self.max_seq_len}"
-            )
-        positions = torch.arange(seq_len, device=x.device).unsqueeze(0)  # (1, L)
-        return self.proj(x) + self.pos_emb(positions)                     # (B, L, E)
+            raise ValueError(f"Sequence length {seq_len} exceeds max_seq_len {self.max_seq_len}")
+        positions = torch.arange(seq_len, device=x.device).unsqueeze(0)
+        projected = self.proj(x)                    # (B, L, E)
+        pos       = self.pos_emb(positions)         # (1, L, E)
+        return self.dropout(projected + pos)        # ← dropout on the sum
 
+class AttentionPool(nn.Module):
+    def __init__(self, d_model: int):
+        super().__init__()
+        self.attn = nn.Linear(d_model, 1, bias=False)
+
+    def forward(self, x: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
+        # x: (B, L, D)
+        scores = self.attn(x)           # (B, L, 1)
+        if mask is not None:
+            # mask: (B, L) bool, True = padding → push to -inf before softmax
+            scores = scores.masked_fill(mask.unsqueeze(-1), float('-inf'))
+        weights = torch.softmax(scores, dim=1)   # (B, L, 1)
+        return (weights * x).sum(dim=1)          # (B, D)
+
+def get_rc_indices(indices):
+    """
+    Standard DNA RC for indices: 0:A, 1:C, 2:G, 3:T, 4:N
+    Calculates (3 - index) to swap A/T and C/G, then flips the sequence.
+    """
+    rc = indices.clone()
+    mask = indices < 4
+    rc[mask] = 3 - indices[mask]
+    return torch.flip(rc, dims=[1])
