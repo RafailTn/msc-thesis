@@ -18,10 +18,13 @@ appropriate files and their versions (cd msc-thesis/dependencies :arrow_right: p
 ## Usage Instructions
 The model as well as the necessary files to perform feature extraction (i.e a BigWig file for the hg38, genePhastCons470way) are in the repo and will be downloaded with it via git clone.)
 In order to run the **Prediction Pipeline** the user needs to provide:
-- 2 FASTA files containing the nucleotide sequences of the miRNA and the MRE they wish to make predictions for using the --target_fasta (MRE) and --query_fasta(miRNA) 
-- A path for a TSV containing the coordinates of the MREs of interest in a tsv via --coords. This TSV file can also contain already extracted conservation scores, if you have them precomputed, in one of its columns in a list format and the extraction will work as intended.
-- A bigiwig file path for the conservation scores, **IF PhastCons470way is not to be used and there are no conservation scores in the TSV**, via --conservation_path. 
-- Optionally define the threshold (0-1, via --threshold) for separating the samples in Positives (interacting) and Negatives (not interacting).
+- 2 FASTA files containing the nucleotide sequences of the miRNA and the MRE they wish to make predictions for using the -target_fasta (MRE) and -query_fasta (miRNA) 
+- A path for a TSV containing the coordinates of the MREs of interest in a tsv via -conservation_tsv. This TSV file can also contain already extracted conservation scores, if you have them precomputed, in one of its columns in a list format and the extraction will work as intended.
+- A bigiwig file path for the conservation scores, **IF PhastCons470way is not to be used and there are no conservation scores in the TSV**, via -bigiwig. 
+- Optionally define the threshold (0-1, via -threshold) for separating the samples in Positives (interacting) and Negatives (not interacting).
+
+## TODO:
+- Add Feature Importance in output for explainability
 
 ## Citations
 - Gresova, K., Sammut, S., Tzimotoudis, D., Klimentova, E., Cechak, D., & Alexiou, P. (2025). miRBench datasets (Version v6) [Data set]. Zenodo. https://doi.org/10.5281/zenodo.14734014 bioRxiv 2022.02.13.480296; doi: https://doi.org/10.1101/2022.02.13.480296
