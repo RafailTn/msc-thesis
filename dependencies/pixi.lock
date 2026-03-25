@@ -364,6 +364,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pyarrow-core-19.0.1-py312hc195796_2_cpu.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pyasn1-0.6.2-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pyasn1-modules-0.4.2-pyhd8ed1ab_0.conda
+      - conda: https://conda.anaconda.org/bioconda/linux-64/pybigwig-0.3.23-py312h0e9d276_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/noarch/pybind11-3.0.2-pyh7a1b43c_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pybind11-global-3.0.2-pyhc7ab6ef_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pycparser-2.22-pyh29332c3_1.conda
@@ -5756,6 +5757,23 @@ packages:
   - pkg:pypi/pyasn1-modules?source=hash-mapping
   size: 95990
   timestamp: 1743436137965
+- conda: https://conda.anaconda.org/bioconda/linux-64/pybigwig-0.3.23-py312h0e9d276_0.tar.bz2
+  sha256: 5026f909ca542c436a97f2cc813a95c10331d0c0cdcea5a52ab141716cd2f856
+  md5: 41d3a8256dbcf8629b08c64e6943c2f5
+  depends:
+  - libcurl >=8.10.1,<9.0a0
+  - libgcc >=13
+  - libzlib >=1.3.1,<2.0a0
+  - numpy >=1.21,<3
+  - numpy >=2.1.3,<3.0a0
+  - python >=3.12,<3.13.0a0
+  - python_abi 3.12.* *_cp312
+  license: MIT
+  license_family: MIT
+  purls:
+  - pkg:pypi/pybigwig?source=hash-mapping
+  size: 80069
+  timestamp: 1733268204022
 - conda: https://conda.anaconda.org/conda-forge/noarch/pybind11-3.0.2-pyh7a1b43c_0.conda
   sha256: c2d16e61270efeea13102836e0f1d3f758fb093207fbda561290fa1951c6051f
   md5: 44dff15b5d850481807888197b254b46
