@@ -13,7 +13,7 @@ from pathlib import Path
 from autogluon.tabular import TabularPredictor
 
 # The official UCSC URL for hg38 470-way conservation
-_BW_URL   = "https://hgdownload.soe.ucsc.edu/goldenPath/hg38/phastCons470way/hg38.phastCons470way.bw"
+_BW_URL = "https://hgdownload.soe.ucsc.edu/goldenPath/hg38/phastCons470way/hg38.phastCons470way.bw"
 _BW_LOCAL = "hg38.phastCons470way.bw"
 
 # Script directory — all pipeline helpers are expected to sit next to this file
@@ -29,7 +29,7 @@ def _run(cmd: list[str], step: str, timeout: int = 600) -> None:
     Run a subprocess command (as a list — no shell=True needed).
     Raises RuntimeError with a clear message if the step fails.
     """
-    print(f"  [{step}] {' '.join(cmd)}")
+    print(f"[{step}] {' '.join(cmd)}")
     result = subprocess.run(cmd, timeout=timeout)
     if result.returncode != 0:
         raise RuntimeError(
@@ -50,7 +50,7 @@ def _download_bigwig(dest: Path) -> None:
     with open(dest, "wb") as fh:
         for chunk in r.iter_content(chunk_size=1024 * 1024):
             fh.write(chunk)
-    print("  Download complete.")
+    print("Download complete.")
 
 
 # =============================================================================
@@ -89,9 +89,9 @@ def compute_global_importance(
     # regardless of whether the original index had a name.
     fi = fi.rename_axis("feature").reset_index()
     rename_map = {"importance": "permutation_importance",
-                  "stddev":     "permutation_stddev"}
+                  "stddev": "permutation_stddev"}
     keep = ["feature", "permutation_importance", "permutation_stddev"]
-    fi   = fi.rename(columns=rename_map)
+    fi = fi.rename(columns=rename_map)
     if "p_value" in fi.columns:
         keep.append("p_value")
     else:
@@ -111,22 +111,10 @@ def compute_shap(
     """
     SHAP values via KernelExplainer - fully model-agnostic.
 
-    Why KernelExplainer?
-    - AutoGluon trains an ensemble of heterogeneous models (GBM, NN, RF, ...).
-      There is no single fast TreeExplainer or LinearExplainer that covers all
-      of them.  KernelExplainer wraps any predict function, so it works
-      regardless of which models AutoGluon selected.
-
-    Why kmeans background?
-    - A random sample of the training data is an unbiased baseline, but
-      large backgrounds make KernelExplainer slow.  k-means clustering
-      summarises the full distribution in `n_background_clusters` centroids,
-      preserving its shape while keeping computation tractable.
-
     Returns
     -------
     shap_values : np.ndarray  shape (n_explain_samples, n_features)
-    baseline    : float       expected model output over background (E[f(x)])
+    baseline : float expected model output over background (E[f(x)])
     """
     import shap
 
@@ -137,10 +125,10 @@ def compute_shap(
         df = pd.DataFrame(arr, columns=X_background.columns)
         return predictor.predict_proba(df)[pos_col].values
 
-    print(f"  Building SHAP background ({n_background_clusters} k-means clusters) ...")
+    print(f"Building SHAP background ({n_background_clusters} k-means clusters) ...")
     background = shap.kmeans(X_background, n_background_clusters)
 
-    print(f"  Computing SHAP for {len(X_explain)} samples "
+    print(f"Computing SHAP for {len(X_explain)} samples "
           f"(nsamples={nsamples} per call) ...")
     explainer = shap.KernelExplainer(_predict_fn, background)
     with warnings.catch_warnings():
@@ -173,10 +161,10 @@ def build_explanation_outputs(
                  | mean_abs_shap | shap_rank | permutation_rank
 
        Two importance scores are included deliberately:
-       - Permutation importance  : how much model accuracy drops when the
+       - Permutation importance : how much model accuracy drops when the
          feature is shuffled.  Captures the feature's global relevance but can
          be inflated for correlated features.
-       - Mean |SHAP|             : average magnitude of a feature's contribution
+       - Mean |SHAP| : average magnitude of a feature's contribution
          across all explained samples.  More granular and less sensitive to
          correlation, but estimated only on the positive predictions subset.
 
@@ -205,14 +193,14 @@ def build_explanation_outputs(
 
     # -- SHAP: explain predicted positives (capped for runtime) ----------------
     pos_mask = binary_labels == 1
-    X_pos    = X_numeric[pos_mask.values].reset_index(drop=True)
+    X_pos = X_numeric[pos_mask.values].reset_index(drop=True)
 
     if len(X_pos) == 0:
-        print("  No predicted positives - skipping SHAP.")
+        print("No predicted positives - skipping SHAP.")
         return {}
 
     if len(X_pos) > max_shap_samples:
-        print(f"  {len(X_pos)} positives found; explaining a random sample of "
+        print(f"{len(X_pos)} positives found; explaining a random sample of "
               f"{max_shap_samples} (set -explain-samples to change).")
         X_explain = X_pos.sample(n=max_shap_samples, random_state=42)
     else:
@@ -220,10 +208,10 @@ def build_explanation_outputs(
 
     shap_vals, baseline = compute_shap(
         predictor,
-        X_background          = X_numeric,
-        X_explain             = X_explain,
+        X_background = X_numeric,
+        X_explain = X_explain,
         n_background_clusters = n_background_clusters,
-        nsamples              = nsamples_per_shap,
+        nsamples = nsamples_per_shap,
     )
 
     shap_df = pd.DataFrame(shap_vals, columns=feat_cols)
@@ -240,7 +228,7 @@ def build_explanation_outputs(
         .rename_axis("feature")
         .reset_index()
     )
-    global_tbl["shap_rank"]        = (global_tbl["mean_abs_shap"]
+    global_tbl["shap_rank"] = (global_tbl["mean_abs_shap"]
                                        .rank(ascending=False).astype(int))
     global_tbl["permutation_rank"] = (global_tbl["permutation_importance"]
                                        .rank(ascending=False).astype(int))
@@ -249,9 +237,9 @@ def build_explanation_outputs(
     global_path = Path(str(out_stem) + "_global_importance.tsv")
     global_tbl.to_csv(global_path, sep="\t", index=False, float_format="%.6f")
     print(f"\n  Global importance -> {global_path}")
-    print("  Top 5 features (by mean |SHAP|):")
+    print("Top 5 features (by mean |SHAP|):")
     for _, row in global_tbl.head(5).iterrows():
-        print(f"    {row['feature']:45s}  "
+        print(f"{row['feature']:45s}  "
               f"SHAP={row['mean_abs_shap']:.4f} (rank {row['shap_rank']:>3})  "
               f"perm={row['permutation_importance']:.4f} (rank {row['permutation_rank']:>3})")
 
@@ -262,7 +250,7 @@ def build_explanation_outputs(
         per_sample_top[f"top{k}_shap"]    = []
 
     for i in range(len(shap_df)):
-        row_abs   = shap_df.iloc[i].abs()
+        row_abs = shap_df.iloc[i].abs()
         top_feats = row_abs.nlargest(top_n).index.tolist()
         for k, feat in enumerate(top_feats, start=1):
             per_sample_top[f"top{k}_feature"].append(feat)
@@ -286,28 +274,28 @@ def build_explanation_outputs(
     per_sample_path = Path(str(out_stem) + "_shap_per_sample.tsv")
     per_sample_df.to_csv(per_sample_path, sep="\t", index_label="row_index",
                          float_format="%.6f")
-    print(f"  Per-sample SHAP  -> {per_sample_path}")
-    print(f"    Baseline E[f(x)] = {baseline:.4f}  "
+    print(f"Per-sample SHAP  -> {per_sample_path}")
+    print(f"Baseline E[f(x)] = {baseline:.4f}  "
           f"(model output if all features are at their background mean)")
 
     # -- Align to full output length (non-positives get empty / None) ----------
-    n_total    = len(binary_labels)
+    n_total = len(binary_labels)
     full_top: dict[str, list] = {
-        f"top{k}_feature": [""]   * n_total for k in range(1, top_n + 1)
+        f"top{k}_feature": [""] * n_total for k in range(1, top_n + 1)
     }
     full_top.update(
         {f"top{k}_shap": [None] * n_total for k in range(1, top_n + 1)}
     )
 
-    pos_indices  = [i for i, v in enumerate(pos_mask.values) if v]
-    sampled_pos  = pos_indices[:max_shap_samples]
+    pos_indices = [i for i, v in enumerate(pos_mask.values) if v]
+    sampled_pos = pos_indices[:max_shap_samples]
 
     for shap_i, orig_i in enumerate(sampled_pos):
         if shap_i >= len(shap_df):
             break
         for k in range(1, top_n + 1):
             full_top[f"top{k}_feature"][orig_i] = per_sample_top[f"top{k}_feature"][shap_i]
-            full_top[f"top{k}_shap"][orig_i]    = per_sample_top[f"top{k}_shap"][shap_i]
+            full_top[f"top{k}_shap"][orig_i] = per_sample_top[f"top{k}_shap"][shap_i]
 
     return full_top
 
@@ -321,9 +309,9 @@ def main() -> int:
         description="Run the miRNA target prediction pipeline end-to-end."
     )
     # -- Input / output --------------------------------------------------------
-    parser.add_argument("-target_fasta",    required=True,
+    parser.add_argument("-target_fasta", required=True,
                         help="FASTA file containing target/mRNA sequences")
-    parser.add_argument("-query_fasta",     required=True,
+    parser.add_argument("-query_fasta", required=True,
                         help="FASTA file containing query/miRNA sequences")
     parser.add_argument("-conservation_tsv",
                         help="TSV with conservation vectors (--conservation). "
@@ -332,20 +320,20 @@ def main() -> int:
                         help="phastCons BigWig file. If neither -conservation_tsv "
                              "nor -bigwig is given, hg38 470-way BigWig is "
                              "downloaded automatically.")
-    parser.add_argument("-model",           required=True,
+    parser.add_argument("-model", required=True,
                         help="Path to the saved AutoGluon TabularPredictor directory")
-    parser.add_argument("-o",               default="./results.tsv",
+    parser.add_argument("-o", default="./results.tsv",
                         help="Output TSV file (default: ./results.tsv)")
     # -- Prediction ------------------------------------------------------------
-    parser.add_argument("-threshold",       type=float, default=0.5,
+    parser.add_argument("-threshold", type=float, default=0.5,
                         help="Probability threshold for positive interactions "
                              "(default: 0.5)")
-    parser.add_argument("-threads",         type=int,   default=4,
+    parser.add_argument("-threads", type=int, default=4,
                         help="Threads for IntaRNA (default: 4)")
-    parser.add_argument("-keep_files",      action="store_true",
+    parser.add_argument("-keep_files", action="store_true",
                         help="Keep intermediate files after completion")
     # -- Explainability --------------------------------------------------------
-    parser.add_argument("-explain",         action="store_true",
+    parser.add_argument("-explain", action="store_true",
                         help="Compute feature importance + SHAP explanations. "
                              "Requires: pip install shap. "
                              "Produces two companion files and adds top-N SHAP "
@@ -354,17 +342,17 @@ def main() -> int:
                         dest="explain_samples",
                         help="Max positive predictions to explain with SHAP. "
                              "Higher = more accurate but slower. (default: 200)")
-    parser.add_argument("-explain-top-n",   type=int, default=3,
+    parser.add_argument("-explain-top-n", type=int, default=3,
                         dest="explain_top_n",
                         help="Top-N SHAP driver columns per sample in main output "
                              "(default: 3)")
-    parser.add_argument("-shap-nsamples",   type=int, default=200,
+    parser.add_argument("-shap-nsamples", type=int, default=200,
                         dest="shap_nsamples",
                         help="SHAP nsamples per explained row (default: 200)")
-    parser.add_argument("-shap-clusters",   type=int, default=25,
+    parser.add_argument("-shap-clusters", type=int, default=25,
                         dest="shap_clusters",
                         help="k-means clusters for SHAP background (default: 15)")
-    parser.add_argument("-perm-shuffles",   type=int, default=5,
+    parser.add_argument("-perm-shuffles", type=int, default=5,
                         dest="perm_shuffles",
                         help="Shuffle sets for permutation importance (default: 5)")
 
@@ -388,7 +376,7 @@ def main() -> int:
             import shap  # noqa: F401
         except ImportError:
             print("Error: -explain requires the `shap` package.\n"
-                  "       Install with: pip install shap", file=sys.stderr)
+                  "Install with: pip install shap", file=sys.stderr)
             return 1
 
     # -- Resolve BigWig --------------------------------------------------------
@@ -409,7 +397,7 @@ def main() -> int:
 
     try:
         # -- Step 1: IntaRNA standard ------------------------------------------
-        intarna_out     = tmp_dir / "intarna_results.tsv"
+        intarna_out = tmp_dir / "intarna_results.tsv"
         intarna_ens_out = tmp_dir / "intarna_results_ensemble.tsv"
         _run(
             ["python3", str(_HERE / "intarna_parallel.py"),
@@ -443,10 +431,10 @@ def main() -> int:
         best_out = tmp_dir / "intarna_best.tsv"
         _run(
             ["python3", str(_HERE / "best_intarna.py"),
-             "--intarna",     str(merged_out),
-             "--mre-fasta",   args.target_fasta,
+             "--intarna", str(merged_out),
+             "--mre-fasta", args.target_fasta,
              "--mirna-fasta", args.query_fasta,
-             "--output",      str(best_out)],
+             "--output", str(best_out)],
             step="best-intarna",
         )
 
@@ -454,10 +442,10 @@ def main() -> int:
         features_out = tmp_dir / "samples_4_pred.csv"
         feat_cmd = [
             "python3", str(_HERE / "feature_extraction.py"),
-            "--intarna",     str(best_out),
-            "--mre-fasta",   args.target_fasta,
+            "--intarna", str(best_out),
+            "--mre-fasta", args.target_fasta,
             "--mirna-fasta", args.query_fasta,
-            "--output",      str(features_out),
+            "--output", str(features_out),
         ]
         if args.conservation_tsv:
             feat_cmd += ["--conservation", args.conservation_tsv]
@@ -472,14 +460,14 @@ def main() -> int:
         predictor  = TabularPredictor.load(args.model)
         input4pred = pl.read_csv(features_out).to_pandas()
 
-        proba     = predictor.predict_proba(input4pred)
-        pos_col   = 1 if 1 in proba.columns else True
+        proba = predictor.predict_proba(input4pred)
+        pos_col = 1 if 1 in proba.columns else True
         pos_proba = proba[pos_col]
-        binary    = (pos_proba >= args.threshold).astype(int)
+        binary = (pos_proba >= args.threshold).astype(int)
 
-        n_pos   = int(binary.sum())
+        n_pos = int(binary.sum())
         n_total = len(binary)
-        print(f"  {n_pos} interactions above threshold {args.threshold} "
+        print(f"{n_pos} interactions above threshold {args.threshold} "
               f"out of {n_total} pairs.")
 
         # -- Step 7: Explainability (optional) ---------------------------------
@@ -488,15 +476,15 @@ def main() -> int:
             print("\n--- Explainability ---")
             out_stem  = Path(args.o).with_suffix("")
             shap_cols = build_explanation_outputs(
-                X_pred                = input4pred,
-                predictor             = predictor,
-                pos_proba             = pos_proba,
-                binary_labels         = binary,
-                out_stem              = out_stem,
-                top_n                 = args.explain_top_n,
-                max_shap_samples      = args.explain_samples,
-                num_shuffle_sets      = args.perm_shuffles,
-                nsamples_per_shap     = args.shap_nsamples,
+                X_pred = input4pred,
+                predictor = predictor,
+                pos_proba = pos_proba,
+                binary_labels = binary,
+                out_stem = out_stem,
+                top_n = args.explain_top_n,
+                max_shap_samples = args.explain_samples,
+                num_shuffle_sets = args.perm_shuffles,
+                nsamples_per_shap = args.shap_nsamples,
                 n_background_clusters = args.shap_clusters,
             )
 
