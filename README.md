@@ -24,6 +24,7 @@ In order to run the **Prediction Pipeline** the user needs to provide:
 - Optionally define the threshold (0-1, via -threshold) for separating the samples in Positives (interacting) and Negatives (not interacting).
 
 ## TODO:
+- Add a way to automatically retrieve the coordinates of the target sequences and add them to the TSV if needed
 - Add Feature Importance in output for explainability
 
 ## Citations
