@@ -13,6 +13,7 @@ polars = ">=1.38.1,<2"
 pandas = ">=2.3.3,<3"
 intarna = ">=3.4.1,<4"
 pybigwig = ">=0.3.23,<0.4"
+shap = ">=0.51.0,<0.52"
 
 [pypi-dependencies]
 pyranges = ">=0.1.4, <0.2"
