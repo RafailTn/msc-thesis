@@ -8,8 +8,9 @@ import os
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.model_selection import train_test_split
 from autogluon.core.metrics import make_scorer
-from sklearn.metrics import average_precision_score
+from sklearn.metrics import fbeta_score, average_precision_score
 from sklearn.model_selection import GroupShuffleSplit, StratifiedGroupKFold, StratifiedKFold
+from metrics4gluon import f2_metric, aps
 from typing import List, Optional, Dict, Tuple
 
 
@@ -187,12 +188,12 @@ def preprocess_dataframe(
     # Drop columns that exist in the dataframe
     cols_to_drop = [c for c in cols2drop if c in df.columns]
     df = df.drop(columns=cols_to_drop)
-    family_counts = df['mir_fam'].value_counts().clip(lower=100)
+    family_counts = df['noncodingRNA_fam'].value_counts().clip(lower=100)
     total_samples = len(df)
     # Weight = Total / (n_families * count_of_this_family)
     # This scales weights so they sum up to roughly len(df)
     n_families = len(family_counts)
-    df['weights'] = df['mir_fam'].map(lambda x: total_samples / (n_families * family_counts[x])) 
+    df['weights'] = df['noncodingRNA_fam'].map(lambda x: total_samples / (n_families * family_counts[x])) 
     df['label'] = df['label'].astype(int)
     return df, df_with_sequences
 
@@ -204,23 +205,19 @@ def main(
     eval_metric: str,
     time_limit: int,
     misclassified_output_dir: str = '/home/adam/adam/data/misclassified_analysis/',
-    results_output_path: str = '/home/adam/adam/data/manakov_results_seqfs.txt',
+    results_output_path: str = '/home/adam/adam/data/manakov_results_addcons_fs.txt',
 ):
     print("Starting Training...")
    
     cols2drop = [
-        'conservation_range','target_id', 'query_id', 
+        'target_id', 'query_id', 
         'contrafold_struct', 'hybrid_dp', 'subseq_dp', 
-        'mre_sequence', 'mirna_sequence', 'chimeric_sequence', 
-        'gene' , 'noncodingRNA' , 'noncodingRNA_name', 
-        'noncodingRNA_fam', 'feature', 'label_right', 'chr', 
-        'start', 'end', 'strand', 'gene_cluster_ID', 'gene_phyloP', 'gene_phastCons'
-        ]
+        'mre_sequence', 'mirna_sequence', 'chimeric_sequence', 'gene' , 'noncodingRNA' , 'noncodingRNA_name', 'feature', 'label_right', 'chr', 'start', 'end', 'strand', 'gene_cluster_ID', 'gene_phyloP', 'gene_phastCons']
     
     # Sequence columns to preserve for misclassification analysis
     sequence_cols = [
         'chimeric_sequence', 'mre_sequence', 'mirna_sequence', 
-        'target_id', 'query_id', 'mir_fam'
+        'target_id', 'query_id', 'noncodingRNA_fam'
     ]
     
     # Load and preprocess training data
@@ -229,19 +226,19 @@ def main(
     df_pl = pl.from_pandas(df)
     
     # Load and preprocess test data
-    final_test_raw = pd.read_csv('/home/adam/adam/data/AGO2eCLIPManakov2022testclassifiedsitesunfiltSeedConsintarnaensembleseqft.csv')
+    final_test_raw = pd.read_csv('/home/adam/adam/Final_fs_featurewiz_test_withids.csv')
     final_test_data, final_test_with_seq = preprocess_dataframe(
         final_test_raw, cols2drop, sequence_cols
     )
     
-    final_final_test_raw = pd.read_csv('/home/adam/adam/data/AGO2eCLIPManakov2022leftoutclassifiedsitesunfiltSeedConsintarnaensembleseqft.csv')
+    final_final_test_raw = pd.read_csv('/home/adam/adam/Final_fs_featurewiz_leftout_withids.csv')
     final_final_test_data, final_final_test_with_seq = preprocess_dataframe(
         final_final_test_raw, cols2drop, sequence_cols
     )
     # Setup cross-validation
     sgkf = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=42)
     y = df_pl['label'].to_numpy()
-    groups = df_pl['mir_fam'].to_numpy()
+    groups = df_pl['noncodingRNA_fam'].to_numpy()
     X = df_pl.to_numpy()
     
     # Create output directory for misclassified samples
@@ -260,8 +257,8 @@ def main(
         print(f"FOLD {fold}")
         print(f"{'='*60}")
         # Split data
-        train_fold = df_pl[train_idx].drop('mir_fam')
-        val_fold = df_pl[val_idx].drop('mir_fam')
+        train_fold = df_pl[train_idx].drop('noncodingRNA_fam')
+        val_fold = df_pl[val_idx].drop('noncodingRNA_fam')
         # Get corresponding sequence dataframes (reset index to match)
         train_with_seq = df_with_sequences.iloc[train_idx].reset_index(drop=True)
         val_with_seq = df_with_sequences.iloc[val_idx].reset_index(drop=True)
