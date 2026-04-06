@@ -30,4 +30,7 @@ In order to run the **Prediction Pipeline** the user needs to provide:
 ## Citations
 - Gresova, K., Sammut, S., Tzimotoudis, D., Klimentova, E., Cechak, D., & Alexiou, P. (2025). miRBench datasets (Version v6) [Data set]. Zenodo. https://doi.org/10.5281/zenodo.14734014 bioRxiv 2022.02.13.480296; doi: https://doi.org/10.1101/2022.02.13.480296
 - Manakov, S. A., Shishkin, A. A., Yee, B. A., Shen, K. A., Cox, D. C., Park, S. S., Foster, H. M., Chapman, K. B., Yeo, G. W., & Van Nostrand, E. L. (2022). Scalable and deep profiling of mRNA targets for individual microRNAs with chimeric eCLIP. bioRxiv. https://doi.org/10.1101/2022.02.13.480296
-
+- Erickson, Nick, et al. "AutoGluon-Tabular: Robust and Accurate AutoML for Structured Data." arXiv preprint arXiv:2003.06505 (2020).
+- Seshadri, Ram (2020). GitHub - AutoViML/featurewiz: Use advanced feature engineering strategies and select the best features from your data set fast with a single line of code. source code: https://github.com/AutoViML/featurewiz
+- IntaRNA 2.0: enhanced and customizable prediction of RNA-RNA interactions Martin Mann, Patrick R. Wright, and Rolf Backofen, Nucleic Acids Research, 45 (W1), W435–W439, 2017, DOI:10.1093/nar/gkx279.
+- Sethupathy, P., Corda, B., & Hatzigeorgiou, A. G. (2006). TarBase: A comprehensive database of experimentally supported animal microRNA targets. RNA (New York, N.Y.), 12(2), 192–197. https://doi.org/10.1261/rna.2239606
