@@ -1,0 +1,1911 @@
+% $ biblatex auxiliary file $
+% $ biblatex bbl format version 3.3 $
+% Do not modify the above lines!
+%
+% This is an auxiliary file used by the 'biblatex' package.
+% This file may safely be deleted. It will be recreated by
+% biber as required.
+%
+\begingroup
+\makeatletter
+\@ifundefined{ver@biblatex.sty}
+  {\@latex@error
+     {Missing 'biblatex' package}
+     {The bibliography requires the 'biblatex' package.}
+      \aftergroup\endinput}
+  {}
+\endgroup
+
+
+\refsection{0}
+  \datalist[entry]{nty/global//global/global/global}
+    \entry{adamMiR200ExpressionRegulates2009}{article}{}{}
+      \name{author}{12}{}{%
+        {{un=0,uniquepart=base,hash=709513515444614f5557e8b130edb323}{%
+           family={Adam},
+           familyi={A\bibinitperiod},
+           given={Liana},
+           giveni={L\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=abb34ea991e259ade6d22e806508ab58}{%
+           family={Zhong},
+           familyi={Z\bibinitperiod},
+           given={Meng},
+           giveni={M\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=3fd9ce0ad49ab2f2e4d90a69aa8406db}{%
+           family={Choi},
+           familyi={C\bibinitperiod},
+           given={Woonyoung},
+           giveni={W\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=76cb214dc90e7bf18f5cc42cdf8cba89}{%
+           family={Qi},
+           familyi={Q\bibinitperiod},
+           given={Wei},
+           giveni={W\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=9100afc1c99723e276f0107400085987}{%
+           family={Nicoloso},
+           familyi={N\bibinitperiod},
+           given={Milena},
+           giveni={M\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=b7a264a82a766dcd71ee75c257e76297}{%
+           family={Arora},
+           familyi={A\bibinitperiod},
+           given={Ameeta},
+           giveni={A\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=7eb87df38eb64cb36b866e1b9d9ed827}{%
+           family={Calin},
+           familyi={C\bibinitperiod},
+           given={George},
+           giveni={G\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=ecfd4ce17fbe6ed4912699e1ff0317f7}{%
+           family={Wang},
+           familyi={W\bibinitperiod},
+           given={Hua},
+           giveni={H\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=d74e8f717a0f3cbe186c08e8bb111aad}{%
+           family={Siefker-Radtke},
+           familyi={S\bibinithyphendelim R\bibinitperiod},
+           given={Arlene},
+           giveni={A\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=b8a29b534f2e2ab6f8af13e1da869d2c}{%
+           family={McConkey},
+           familyi={M\bibinitperiod},
+           given={David},
+           giveni={D\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=1c44c6c63be127172365da7095a781c8}{%
+           family={Bar-Eli},
+           familyi={B\bibinithyphendelim E\bibinitperiod},
+           given={Menashe},
+           giveni={M\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=d5a8f599fe1abaed5db98a6684560188}{%
+           family={Dinney},
+           familyi={D\bibinitperiod},
+           given={Colin},
+           giveni={C\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{68c3e06fc16c44ef418e1ac2bf8166f8}
+      \strng{fullhash}{9693e9f58fa8031f4d42e4bb47df3cf7}
+      \strng{fullhashraw}{9693e9f58fa8031f4d42e4bb47df3cf7}
+      \strng{bibnamehash}{68c3e06fc16c44ef418e1ac2bf8166f8}
+      \strng{authorbibnamehash}{68c3e06fc16c44ef418e1ac2bf8166f8}
+      \strng{authornamehash}{68c3e06fc16c44ef418e1ac2bf8166f8}
+      \strng{authorfullhash}{9693e9f58fa8031f4d42e4bb47df3cf7}
+      \strng{authorfullhashraw}{9693e9f58fa8031f4d42e4bb47df3cf7}
+      \field{sortinit}{A}
+      \field{sortinithash}{2f401846e2029bad6b3ecc16d50031e2}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{Purpose: The epithelial-to-mesenchymal transition (EMT) is a cell development-regulated process in which noncoding RNAs act as crucial modulators. Recent studies have implied that EMT may contribute to resistance to epidermal growth factor receptor (EGFR)–directed therapy. The aims of this study were to determine the potential role of microRNAs (miRNA) in controlling EMT and the role of EMT in inducing the sensitivity of human bladder cancer cells to the inhibitory effects of the anti-EGFR therapy.Experimental Design: miRNA array screening and real-time reverse transcription-PCR were used to identify and validate the differential expression of miRNAs involved in EMT in nine bladder cancer cell lines. A list of potential miR-200 direct targets was identified through the TargetScan database. The precursor of miR-200b and miR-200c was expressed in UMUC3 and T24 cells using a retrovirus or a lentivirus construct, respectively. Protein expression and signaling pathway modulation, as well as intracellular distribution of EGFR and ERRFI-1, were validated through Western blot analysis and confocal microscopy, whereas ERRFI-1 direct target of miR-200 members was validated by using the wild-type and mutant 3′-untranslated region/ERRFI-1/luciferse reporters.Results: We identified a tight association between the expression of miRNAs of the miR-200 family, epithelial phenotype, and sensitivity to EGFR inhibitors–induced growth inhibition in bladder carcinoma cell lines. Stable expression of miR-200 in mesenchymal UMUC3 cells increased E-cadherin levels, decreased expression of ZEB1, ZEB2, ERRFI-1, and cell migration, and increased sensitivity to EGFR-blocking agents. The changes in EGFR sensitivity by silencing or forced expression of ERRFI-1 or by miR-200 expression have also been validated in additional cell lines, UMUC5 and T24. Finally, luciferase assays using 3′-untranslated region/ERRFI-1/luciferase and miR-200 cotransfections showed that the direct down-regulation of ERRFI-1 was miR-200-dependent because mutations in the two putative miR-200-binding sites have rescued the inhibitory effect.Conclusions: Members of the miR-200 family appear to control the EMT process and sensitivity to EGFR therapy in bladder cancer cells and the expression of miR-200 is sufficient to restore EGFR dependency at least in some of the mesenchymal bladder cancer cells. The targets of miR-200 include ERRFI-1, which is a novel regulator of EGFR-independent growth. (Clin Cancer Res 2009;15(16):5060–72)}
+      \field{day}{12}
+      \field{issn}{1078-0432}
+      \field{journaltitle}{Clinical Cancer Research}
+      \field{month}{8}
+      \field{number}{16}
+      \field{shortjournal}{Clin Cancer Res}
+      \field{title}{{{miR-200 Expression Regulates Epithelial-to-Mesenchymal Transition}} in {{Bladder Cancer Cells}} and {{Reverses Resistance}} to {{Epidermal Growth Factor Receptor Therapy}}}
+      \field{urlday}{11}
+      \field{urlmonth}{4}
+      \field{urlyear}{2026}
+      \field{volume}{15}
+      \field{year}{2009}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \field{pages}{5060\bibrangedash 5072}
+      \range{pages}{13}
+      \verb{doi}
+      \verb 10.1158/1078-0432.CCR-08-2245
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/DSDJYQEL/Adam et al. - 2009 - miR-200 Expression Regulates Epithelial-to-Mesenchymal Transition in Bladder Cancer Cells and Revers.pdf;/home/rafail/Zotero/storage/EBMQMRQD/1078-0432.html
+      \endverb
+      \verb{urlraw}
+      \verb https://doi.org/10.1158/1078-0432.CCR-08-2245
+      \endverb
+      \verb{url}
+      \verb https://doi.org/10.1158/1078-0432.CCR-08-2245
+      \endverb
+    \endentry
+    \entry{ambrosUniformSystemMicroRNA2003}{article}{}{}
+      \name{author}{13}{}{%
+        {{un=0,uniquepart=base,hash=f5aef46443efdfe6d970da5e9181fedf}{%
+           family={AMBROS},
+           familyi={A\bibinitperiod},
+           given={VICTOR},
+           giveni={V\bibinitperiod\bibinitdelim I\bibinitperiod\bibinitdelim C\bibinitperiod\bibinitdelim T\bibinitperiod\bibinitdelim O\bibinitperiod\bibinitdelim R\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=41f998fad8af5ab69919792adee546e4}{%
+           family={BARTEL},
+           familyi={B\bibinitperiod},
+           given={BONNIE},
+           giveni={B\bibinitperiod\bibinitdelim O\bibinitperiod\bibinitdelim N\bibinitperiod\bibinitdelim N\bibinitperiod\bibinitdelim I\bibinitperiod\bibinitdelim E\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=e2660c4985f68f2ede4b8752c169a84a}{%
+           family={BARTEL},
+           familyi={B\bibinitperiod},
+           given={DAVID\bibnamedelima P.},
+           giveni={D\bibinitperiod\bibinitdelim P\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=e19179553047a43c15b9978d2f09c73e}{%
+           family={BURGE},
+           familyi={B\bibinitperiod},
+           given={CHRISTOPHER\bibnamedelima B.},
+           giveni={C\bibinitperiod\bibinitdelim B\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=9990977977c861fa916790b602525163}{%
+           family={CARRINGTON},
+           familyi={C\bibinitperiod},
+           given={JAMES\bibnamedelima C.},
+           giveni={J\bibinitperiod\bibinitdelim C\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=ea028243d1875764a6211a296faef931}{%
+           family={CHEN},
+           familyi={C\bibinitperiod},
+           given={XUEMEI},
+           giveni={X\bibinitperiod\bibinitdelim U\bibinitperiod\bibinitdelim E\bibinitperiod\bibinitdelim M\bibinitperiod\bibinitdelim E\bibinitperiod\bibinitdelim I\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=9aa0a82ad1ba72859e5482574ad5801d}{%
+           family={DREYFUSS},
+           familyi={D\bibinitperiod},
+           given={GIDEON},
+           giveni={G\bibinitperiod\bibinitdelim I\bibinitperiod\bibinitdelim D\bibinitperiod\bibinitdelim E\bibinitperiod\bibinitdelim O\bibinitperiod\bibinitdelim N\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=e380cc1c4aa3d6741157e30f67642612}{%
+           family={EDDY},
+           familyi={E\bibinitperiod},
+           given={SEAN\bibnamedelima R},
+           giveni={S\bibinitperiod\bibinitdelim R\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=28356962fc468a5b25eb47c012443a80}{%
+           family={GRIFFITHS-JONES},
+           familyi={G\bibinithyphendelim J\bibinitperiod},
+           given={SAM},
+           giveni={S\bibinitperiod\bibinitdelim A\bibinitperiod\bibinitdelim M\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=e62f91f939e6032846e0485c96559bc0}{%
+           family={MARSHALL},
+           familyi={M\bibinitperiod},
+           given={MHAIRI},
+           giveni={M\bibinitperiod\bibinitdelim H\bibinitperiod\bibinitdelim A\bibinitperiod\bibinitdelim I\bibinitperiod\bibinitdelim R\bibinitperiod\bibinitdelim I\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=6f75c5d026cbc4d1a92435da864f2a12}{%
+           family={MATZKE},
+           familyi={M\bibinitperiod},
+           given={MARJORI},
+           giveni={M\bibinitperiod\bibinitdelim A\bibinitperiod\bibinitdelim R\bibinitperiod\bibinitdelim J\bibinitperiod\bibinitdelim O\bibinitperiod\bibinitdelim R\bibinitperiod\bibinitdelim I\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=2de0aead8272648d675ab9f9ce428691}{%
+           family={RUVKUN},
+           familyi={R\bibinitperiod},
+           given={GARY},
+           giveni={G\bibinitperiod\bibinitdelim A\bibinitperiod\bibinitdelim R\bibinitperiod\bibinitdelim Y\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=f21af5c23b8695d8107630c09b640728}{%
+           family={TUSCHL},
+           familyi={T\bibinitperiod},
+           given={THOMAS},
+           giveni={T\bibinitperiod\bibinitdelim H\bibinitperiod\bibinitdelim O\bibinitperiod\bibinitdelim M\bibinitperiod\bibinitdelim A\bibinitperiod\bibinitdelim S\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{711e2c5446382761f5ae8d871f4320c3}
+      \strng{fullhash}{008b62e566d61150c12ea3b8d3617264}
+      \strng{fullhashraw}{008b62e566d61150c12ea3b8d3617264}
+      \strng{bibnamehash}{711e2c5446382761f5ae8d871f4320c3}
+      \strng{authorbibnamehash}{711e2c5446382761f5ae8d871f4320c3}
+      \strng{authornamehash}{711e2c5446382761f5ae8d871f4320c3}
+      \strng{authorfullhash}{008b62e566d61150c12ea3b8d3617264}
+      \strng{authorfullhashraw}{008b62e566d61150c12ea3b8d3617264}
+      \field{sortinit}{A}
+      \field{sortinithash}{2f401846e2029bad6b3ecc16d50031e2}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{MicroRNAs (miRNAs) are small noncoding RNA gene products about 22 nt long that are processed by Dicer from precursors with a characteristic hairpin secondary structure. Guidelines are presented for the identification and annotation of new miRNAs from diverse organisms, particularly so that miRNAs can be reliably distinguished from other RNAs such as small interfering RNAs. We describe specific criteria for the experimental verification of miRNAs, and conventions for naming miRNAs and miRNA genes. Finally, an online clearinghouse for miRNA gene name assignments is provided by the Rfam database of RNA families.}
+      \field{eprinttype}{pubmed}
+      \field{issn}{1355-8382}
+      \field{journaltitle}{RNA}
+      \field{month}{3}
+      \field{number}{3}
+      \field{shortjournal}{RNA}
+      \field{title}{A Uniform System for {{microRNA}} Annotation}
+      \field{urlday}{2}
+      \field{urlmonth}{4}
+      \field{urlyear}{2026}
+      \field{volume}{9}
+      \field{year}{2003}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \field{pages}{277\bibrangedash 279}
+      \range{pages}{3}
+      \verb{doi}
+      \verb 10.1261/rna.2183803
+      \endverb
+      \verb{eprint}
+      \verb 12592000
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/9X36FPQF/AMBROS et al. - 2003 - A uniform system for microRNA annotation.pdf
+      \endverb
+      \verb{urlraw}
+      \verb https://pmc.ncbi.nlm.nih.gov/articles/PMC1370393/
+      \endverb
+      \verb{url}
+      \verb https://pmc.ncbi.nlm.nih.gov/articles/PMC1370393/
+      \endverb
+    \endentry
+    \entry{benesovaSmallRNASequencingApproaches2021}{article}{}{}
+      \name{author}{3}{}{%
+        {{un=0,uniquepart=base,hash=073267cee74e7d164ea19bb253ca43fb}{%
+           family={Benesova},
+           familyi={B\bibinitperiod},
+           given={Sarka},
+           giveni={S\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=8410d840c08094f6715bcece5e32e7df}{%
+           family={Kubista},
+           familyi={K\bibinitperiod},
+           given={Mikael},
+           giveni={M\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=edcca9db7822af935a127d5d13b0b1c3}{%
+           family={Valihrach},
+           familyi={V\bibinitperiod},
+           given={Lukas},
+           giveni={L\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{f7d2aa7bfa26bee425e23112358e8cba}
+      \strng{fullhash}{5799c228c8b3c0fe093030da3da566e8}
+      \strng{fullhashraw}{5799c228c8b3c0fe093030da3da566e8}
+      \strng{bibnamehash}{5799c228c8b3c0fe093030da3da566e8}
+      \strng{authorbibnamehash}{5799c228c8b3c0fe093030da3da566e8}
+      \strng{authornamehash}{f7d2aa7bfa26bee425e23112358e8cba}
+      \strng{authorfullhash}{5799c228c8b3c0fe093030da3da566e8}
+      \strng{authorfullhashraw}{5799c228c8b3c0fe093030da3da566e8}
+      \field{sortinit}{B}
+      \field{sortinithash}{d7095fff47cda75ca2589920aae98399}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{abstract}{MicroRNAs (miRNAs) are a class of small RNA molecules that have an important regulatory role in multiple physiological and pathological processes. Their disease-specific profiles and presence in biofluids are properties that enable miRNAs to be employed as non-invasive biomarkers. In the past decades, several methods have been developed for miRNA analysis, including small RNA sequencing (RNA-seq). Small RNA-seq enables genome-wide profiling and analysis of known, as well as novel, miRNA variants. Moreover, its high sensitivity allows for profiling of low input samples such as liquid biopsies, which have now found applications in diagnostics and prognostics. Still, due to technical bias and the limited ability to capture the true miRNA representation, its potential remains unfulfilled. The introduction of many new small RNA-seq approaches that tried to minimize this bias, has led to the existence of the many small RNA-seq protocols seen today. Here, we review all current approaches to cDNA library construction used during the small RNA-seq workflow, with particular focus on their implementation in commercially available protocols. We provide an overview of each protocol and discuss their applicability. We also review recent benchmarking studies comparing each protocol’s performance and summarize the major conclusions that can be gathered from their usage. The result documents variable performance of the protocols and highlights their different applications in miRNA research. Taken together, our review provides a comprehensive overview of all the current small RNA-seq approaches, summarizes their strengths and weaknesses, and provides guidelines for their applications in miRNA research.}
+      \field{day}{27}
+      \field{eprinttype}{pubmed}
+      \field{issn}{2075-4418}
+      \field{journaltitle}{Diagnostics}
+      \field{month}{5}
+      \field{number}{6}
+      \field{shortjournal}{Diagnostics (Basel)}
+      \field{shorttitle}{Small {{RNA-Sequencing}}}
+      \field{title}{Small {{RNA-Sequencing}}: {{Approaches}} and {{Considerations}} for {{miRNA Analysis}}}
+      \field{urlday}{2}
+      \field{urlmonth}{4}
+      \field{urlyear}{2026}
+      \field{volume}{11}
+      \field{year}{2021}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \field{pages}{964}
+      \range{pages}{1}
+      \verb{doi}
+      \verb 10.3390/diagnostics11060964
+      \endverb
+      \verb{eprint}
+      \verb 34071824
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/RH9UW7R6/Benesova et al. - 2021 - Small RNA-Sequencing Approaches and Considerations for miRNA Analysis.pdf
+      \endverb
+      \verb{urlraw}
+      \verb https://pmc.ncbi.nlm.nih.gov/articles/PMC8229417/
+      \endverb
+      \verb{url}
+      \verb https://pmc.ncbi.nlm.nih.gov/articles/PMC8229417/
+      \endverb
+    \endentry
+    \entry{chaluvally-raghavanDirectUpregulationSTAT32016}{article}{}{}
+      \name{author}{16}{}{%
+        {{un=0,uniquepart=base,hash=ede7c064e21ca7e97f9f25532de7990c}{%
+           family={Chaluvally-Raghavan},
+           familyi={C\bibinithyphendelim R\bibinitperiod},
+           given={Pradeep},
+           giveni={P\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=1b7c35ad6a6dd685a9bbebc52e137300}{%
+           family={Jeong},
+           familyi={J\bibinitperiod},
+           given={Kang\bibnamedelima Jin},
+           giveni={K\bibinitperiod\bibinitdelim J\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=4e9e5ddb7b06cb667fdfd386c27dd16a}{%
+           family={Pradeep},
+           familyi={P\bibinitperiod},
+           given={Sunila},
+           giveni={S\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=25d7f7aa37f7f3fa67f18e32d457ce26}{%
+           family={Silva},
+           familyi={S\bibinitperiod},
+           given={Andreia\bibnamedelima Machado},
+           giveni={A\bibinitperiod\bibinitdelim M\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=98a942cdb67f8adaab40b9777eef28a6}{%
+           family={Yu},
+           familyi={Y\bibinitperiod},
+           given={Shuangxing},
+           giveni={S\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=4c60aef6f0aef2c84f70327687125aa8}{%
+           family={Liu},
+           familyi={L\bibinitperiod},
+           given={Wenbin},
+           giveni={W\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=a015d30e0b83cd743f65aa98f31b8800}{%
+           family={Moss},
+           familyi={M\bibinitperiod},
+           given={Tyler},
+           giveni={T\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=443a66980b9884c818592311ec87d763}{%
+           family={Rodriguez-Aguayo},
+           familyi={R\bibinithyphendelim A\bibinitperiod},
+           given={Cristian},
+           giveni={C\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=b7a01953210b558b4146902bc09d3564}{%
+           family={Zhang},
+           familyi={Z\bibinitperiod},
+           given={Dong},
+           giveni={D\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=3346854d8dcf3dd863006e2e28cfed78}{%
+           family={Ram},
+           familyi={R\bibinitperiod},
+           given={Prahlad},
+           giveni={P\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=3e943bba9c205c5f56e3b1745a2422ea}{%
+           family={Liu},
+           familyi={L\bibinitperiod},
+           given={Jinsong},
+           giveni={J\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=3241715d59d53dec8b5e5756af6585fe}{%
+           family={Lu},
+           familyi={L\bibinitperiod},
+           given={Yiling},
+           giveni={Y\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=c60d49edd3be2ecfe510af2b276e8ac3}{%
+           family={Lopez-Berestein},
+           familyi={L\bibinithyphendelim B\bibinitperiod},
+           given={Gabriel},
+           giveni={G\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=2f038ffc7bbf83184cc64fd6a7b49df2}{%
+           family={Calin},
+           familyi={C\bibinitperiod},
+           given={George\bibnamedelima A.},
+           giveni={G\bibinitperiod\bibinitdelim A\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=7fd62fb3967c714567482d42e7f3be03}{%
+           family={Sood},
+           familyi={S\bibinitperiod},
+           given={Anil\bibnamedelima K.},
+           giveni={A\bibinitperiod\bibinitdelim K\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=9d783423e5e5cf74c5f3844bc1e22034}{%
+           family={Mills},
+           familyi={M\bibinitperiod},
+           given={Gordon\bibnamedelima B.},
+           giveni={G\bibinitperiod\bibinitdelim B\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{fb2027bb0ef7005a992118f8a606db15}
+      \strng{fullhash}{57613d01c776519734ab48c490a13ed0}
+      \strng{fullhashraw}{57613d01c776519734ab48c490a13ed0}
+      \strng{bibnamehash}{fb2027bb0ef7005a992118f8a606db15}
+      \strng{authorbibnamehash}{fb2027bb0ef7005a992118f8a606db15}
+      \strng{authornamehash}{fb2027bb0ef7005a992118f8a606db15}
+      \strng{authorfullhash}{57613d01c776519734ab48c490a13ed0}
+      \strng{authorfullhashraw}{57613d01c776519734ab48c490a13ed0}
+      \field{sortinit}{C}
+      \field{sortinithash}{4d103a86280481745c9c897c925753c0}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{3q26.2 amplification in high-grade serous ovarian cancer leads to increased expression of mature microRNA miR551b-3p, which is associated with poor~clinical outcome. Importantly, miR551b-3p contributes to resistance to apoptosis and increased survival and proliferation of cancer cells in~vitro and~in~vivo. miR551b-3p upregulates STAT3 protein~levels, and STAT3 is required for the effects of~miR551b-3p on cell proliferation. Rather than decreasing levels of target mRNA as expected, we demonstrate that miR551b-3p binds a complementary sequence on the STAT3 promoter, recruiting RNA polymerase II and the TWIST1 transcription factor to activate STAT3 transcription, and thus directly upregulates STAT3 expression. Furthermore, anti-miR551b reduced STAT3 expression in ovarian cancer cells in~vitro and in~vivo and reduced ovarian cancer growth in~vivo. Together, our data demonstrate a role for miR551b-3p in transcriptional activation. Thus, miR551b-3p represents a promising candidate biomarker and therapeutic target in ovarian cancer.}
+      \field{day}{17}
+      \field{eprinttype}{pubmed}
+      \field{issn}{2211-1247}
+      \field{journaltitle}{Cell Reports}
+      \field{langid}{english}
+      \field{month}{5}
+      \field{number}{7}
+      \field{shortjournal}{Cell Rep}
+      \field{title}{Direct {{Upregulation}} of {{STAT3}} by {{MicroRNA-551b-3p Deregulates Growth}} and {{Metastasis}} of {{Ovarian Cancer}}}
+      \field{volume}{15}
+      \field{year}{2016}
+      \field{dateera}{ce}
+      \field{pages}{1493\bibrangedash 1504}
+      \range{pages}{12}
+      \verb{doi}
+      \verb 10.1016/j.celrep.2016.04.034
+      \endverb
+      \verb{eprint}
+      \verb 27160903
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/4FQVT4CE/Chaluvally-Raghavan et al. - 2016 - Direct Upregulation of STAT3 by MicroRNA-551b-3p Deregulates Growth and Metastasis of Ovarian Cancer.pdf
+      \endverb
+      \keyw{Animals,Carcinoma Ovarian Epithelial,Cell Line Tumor,Cell Proliferation,Cell Self Renewal,Cell Survival,Down-Regulation,Female,Gene Amplification,Gene Expression Regulation Neoplastic,Gene Knockdown Techniques,Gene Silencing,Humans,Mice Nude,MicroRNAs,Neoplasm Metastasis,Neoplasms Glandular and Epithelial,Nuclear Proteins,Ovarian Neoplasms,Promoter Regions Genetic,RNA Polymerase II,Spheroids Cellular,STAT3 Transcription Factor,Transcription Genetic,Treatment Outcome,Tumor Burden,Twist-Related Protein 1,Up-Regulation}
+    \endentry
+    \entry{corbinRoleMicroRNAsSynaptic2009}{article}{}{}
+      \name{author}{3}{}{%
+        {{un=0,uniquepart=base,hash=8dfeabeef0ce5146526e14be742386af}{%
+           family={Corbin},
+           familyi={C\bibinitperiod},
+           given={Rachel},
+           giveni={R\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=35919b540b0fc5116948ef89efc0b25b}{%
+           family={Olsson-Carter},
+           familyi={O\bibinithyphendelim C\bibinitperiod},
+           given={Katherine},
+           giveni={K\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=89887145a9398924e04d8a0d986c2ea0}{%
+           family={Slack},
+           familyi={S\bibinitperiod},
+           given={Frank},
+           giveni={F\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{4ff706e5bd8934b8960ae7d4e16c34b7}
+      \strng{fullhash}{f266355a3f7e6d84857e6d2cb658e0c6}
+      \strng{fullhashraw}{f266355a3f7e6d84857e6d2cb658e0c6}
+      \strng{bibnamehash}{f266355a3f7e6d84857e6d2cb658e0c6}
+      \strng{authorbibnamehash}{f266355a3f7e6d84857e6d2cb658e0c6}
+      \strng{authornamehash}{4ff706e5bd8934b8960ae7d4e16c34b7}
+      \strng{authorfullhash}{f266355a3f7e6d84857e6d2cb658e0c6}
+      \strng{authorfullhashraw}{f266355a3f7e6d84857e6d2cb658e0c6}
+      \field{sortinit}{C}
+      \field{sortinithash}{4d103a86280481745c9c897c925753c0}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{MicroRNAs control gene expression by inhibiting translation or promoting degradation of their target mRNAs. Since the discovery of the first microRNAs, lin-4 and let-7, in C. elegans, hundreds of microRNAs have been identified as key regulators of cell fate determination, lifespan, and cancer in species ranging from plants to humans. However, while microRNAs have been shown to be particularly abundant in the brain, their role in the development and activity of the nervous system is still largely unknown. In this review, we describe recent advances in our understanding of microRNA function at synapses, the specialized structures required for communication between neurons and their targets. We also propose how these advances might inform the molecular model of memory.}
+      \field{day}{31}
+      \field{eprinttype}{pubmed}
+      \field{issn}{1976-6696}
+      \field{journaltitle}{BMB reports}
+      \field{month}{3}
+      \field{number}{3}
+      \field{shortjournal}{BMB Rep}
+      \field{title}{The Role of {{microRNAs}} in Synaptic Development and Function}
+      \field{urlday}{11}
+      \field{urlmonth}{4}
+      \field{urlyear}{2026}
+      \field{volume}{42}
+      \field{year}{2009}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \field{pages}{131\bibrangedash 135}
+      \range{pages}{5}
+      \verb{doi}
+      \verb 10.5483/bmbrep.2009.42.3.131
+      \endverb
+      \verb{eprint}
+      \verb 19335998
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/8WD45JGQ/Corbin et al. - 2009 - The role of microRNAs in synaptic development and function.pdf
+      \endverb
+      \verb{urlraw}
+      \verb https://pmc.ncbi.nlm.nih.gov/articles/PMC4315497/
+      \endverb
+      \verb{url}
+      \verb https://pmc.ncbi.nlm.nih.gov/articles/PMC4315497/
+      \endverb
+    \endentry
+    \entry{dienerMiRNATargetInteractions2024}{article}{}{}
+      \name{author}{3}{}{%
+        {{un=0,uniquepart=base,hash=a42ac622dcf304109c83bdac5437f1dd}{%
+           family={Diener},
+           familyi={D\bibinitperiod},
+           given={Caroline},
+           giveni={C\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=6761a110d4f48e785ff63c72e3ba7c8c}{%
+           family={Keller},
+           familyi={K\bibinitperiod},
+           given={Andreas},
+           giveni={A\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=28ee4927b7dc111325201be38d8b6d29}{%
+           family={Meese},
+           familyi={M\bibinitperiod},
+           given={Eckart},
+           giveni={E\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{77adf2fa187ad77c176b6e233b64a7d6}
+      \strng{fullhash}{7bd2dde2b584f5060b10be1c512d3619}
+      \strng{fullhashraw}{7bd2dde2b584f5060b10be1c512d3619}
+      \strng{bibnamehash}{7bd2dde2b584f5060b10be1c512d3619}
+      \strng{authorbibnamehash}{7bd2dde2b584f5060b10be1c512d3619}
+      \strng{authornamehash}{77adf2fa187ad77c176b6e233b64a7d6}
+      \strng{authorfullhash}{7bd2dde2b584f5060b10be1c512d3619}
+      \strng{authorfullhashraw}{7bd2dde2b584f5060b10be1c512d3619}
+      \field{sortinit}{D}
+      \field{sortinithash}{6f385f66841fb5e82009dc833c761848}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{abstract}{MicroRNAs (miRNAs) play indispensable roles in posttranscriptional gene regulation. Their cellular regulatory impact is determined not solely by their sheer number, which likely amounts to \&gt;2000 individual miRNAs in human, than by the regulatory effectiveness of single miRNAs. Although, one begins to develop an understanding of the complex mechanisms underlying miRNA–target interactions (MTIs), the overall knowledge of MTI functionality is still rather patchy. In this critical review, we summarize key features of mammalian MTIs. We especially highlight latest insights on (i) the dynamic make-up of miRNA binding sites including non-canonical binding sites, (ii) the cooperativity between miRNA binding sites, (iii) the adaptivity of MTIs through sequence modifications, (iv) the bearing of intra-cellular miRNA localization changes and (v) the role of cell type and cell status specific miRNA interaction partners. The MTI biology is discussed against the background of state-of-the-art approaches with particular emphasis on experimental strategies for evaluating miRNA functionality.}
+      \field{day}{28}
+      \field{issn}{0305-1048}
+      \field{journaltitle}{Nucleic Acids Research}
+      \field{month}{2}
+      \field{number}{4}
+      \field{shortjournal}{Nucleic Acids Res}
+      \field{shorttitle}{The {{miRNA}}–Target Interactions}
+      \field{title}{The {{miRNA}}–Target Interactions: {{An}} Underestimated Intricacy}
+      \field{urlday}{9}
+      \field{urlmonth}{4}
+      \field{urlyear}{2026}
+      \field{volume}{52}
+      \field{year}{2024}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \field{pages}{1544\bibrangedash 1557}
+      \range{pages}{14}
+      \verb{doi}
+      \verb 10.1093/nar/gkad1142
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/JPPAUP5R/Diener et al. - 2024 - The miRNA–target interactions An underestimated intricacy.pdf;/home/rafail/Zotero/storage/FIGSCVCW/gkad1142.html
+      \endverb
+      \verb{urlraw}
+      \verb https://doi.org/10.1093/nar/gkad1142
+      \endverb
+      \verb{url}
+      \verb https://doi.org/10.1093/nar/gkad1142
+      \endverb
+    \endentry
+    \entry{dingMiR222CardiovascularDiseases2017}{article}{}{}
+      \name{author}{5}{}{%
+        {{un=0,uniquepart=base,hash=d4140ed3eba311588041e4720f781c74}{%
+           family={Ding},
+           familyi={D\bibinitperiod},
+           given={Shengguang},
+           giveni={S\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=ca1b6d82ff904404a1ca2ae9f795717d}{%
+           family={Huang},
+           familyi={H\bibinitperiod},
+           given={Haitao},
+           giveni={H\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=e415966cd08385a88248939cdc9e4c16}{%
+           family={Xu},
+           familyi={X\bibinitperiod},
+           given={Yiming},
+           giveni={Y\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=9d368ab66d67ab2a2f3f79695b175856}{%
+           family={Zhu},
+           familyi={Z\bibinitperiod},
+           given={Hao},
+           giveni={H\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=27a4e65311972adf808012f15949725d}{%
+           family={Zhong},
+           familyi={Z\bibinitperiod},
+           given={Chongjun},
+           giveni={C\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{62452e618cd0f68393033c44ab066a01}
+      \strng{fullhash}{c0f93edf31fd5059ed7661f92d2ef59c}
+      \strng{fullhashraw}{c0f93edf31fd5059ed7661f92d2ef59c}
+      \strng{bibnamehash}{c0f93edf31fd5059ed7661f92d2ef59c}
+      \strng{authorbibnamehash}{c0f93edf31fd5059ed7661f92d2ef59c}
+      \strng{authornamehash}{62452e618cd0f68393033c44ab066a01}
+      \strng{authorfullhash}{c0f93edf31fd5059ed7661f92d2ef59c}
+      \strng{authorfullhashraw}{c0f93edf31fd5059ed7661f92d2ef59c}
+      \field{sortinit}{D}
+      \field{sortinithash}{6f385f66841fb5e82009dc833c761848}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{abstract}{MicroRNAs (miRNAs and miRs) are endogenous 19–22 nucleotide, small noncoding RNAs with highly conservative and tissue specific expression. They can negatively modulate target gene expressions through decreasing transcription or posttranscriptional inducing mRNA decay. Increasing evidence suggests that deregulated miRNAs play an important role in the genesis of cardiovascular diseases. Additionally, circulating miRNAs can be biomarkers for cardiovascular diseases. MiR-222 has been reported to play important roles in a variety of physiological and pathological processes in the heart. Here we reviewed the recent studies about the roles of miR-222 in cardiovascular diseases. MiR-222 may be a potential cardiovascular biomarker and a new therapeutic target in cardiovascular diseases.}
+      \field{eprinttype}{pubmed}
+      \field{issn}{2314-6133}
+      \field{journaltitle}{BioMed Research International}
+      \field{shortjournal}{Biomed Res Int}
+      \field{shorttitle}{{{MiR-222}} in {{Cardiovascular Diseases}}}
+      \field{title}{{{MiR-222}} in {{Cardiovascular Diseases}}: {{Physiology}} and {{Pathology}}}
+      \field{urlday}{11}
+      \field{urlmonth}{4}
+      \field{urlyear}{2026}
+      \field{volume}{2017}
+      \field{year}{2017}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \field{pages}{4962426}
+      \range{pages}{1}
+      \verb{doi}
+      \verb 10.1155/2017/4962426
+      \endverb
+      \verb{eprint}
+      \verb 28127557
+      \endverb
+      \verb{urlraw}
+      \verb https://pmc.ncbi.nlm.nih.gov/articles/PMC5239839/
+      \endverb
+      \verb{url}
+      \verb https://pmc.ncbi.nlm.nih.gov/articles/PMC5239839/
+      \endverb
+    \endentry
+    \entry{grimsonMicroRNATargetingSpecificity2007}{article}{}{}
+      \name{author}{6}{}{%
+        {{un=0,uniquepart=base,hash=c367719f295b64c138126cb9a9de43ad}{%
+           family={Grimson},
+           familyi={G\bibinitperiod},
+           given={Andrew},
+           giveni={A\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=9088739f51795bd45d0c254b37c74fda}{%
+           family={Farh},
+           familyi={F\bibinitperiod},
+           given={Kyle\bibnamedelima Kai-How},
+           giveni={K\bibinitperiod\bibinitdelim K\bibinithyphendelim H\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=ce8bd2404c0db6b1ddeabca62e8358e1}{%
+           family={Johnston},
+           familyi={J\bibinitperiod},
+           given={Wendy\bibnamedelima K.},
+           giveni={W\bibinitperiod\bibinitdelim K\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=4d2dfc19f522ff377a8af8f0cf5e16ed}{%
+           family={Garrett-Engele},
+           familyi={G\bibinithyphendelim E\bibinitperiod},
+           given={Philip},
+           giveni={P\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=59baf1b8d080694dec51df83dc7b0eec}{%
+           family={Lim},
+           familyi={L\bibinitperiod},
+           given={Lee\bibnamedelima P.},
+           giveni={L\bibinitperiod\bibinitdelim P\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=056c2b17168f46a2cf5a1a76f287b2f0}{%
+           family={Bartel},
+           familyi={B\bibinitperiod},
+           given={David\bibnamedelima P.},
+           giveni={D\bibinitperiod\bibinitdelim P\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {Elsevier}%
+      }
+      \strng{namehash}{430f3f00da9efb9da965a5501d5c6d63}
+      \strng{fullhash}{e719decd63f9e490daab6235e83748f9}
+      \strng{fullhashraw}{e719decd63f9e490daab6235e83748f9}
+      \strng{bibnamehash}{430f3f00da9efb9da965a5501d5c6d63}
+      \strng{authorbibnamehash}{430f3f00da9efb9da965a5501d5c6d63}
+      \strng{authornamehash}{430f3f00da9efb9da965a5501d5c6d63}
+      \strng{authorfullhash}{e719decd63f9e490daab6235e83748f9}
+      \strng{authorfullhashraw}{e719decd63f9e490daab6235e83748f9}
+      \field{sortinit}{G}
+      \field{sortinithash}{32d67eca0634bf53703493fb1090a2e8}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{day}{6}
+      \field{eprinttype}{pubmed}
+      \field{issn}{1097-2765}
+      \field{journaltitle}{Molecular Cell}
+      \field{langid}{english}
+      \field{month}{7}
+      \field{number}{1}
+      \field{shortjournal}{Molecular Cell}
+      \field{shorttitle}{{{MicroRNA Targeting Specificity}} in {{Mammals}}}
+      \field{title}{{{MicroRNA Targeting Specificity}} in {{Mammals}}: {{Determinants}} beyond {{Seed Pairing}}}
+      \field{urlday}{10}
+      \field{urlmonth}{4}
+      \field{urlyear}{2026}
+      \field{volume}{27}
+      \field{year}{2007}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \field{pages}{91\bibrangedash 105}
+      \range{pages}{15}
+      \verb{doi}
+      \verb 10.1016/j.molcel.2007.06.017
+      \endverb
+      \verb{eprint}
+      \verb 17612493
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/QCY7MRKV/Grimson et al. - 2007 - MicroRNA Targeting Specificity in Mammals Determinants beyond Seed Pairing.pdf
+      \endverb
+      \verb{urlraw}
+      \verb https://www.cell.com/molecular-cell/abstract/S1097-2765(07)00407-8
+      \endverb
+      \verb{url}
+      \verb https://www.cell.com/molecular-cell/abstract/S1097-2765(07)00407-8
+      \endverb
+      \keyw{RNA,SYSBIO}
+    \endentry
+    \entry{gullerMicroRNAsSkeletalMuscle2010}{article}{}{}
+      \name{author}{2}{}{%
+        {{un=0,uniquepart=base,hash=a4e9ef3dc1f36d597cb0466ea671b126}{%
+           family={Güller},
+           familyi={G\bibinitperiod},
+           given={Isabelle},
+           giveni={I\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=ea1b6a87742a0ed892cf795a9d121c45}{%
+           family={Russell},
+           familyi={R\bibinitperiod},
+           given={Aaron\bibnamedelima P},
+           giveni={A\bibinitperiod\bibinitdelim P\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{0f60a6c0a119a0a823c6eb1e19ebe431}
+      \strng{fullhash}{0f60a6c0a119a0a823c6eb1e19ebe431}
+      \strng{fullhashraw}{0f60a6c0a119a0a823c6eb1e19ebe431}
+      \strng{bibnamehash}{0f60a6c0a119a0a823c6eb1e19ebe431}
+      \strng{authorbibnamehash}{0f60a6c0a119a0a823c6eb1e19ebe431}
+      \strng{authornamehash}{0f60a6c0a119a0a823c6eb1e19ebe431}
+      \strng{authorfullhash}{0f60a6c0a119a0a823c6eb1e19ebe431}
+      \strng{authorfullhashraw}{0f60a6c0a119a0a823c6eb1e19ebe431}
+      \field{sortinit}{G}
+      \field{sortinithash}{32d67eca0634bf53703493fb1090a2e8}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{abstract}{Maintaining skeletal muscle function throughout the lifespan is a prerequisite for good health and independent living. For skeletal muscle to consistently function at optimal levels, the efficient activation of processes that regulate muscle development, growth, regeneration and metabolism is required. Numerous conditions including neuromuscular disorders, physical inactivity, chronic disease and ageing are associated with perturbations in skeletal muscle function. A loss or reduction in skeletal muscle function often leads to increased morbidity and mortality either directly, or indirectly, via the development of secondary diseases such as diabetes, obesity, cardiovascular and respiratory disease. Identifying mechanisms which influence the processes regulating skeletal muscle function is a key priority. The discovery of microRNAs (miRNAs) provides a new avenue that will extend our knowledge of factors controlling skeletal muscle function. miRNAs may also improve our understanding and application of current therapeutic approaches as well as enable the identification of new therapeutic strategies and targets aimed at maintaining and/or improving skeletal muscle health. This review brings together the latest developments in skeletal muscle miRNA biology and focuses on their role and regulation under physiological and patho-physiological conditions with an emphasis on: myogenesis, hypertrophy, atrophy and regeneration; exercise and nutrition; muscle disease, ageing, diabetes and obesity.}
+      \field{day}{1}
+      \field{eprinttype}{pubmed}
+      \field{issn}{0022-3751}
+      \field{issue}{Pt 21}
+      \field{journaltitle}{The Journal of Physiology}
+      \field{month}{11}
+      \field{shortjournal}{J Physiol}
+      \field{shorttitle}{{{MicroRNAs}} in Skeletal Muscle}
+      \field{title}{{{MicroRNAs}} in Skeletal Muscle: Their Role and Regulation in Development, Disease and Function}
+      \field{urlday}{11}
+      \field{urlmonth}{4}
+      \field{urlyear}{2026}
+      \field{volume}{588}
+      \field{year}{2010}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \field{pages}{4075\bibrangedash 4087}
+      \range{pages}{13}
+      \verb{doi}
+      \verb 10.1113/jphysiol.2010.194175
+      \endverb
+      \verb{eprint}
+      \verb 20724363
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/5F4DJPPH/Güller and Russell - 2010 - MicroRNAs in skeletal muscle their role and regulation in development, disease and function.pdf
+      \endverb
+      \verb{urlraw}
+      \verb https://pmc.ncbi.nlm.nih.gov/articles/PMC3002442/
+      \endverb
+      \verb{url}
+      \verb https://pmc.ncbi.nlm.nih.gov/articles/PMC3002442/
+      \endverb
+    \endentry
+    \entry{guoNuclearMiR30b5pSuppresses2021}{article}{}{}
+      \name{author}{12}{}{%
+        {{un=0,uniquepart=base,hash=6be516c326545855a6076ad1d33764fc}{%
+           family={Guo},
+           familyi={G\bibinitperiod},
+           given={Huijie},
+           giveni={H\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=ba23180a9fa5bd1f955686477c0b5ade}{%
+           family={Pu},
+           familyi={P\bibinitperiod},
+           given={Mei},
+           giveni={M\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=0a02c846c459bf57662fa78a12b87d03}{%
+           family={Tai},
+           familyi={T\bibinitperiod},
+           given={Yusi},
+           giveni={Y\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=3f559757230e0aea442894ac27a1632d}{%
+           family={Chen},
+           familyi={C\bibinitperiod},
+           given={Yuxiang},
+           giveni={Y\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=f2b873ab7ece02cf34fc36e65985e712}{%
+           family={Lu},
+           familyi={L\bibinitperiod},
+           given={Henglei},
+           giveni={H\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=1fb9c8d832f37f889a1f2c71d84d2969}{%
+           family={Qiao},
+           familyi={Q\bibinitperiod},
+           given={Junwen},
+           giveni={J\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=6b7cb2538a013babf9876fc36469e2e6}{%
+           family={Wang},
+           familyi={W\bibinitperiod},
+           given={Guanghui},
+           giveni={G\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=11c05b885f1bc92570da26e49722e81d}{%
+           family={Chen},
+           familyi={C\bibinitperiod},
+           given={Jing},
+           giveni={J\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=0b04dd79cd9bf252c0e19e76924394a9}{%
+           family={Qi},
+           familyi={Q\bibinitperiod},
+           given={Xinming},
+           giveni={X\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=e3c647dc7e96a0e7c726c9810cfbee98}{%
+           family={Huang},
+           familyi={H\bibinitperiod},
+           given={Ruimin},
+           giveni={R\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=c7d18f2cc5634fba29e034f55bb697a8}{%
+           family={Tao},
+           familyi={T\bibinitperiod},
+           given={Zhouteng},
+           giveni={Z\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=c09a911a8c41a591f1247d8ce3b5ca23}{%
+           family={Ren},
+           familyi={R\bibinitperiod},
+           given={Jin},
+           giveni={J\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{2aa0565303b85ddbeb7b821c6ed16bd4}
+      \strng{fullhash}{2d88e7956c6b48f00b10ff1ad86c89a5}
+      \strng{fullhashraw}{2d88e7956c6b48f00b10ff1ad86c89a5}
+      \strng{bibnamehash}{2aa0565303b85ddbeb7b821c6ed16bd4}
+      \strng{authorbibnamehash}{2aa0565303b85ddbeb7b821c6ed16bd4}
+      \strng{authornamehash}{2aa0565303b85ddbeb7b821c6ed16bd4}
+      \strng{authorfullhash}{2d88e7956c6b48f00b10ff1ad86c89a5}
+      \strng{authorfullhashraw}{2d88e7956c6b48f00b10ff1ad86c89a5}
+      \field{sortinit}{G}
+      \field{sortinithash}{32d67eca0634bf53703493fb1090a2e8}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{Lysosome is a crucial organelle in charge of degrading proteins and damaged organelles to maintain cellular homeostasis. Transcription factor EB (TFEB) is the master transcription factor regulating lysosomal biogenesis and autophagy. Under external stimuli such as starvation, dephosphorylated TFEB transports into the nucleus to specifically recognize and bind to the coordinated lysosomal expression and regulation (CLEAR) elements at the promotors of autophagy and lysosomal biogenesis-related genes. The function of TFEB in the nucleus is fine regulated but the molecular mechanism is not fully elucidated. In this study, we discovered that miR-30b-5p, a small RNA which is known to regulate a series of genes through posttranscriptional regulation in the cytoplasm, was translocated into the nucleus, bound to the CLEAR elements, suppressed the transcription of TFEB-dependent downstream genes, and further inhibited the lysosomal biogenesis and the autophagic flux; meanwhile, knocking out the endogenous miR-30b-5p by CRISPR/Cas9 technique significantly increased the TFEB-mediated transactivation, resulting in the increased expression of autophagy and lysosomal biogenesis-related genes. Overexpressing miR-30b-5p in mice livers showed a decrease in lysosomal biogenesis and autophagy. These in vitro and in vivo data indicate that miR-30b-5p may inhibit the TFEB-dependent transactivation by binding to the CLEAR elements in the nucleus to regulate the lysosomal biogenesis and autophagy. This novel mechanism of nuclear miRNA regulating gene transcription is conducive to further elucidating the roles of miRNAs in the lysosomal physiological functions and helps to understand the pathogenesis of abnormal autophagy-related diseases.}
+      \field{eprinttype}{pubmed}
+      \field{issn}{1476-5403}
+      \field{journaltitle}{Cell Death and Differentiation}
+      \field{langid}{english}
+      \field{month}{1}
+      \field{number}{1}
+      \field{shortjournal}{Cell Death Differ}
+      \field{title}{Nuclear {{miR-30b-5p}} Suppresses {{TFEB-mediated}} Lysosomal Biogenesis and Autophagy}
+      \field{volume}{28}
+      \field{year}{2021}
+      \field{dateera}{ce}
+      \field{pages}{320\bibrangedash 336}
+      \range{pages}{17}
+      \verb{doi}
+      \verb 10.1038/s41418-020-0602-4
+      \endverb
+      \verb{eprint}
+      \verb 32764647
+      \endverb
+      \keyw{Animals,Autophagy,Basic Helix-Loop-Helix Leucine Zipper Transcription Factors,Cell Nucleus,HEK293 Cells,HeLa Cells,Humans,Lysosomes,Male,Mice,Mice Inbred C57BL,MicroRNAs}
+    \endentry
+    \entry{hejretAnalysisChimericReads2023}{article}{}{}
+      \name{author}{7}{}{%
+        {{un=0,uniquepart=base,hash=27c1b4b7df5fc286a47aa505756ee04e}{%
+           family={Hejret},
+           familyi={H\bibinitperiod},
+           given={Vaclav},
+           giveni={V\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=1925b759d273315ad1b3068fed0930b3}{%
+           family={Varadarajan},
+           familyi={V\bibinitperiod},
+           given={Nandan\bibnamedelima Mysore},
+           giveni={N\bibinitperiod\bibinitdelim M\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=cc4460c8597622bfcf7061014f970974}{%
+           family={Klimentova},
+           familyi={K\bibinitperiod},
+           given={Eva},
+           giveni={E\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=9acf50f7c1670cb0897c2fb50e435964}{%
+           family={Gresova},
+           familyi={G\bibinitperiod},
+           given={Katarina},
+           giveni={K\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=9e9128dda4813e2b6c1f4a9bdbab9828}{%
+           family={Giassa},
+           familyi={G\bibinitperiod},
+           given={Ilektra-Chara},
+           giveni={I\bibinithyphendelim C\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=a33a5f0f22638f68dc423e2a48a98fbf}{%
+           family={Vanacova},
+           familyi={V\bibinitperiod},
+           given={Stepanka},
+           giveni={S\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=decba2be05b5a28a9b00e78278411316}{%
+           family={Alexiou},
+           familyi={A\bibinitperiod},
+           given={Panagiotis},
+           giveni={P\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {Nature Publishing Group}%
+      }
+      \strng{namehash}{7c3159854380cb82289a341f6a34be8c}
+      \strng{fullhash}{7041156660c730d0a9ee9c42bbf42659}
+      \strng{fullhashraw}{7041156660c730d0a9ee9c42bbf42659}
+      \strng{bibnamehash}{7c3159854380cb82289a341f6a34be8c}
+      \strng{authorbibnamehash}{7c3159854380cb82289a341f6a34be8c}
+      \strng{authornamehash}{7c3159854380cb82289a341f6a34be8c}
+      \strng{authorfullhash}{7041156660c730d0a9ee9c42bbf42659}
+      \strng{authorfullhashraw}{7041156660c730d0a9ee9c42bbf42659}
+      \field{sortinit}{H}
+      \field{sortinithash}{23a3aa7c24e56cfa16945d55545109b5}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{Argonaute proteins are instrumental in regulating RNA stability and translation. AGO2, the major mammalian Argonaute protein, is known to primarily associate with microRNAs, a family of small RNA ‘guide’ sequences, and identifies its targets primarily via a ‘seed’ mediated partial complementarity process. Despite numerous studies, a definitive experimental dataset of AGO2 ‘guide’–’target’ interactions remains elusive. Our study employs two experimental methods—AGO2 CLASH and AGO2 eCLIP, to generate thousands of AGO2 target sites verified by chimeric reads. These chimeric reads contain both the AGO2 loaded small RNA ‘guide’ and the target sequence, providing a robust resource for modeling AGO2 binding preferences. Our novel analysis pipeline reveals thousands of AGO2 target sites driven by microRNAs and a significant number of AGO2 ‘guides’ derived from fragments of other small RNAs such as tRNAs, YRNAs, snoRNAs, rRNAs, and more. We utilize convolutional neural networks to train machine learning models that accurately predict the binding potential for each ‘guide’ class and experimentally validate several interactions. In conclusion, our comprehensive analysis of the AGO2 targetome broadens our understanding of its ‘guide’ repertoire and potential function in development and disease. Moreover, we offer practical bioinformatic tools for future experiments and the prediction of AGO2 targets. All data and code from this study are freely available at https://github.com/ML-Bioinfo-CEITEC/HybriDetector/.}
+      \field{day}{21}
+      \field{issn}{2045-2322}
+      \field{journaltitle}{Scientific Reports}
+      \field{langid}{english}
+      \field{month}{12}
+      \field{number}{1}
+      \field{shortjournal}{Sci Rep}
+      \field{title}{Analysis of Chimeric Reads Characterises the Diverse Targetome of {{AGO2-mediated}} Regulation}
+      \field{urlday}{25}
+      \field{urlmonth}{8}
+      \field{urlyear}{2025}
+      \field{volume}{13}
+      \field{year}{2023}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \field{pages}{22895}
+      \range{pages}{1}
+      \verb{doi}
+      \verb 10.1038/s41598-023-49757-z
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/U43PBKCK/Hejret et al. - 2023 - Analysis of chimeric reads characterises the diverse targetome of AGO2-mediated regulation.pdf
+      \endverb
+      \verb{urlraw}
+      \verb https://www.nature.com/articles/s41598-023-49757-z
+      \endverb
+      \verb{url}
+      \verb https://www.nature.com/articles/s41598-023-49757-z
+      \endverb
+      \keyw{Data processing,Machine learning,miRNAs}
+    \endentry
+    \entry{hornsteinMicroRNAMiR196Acts2005}{article}{}{}
+      \name{author}{9}{}{%
+        {{un=0,uniquepart=base,hash=b80fa683b8b061729946d2a3ce75754d}{%
+           family={Hornstein},
+           familyi={H\bibinitperiod},
+           given={Eran},
+           giveni={E\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=85bda4e705fed5ace9aebcbe0e3e41ae}{%
+           family={Mansfield},
+           familyi={M\bibinitperiod},
+           given={Jennifer\bibnamedelima H.},
+           giveni={J\bibinitperiod\bibinitdelim H\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=e7d14e720c4fc7c8bb6d987298e5061c}{%
+           family={Yekta},
+           familyi={Y\bibinitperiod},
+           given={Soraya},
+           giveni={S\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=d976bb00ea213872d7b93dd39c143adc}{%
+           family={Hu},
+           familyi={H\bibinitperiod},
+           given={Jimmy\bibnamedelima Kuang-Hsien},
+           giveni={J\bibinitperiod\bibinitdelim K\bibinithyphendelim H\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=72702ee9e7b5ed6f10a1e48944aa9f96}{%
+           family={Harfe},
+           familyi={H\bibinitperiod},
+           given={Brian\bibnamedelima D.},
+           giveni={B\bibinitperiod\bibinitdelim D\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=518136b46267fad9f0a07cf2e2315514}{%
+           family={McManus},
+           familyi={M\bibinitperiod},
+           given={Michael\bibnamedelima T.},
+           giveni={M\bibinitperiod\bibinitdelim T\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=d8ed0c7461804a447f07eb9d3fafc248}{%
+           family={Baskerville},
+           familyi={B\bibinitperiod},
+           given={Scott},
+           giveni={S\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=056c2b17168f46a2cf5a1a76f287b2f0}{%
+           family={Bartel},
+           familyi={B\bibinitperiod},
+           given={David\bibnamedelima P.},
+           giveni={D\bibinitperiod\bibinitdelim P\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=b8029e1c31e44e01b3139b72bf576b70}{%
+           family={Tabin},
+           familyi={T\bibinitperiod},
+           given={Clifford\bibnamedelima J.},
+           giveni={C\bibinitperiod\bibinitdelim J\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {Nature Publishing Group}%
+      }
+      \strng{namehash}{6140ecc5ca5d7bc31f6306ba9eb649ca}
+      \strng{fullhash}{c22ed6571618fdcaad336cf42797bfa0}
+      \strng{fullhashraw}{c22ed6571618fdcaad336cf42797bfa0}
+      \strng{bibnamehash}{6140ecc5ca5d7bc31f6306ba9eb649ca}
+      \strng{authorbibnamehash}{6140ecc5ca5d7bc31f6306ba9eb649ca}
+      \strng{authornamehash}{6140ecc5ca5d7bc31f6306ba9eb649ca}
+      \strng{authorfullhash}{c22ed6571618fdcaad336cf42797bfa0}
+      \strng{authorfullhashraw}{c22ed6571618fdcaad336cf42797bfa0}
+      \field{sortinit}{H}
+      \field{sortinithash}{23a3aa7c24e56cfa16945d55545109b5}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{The discovery of microRNAs (miRNAs), the non-coding RNAs thought to be involved in many biological processes, is changing our perception of gene regulation. Little is known about their function in mammalian systems in vivo, but a newly developed group of compounds that silences miRNAs in mice should provide a powerful tool for the study of their function — and a potential therapeutic strategy for silencing miRNAs in disease. These ‘antagomirs’ are chemically engineered oligonucleotides with sequences that complement natural miRNAs. Intravenous administration of antagomirs to miR-16, -122, -192 and -194 in mice caused a marked reduction of corresponding miRNA expression in liver, lung, kidney, heart, muscle, intestine, fat, skin, bone marrow, ovaries and adrenals. In worms and flies, miRNAs play important developmental roles in the embryo. In vertebrates, various developmental genes have been shown to be targets of miRNA regulation, but there were no examples of miRNAs playing specific roles in known developmental processes. Now one such example has been found: miR-196 acts in mouse embryos as a mechanism to ensure accurate expression of genes primarily regulated by Hoxb8 and Shh transcription factors. This supports the idea that vertebrate miRNAs may function as a secondary level of gene regulation.}
+      \field{issn}{1476-4687}
+      \field{journaltitle}{Nature}
+      \field{langid}{english}
+      \field{month}{12}
+      \field{number}{7068}
+      \field{title}{The {{microRNA miR-196}} Acts Upstream of {{Hoxb8}} and {{Shh}} in Limb Development}
+      \field{urlday}{11}
+      \field{urlmonth}{4}
+      \field{urlyear}{2026}
+      \field{volume}{438}
+      \field{year}{2005}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \field{pages}{671\bibrangedash 674}
+      \range{pages}{4}
+      \verb{doi}
+      \verb 10.1038/nature04138
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/R2RPSCC7/Hornstein et al. - 2005 - The microRNA miR-196 acts upstream of Hoxb8 and Shh in limb development.pdf
+      \endverb
+      \verb{urlraw}
+      \verb https://www.nature.com/articles/nature04138
+      \endverb
+      \verb{url}
+      \verb https://www.nature.com/articles/nature04138
+      \endverb
+      \keyw{Humanities and Social Sciences,multidisciplinary,Science}
+    \endentry
+    \entry{kimMicroRNAdirectedTranscriptionalGene2008}{article}{}{}
+      \name{author}{4}{}{%
+        {{un=0,uniquepart=base,hash=bf38fd79273c56d262c8d34cdcf4d1b7}{%
+           family={Kim},
+           familyi={K\bibinitperiod},
+           given={Daniel\bibnamedelima H.},
+           giveni={D\bibinitperiod\bibinitdelim H\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=b6d52260ebfd49d5b238fd3985c30640}{%
+           family={Saetrom},
+           familyi={S\bibinitperiod},
+           given={Pål},
+           giveni={P\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=89d6fd12b92ca23282c63712ae79efb7}{%
+           family={Snøve},
+           familyi={S\bibinitperiod},
+           given={Ola},
+           giveni={O\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=8417b397a0db2b66252ebfad72bb7512}{%
+           family={Rossi},
+           familyi={R\bibinitperiod},
+           given={John\bibnamedelima J.},
+           giveni={J\bibinitperiod\bibinitdelim J\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{65985b80542ad1dfaf799e7c5a8f4e78}
+      \strng{fullhash}{d34a75ec82f551b5bb2e983b4d8cfd55}
+      \strng{fullhashraw}{d34a75ec82f551b5bb2e983b4d8cfd55}
+      \strng{bibnamehash}{d34a75ec82f551b5bb2e983b4d8cfd55}
+      \strng{authorbibnamehash}{d34a75ec82f551b5bb2e983b4d8cfd55}
+      \strng{authornamehash}{65985b80542ad1dfaf799e7c5a8f4e78}
+      \strng{authorfullhash}{d34a75ec82f551b5bb2e983b4d8cfd55}
+      \strng{authorfullhashraw}{d34a75ec82f551b5bb2e983b4d8cfd55}
+      \field{sortinit}{K}
+      \field{sortinithash}{c02bf6bff1c488450c352b40f5d853ab}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{MicroRNAs (miRNAs) regulate gene expression at the posttranscriptional level in the cytoplasm, but recent findings suggest additional roles for miRNAs in the nucleus. To address whether miRNAs might transcriptionally silence gene expression, we searched for miRNA target sites proximal to known gene transcription start sites in the human genome. One conserved miRNA, miR-320, is encoded within the promoter region of the cell cycle gene POLR3D in the antisense orientation. We provide evidence of a cis-regulatory role for miR-320 in transcriptional silencing of POLR3D expression. miR-320 directs the association of RNA interference (RNAi) protein Argonaute-1 (AGO1), Polycomb group (PcG) component EZH2, and tri-methyl histone H3 lysine 27 (H3K27me3) with the POLR3D promoter. Our results suggest the existence of an epigenetic mechanism of miRNA-directed transcriptional gene silencing (TGS) in mammalian cells.}
+      \field{day}{21}
+      \field{eprinttype}{pubmed}
+      \field{issn}{1091-6490}
+      \field{journaltitle}{Proceedings of the National Academy of Sciences of the United States of America}
+      \field{langid}{english}
+      \field{month}{10}
+      \field{number}{42}
+      \field{shortjournal}{Proc Natl Acad Sci U S A}
+      \field{title}{{{MicroRNA-directed}} Transcriptional Gene Silencing in Mammalian Cells}
+      \field{volume}{105}
+      \field{year}{2008}
+      \field{dateera}{ce}
+      \field{pages}{16230\bibrangedash 16235}
+      \range{pages}{6}
+      \verb{doi}
+      \verb 10.1073/pnas.0808830105
+      \endverb
+      \verb{eprint}
+      \verb 18852463
+      \endverb
+      \keyw{Animals,Base Sequence,Cell Line,Gene Silencing,Humans,MicroRNAs,Promoter Regions Genetic,Transcription Genetic}
+    \endentry
+    \entry{kozomaraMiRBaseIntegratingMicroRNA2011}{article}{}{}
+      \name{author}{2}{}{%
+        {{un=0,uniquepart=base,hash=b9031b8b12a49fb74a00eb0bdec63895}{%
+           family={Kozomara},
+           familyi={K\bibinitperiod},
+           given={Ana},
+           giveni={A\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=00051f4775df943723a60fe22981f3e4}{%
+           family={Griffiths-Jones},
+           familyi={G\bibinithyphendelim J\bibinitperiod},
+           given={Sam},
+           giveni={S\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{b277d084c7e7de336b864ec2f31592a1}
+      \strng{fullhash}{b277d084c7e7de336b864ec2f31592a1}
+      \strng{fullhashraw}{b277d084c7e7de336b864ec2f31592a1}
+      \strng{bibnamehash}{b277d084c7e7de336b864ec2f31592a1}
+      \strng{authorbibnamehash}{b277d084c7e7de336b864ec2f31592a1}
+      \strng{authornamehash}{b277d084c7e7de336b864ec2f31592a1}
+      \strng{authorfullhash}{b277d084c7e7de336b864ec2f31592a1}
+      \strng{authorfullhashraw}{b277d084c7e7de336b864ec2f31592a1}
+      \field{sortinit}{K}
+      \field{sortinithash}{c02bf6bff1c488450c352b40f5d853ab}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{abstract}{miRBase is the primary online repository for all microRNA sequences and annotation. The current release (miRBase 16) contains over 15\,000 microRNA gene loci in over 140 species, and over 17\,000 distinct mature microRNA sequences. Deep-sequencing technologies have delivered a sharp rise in the rate of novel microRNA discovery. We have mapped reads from short RNA deep-sequencing experiments to microRNAs in miRBase and developed web interfaces to view these mappings. The user can view all read data associated with a given microRNA annotation, filter reads by experiment and count, and search for microRNAs by tissue- and stage-specific expression. These data can be used as a proxy for relative expression levels of microRNA sequences, provide detailed evidence for microRNA annotations and alternative isoforms of mature microRNAs, and allow us to revisit previous annotations. miRBase is available online at: http://www.mirbase.org/.}
+      \field{eprinttype}{pubmed}
+      \field{issn}{0305-1048}
+      \field{issue}{Database issue}
+      \field{journaltitle}{Nucleic Acids Research}
+      \field{month}{1}
+      \field{shortjournal}{Nucleic Acids Res}
+      \field{shorttitle}{{{miRBase}}}
+      \field{title}{{{miRBase}}: Integrating {{microRNA}} Annotation and Deep-Sequencing Data}
+      \field{urlday}{2}
+      \field{urlmonth}{4}
+      \field{urlyear}{2026}
+      \field{volume}{39}
+      \field{year}{2011}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \field{pages}{D152\bibrangedash D157}
+      \range{pages}{-1}
+      \verb{doi}
+      \verb 10.1093/nar/gkq1027
+      \endverb
+      \verb{eprint}
+      \verb 21037258
+      \endverb
+      \verb{urlraw}
+      \verb https://pmc.ncbi.nlm.nih.gov/articles/PMC3013655/
+      \endverb
+      \verb{url}
+      \verb https://pmc.ncbi.nlm.nih.gov/articles/PMC3013655/
+      \endverb
+    \endentry
+    \entry{linBladderCancerCellsecreted2019}{article}{}{}
+      \name{author}{6}{}{%
+        {{un=0,uniquepart=base,hash=a5d09b29dccf25ddcfe39ec8d4dcb2f3}{%
+           family={Lin},
+           familyi={L\bibinitperiod},
+           given={Fan},
+           giveni={F\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=74f0e4c613ee51bc9cd5c246cc027869}{%
+           family={Yin},
+           familyi={Y\bibinitperiod},
+           given={Hu-Bin},
+           giveni={H\bibinithyphendelim B\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=db8dcba186f03dd59a2ad10732bee971}{%
+           family={Li},
+           familyi={L\bibinitperiod},
+           given={Xin-Yuan},
+           giveni={X\bibinithyphendelim Y\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=d710d6addca8c76a12efd7d610d0aed3}{%
+           family={Zhu},
+           familyi={Z\bibinitperiod},
+           given={Gong-Min},
+           giveni={G\bibinithyphendelim M\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=a45616a2c032ff1dc1a9d817c562c05a}{%
+           family={He},
+           familyi={H\bibinitperiod},
+           given={Wei-Yang},
+           giveni={W\bibinithyphendelim Y\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=11c30830050475dae753db99ce049d6c}{%
+           family={Gou},
+           familyi={G\bibinitperiod},
+           given={Xin},
+           giveni={X\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{5660aebfc272969d36e57111db2e9b22}
+      \strng{fullhash}{a465e3ed39cd23decded591e8dc11d14}
+      \strng{fullhashraw}{a465e3ed39cd23decded591e8dc11d14}
+      \strng{bibnamehash}{5660aebfc272969d36e57111db2e9b22}
+      \strng{authorbibnamehash}{5660aebfc272969d36e57111db2e9b22}
+      \strng{authornamehash}{5660aebfc272969d36e57111db2e9b22}
+      \strng{authorfullhash}{a465e3ed39cd23decded591e8dc11d14}
+      \strng{authorfullhashraw}{a465e3ed39cd23decded591e8dc11d14}
+      \field{sortinit}{L}
+      \field{sortinithash}{7c47d417cecb1f4bd38d1825c427a61a}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{Tumour-associated macrophages (TAMs) compose a major component of the tumour microenvironment and form in this microenvironment prior to cancer metastasis. However, the detailed mechanisms of TAM remodelling in the context of bladder cancer have not been clearly defined. The present study collected exosomes from the conditioned medium of human bladder T24 cancer cells. The effects of macrophages treated with exosomes derived from T24 cells on bladder cancer cell migration and invasion were analysed by Transwell assays. The expression levels of endogenous and exosomal microRNA-21 (miR-21) were examined by reverse transcription-quantitative PCR, while the expression level of the target protein was analysed by western blot analysis. Luciferase reporter plasmids and mutants were used to confirm direct targeting. The effects of miR-21 on bladder cancer cell migration and invasion were analysed by Transwell and Matrigel assays following miR-21 transfection. It was identified that exosomes derived from bladder cancer cells polarized THP-1 cell-derived macrophages into the M2 phenotype, and TAM-mediated pro-migratory and pro-invasive activity was determined. Moreover, it was found that miR-21 was highly expressed in exosomes derived from bladder cancer cells as well as in macrophages treated with exosomes. In addition, macrophages transfected with miR-21 exhibited M2 polarization and promoted T24 cell migratory and invasive ability. Mechanistically, exosomal miR-21 derived from bladder cancer cells inhibited phosphatase and tensin homolog activation of the PI3K/AKT signalling pathway in macrophages and enhanced STAT3 expression to promote M2 phenotypic polarization. The present results suggest that exosomal miR-21 can promote cancer progression by polarizing TAMs.}
+      \field{day}{3}
+      \field{eprinttype}{pubmed}
+      \field{issn}{1019-6439}
+      \field{journaltitle}{International Journal of Oncology}
+      \field{month}{12}
+      \field{number}{1}
+      \field{shortjournal}{Int J Oncol}
+      \field{title}{Bladder Cancer Cell-Secreted Exosomal {{miR-21}} Activates the {{PI3K}}/{{AKT}} Pathway in Macrophages to Promote Cancer Progression}
+      \field{urlday}{11}
+      \field{urlmonth}{4}
+      \field{urlyear}{2026}
+      \field{volume}{56}
+      \field{year}{2019}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \field{pages}{151\bibrangedash 164}
+      \range{pages}{14}
+      \verb{doi}
+      \verb 10.3892/ijo.2019.4933
+      \endverb
+      \verb{eprint}
+      \verb 31814034
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/NDRBMNDX/Lin et al. - 2019 - Bladder cancer cell-secreted exosomal miR-21 activates the PI3KAKT pathway in macrophages to promot.pdf
+      \endverb
+      \verb{urlraw}
+      \verb https://pmc.ncbi.nlm.nih.gov/articles/PMC6910194/
+      \endverb
+      \verb{url}
+      \verb https://pmc.ncbi.nlm.nih.gov/articles/PMC6910194/
+      \endverb
+    \endentry
+    \entry{obrienOverviewMicroRNABiogenesis2018}{article}{}{}
+      \name{author}{4}{}{%
+        {{un=0,uniquepart=base,hash=4ac8bc5c4bc1fc559274c5b92a5345ce}{%
+           family={O'Brien},
+           familyi={O\bibinitperiod},
+           given={Jacob},
+           giveni={J\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=1fc457642edbee05c6700b34acbe56a2}{%
+           family={Hayder},
+           familyi={H\bibinitperiod},
+           given={Heyam},
+           giveni={H\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=bafcd1b0f7ecdcbe8317dbc0e6c2b9d3}{%
+           family={Zayed},
+           familyi={Z\bibinitperiod},
+           given={Yara},
+           giveni={Y\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=0406877e7d68dcaaea32f3d0b3f08bc1}{%
+           family={Peng},
+           familyi={P\bibinitperiod},
+           given={Chun},
+           giveni={C\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{ce560c5f9b306bddb7a55d3684fae4eb}
+      \strng{fullhash}{3efc9c42791de5ca0ca03aff55a504c1}
+      \strng{fullhashraw}{3efc9c42791de5ca0ca03aff55a504c1}
+      \strng{bibnamehash}{3efc9c42791de5ca0ca03aff55a504c1}
+      \strng{authorbibnamehash}{3efc9c42791de5ca0ca03aff55a504c1}
+      \strng{authornamehash}{ce560c5f9b306bddb7a55d3684fae4eb}
+      \strng{authorfullhash}{3efc9c42791de5ca0ca03aff55a504c1}
+      \strng{authorfullhashraw}{3efc9c42791de5ca0ca03aff55a504c1}
+      \field{sortinit}{O}
+      \field{sortinithash}{2cd7140a07aea5341f9e2771efe90aae}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{MicroRNAs (miRNAs) are a class of non-coding RNAs that play important roles in regulating gene expression. The majority of miRNAs are transcribed from DNA sequences into primary miRNAs and processed into precursor miRNAs, and finally mature miRNAs. In most cases, miRNAs interact with the 3′ untranslated region (3′ UTR) of target mRNAs to induce mRNA degradation and translational repression. However, interaction of miRNAs with other regions, including the 5′ UTR, coding sequence, and gene promoters, have also been reported. Under certain conditions, miRNAs can also activate translation or regulate transcription. The interaction of miRNAs with their target genes is dynamic and dependent on many factors, such as subcellular location of miRNAs, the abundancy of miRNAs and target mRNAs, and the affinity of miRNA-mRNA interactions. miRNAs can be secreted into extracellular fluids and transported to target cells via vesicles, such as exosomes, or by binding to proteins, including Argonautes. Extracellular miRNAs function as chemical messengers to mediate cell-cell communication. In this review, we provide an update on canonical and non-canonical miRNA biogenesis pathways and various mechanisms underlying miRNA-mediated gene regulations. We also summarize the current knowledge of the dynamics of miRNA action and of the secretion, transfer, and uptake of extracellular miRNAs.}
+      \field{day}{3}
+      \field{eprinttype}{pubmed}
+      \field{issn}{1664-2392}
+      \field{journaltitle}{Frontiers in Endocrinology}
+      \field{month}{8}
+      \field{shortjournal}{Front Endocrinol (Lausanne)}
+      \field{title}{Overview of {{MicroRNA Biogenesis}}, {{Mechanisms}} of {{Actions}}, and {{Circulation}}}
+      \field{urlday}{9}
+      \field{urlmonth}{4}
+      \field{urlyear}{2026}
+      \field{volume}{9}
+      \field{year}{2018}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \field{pages}{402}
+      \range{pages}{1}
+      \verb{doi}
+      \verb 10.3389/fendo.2018.00402
+      \endverb
+      \verb{eprint}
+      \verb 30123182
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/XILBWG97/O'Brien et al. - 2018 - Overview of MicroRNA Biogenesis, Mechanisms of Actions, and Circulation.pdf
+      \endverb
+      \verb{urlraw}
+      \verb https://pmc.ncbi.nlm.nih.gov/articles/PMC6085463/
+      \endverb
+      \verb{url}
+      \verb https://pmc.ncbi.nlm.nih.gov/articles/PMC6085463/
+      \endverb
+    \endentry
+    \entry{sapreUrinaryMicroRNASignature2016}{article}{}{}
+      \name{author}{10}{}{%
+        {{un=0,uniquepart=base,hash=728b890a77d1c02ff6aab39f9ea1849e}{%
+           family={Sapre},
+           familyi={S\bibinitperiod},
+           given={Nikhil},
+           giveni={N\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=1a84f00f2809b1fe6296fd58d9cdb7b7}{%
+           family={Macintyre},
+           familyi={M\bibinitperiod},
+           given={Geoff},
+           giveni={G\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=8e1b2c180358b9b17aac6c0fb23a6554}{%
+           family={Clarkson},
+           familyi={C\bibinitperiod},
+           given={Michael},
+           giveni={M\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=775684b5e153948621d8103f8a55e77e}{%
+           family={Naeem},
+           familyi={N\bibinitperiod},
+           given={Haroon},
+           giveni={H\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=3d9d16411958aebaf21671fd6dfa8f34}{%
+           family={Cmero},
+           familyi={C\bibinitperiod},
+           given={Marek},
+           giveni={M\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=d0bd328b54270320bfa60d1c78ba7959}{%
+           family={Kowalczyk},
+           familyi={K\bibinitperiod},
+           given={Adam},
+           giveni={A\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=94acbd7ccc15baef943cc6288b8446bb}{%
+           family={Anderson},
+           familyi={A\bibinitperiod},
+           given={Paul\bibnamedelima D.},
+           giveni={P\bibinitperiod\bibinitdelim D\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=a512060ac82c7035d120006ecfe979f3}{%
+           family={Costello},
+           familyi={C\bibinitperiod},
+           given={Anthony\bibnamedelima J.},
+           giveni={A\bibinitperiod\bibinitdelim J\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=79382a198fc552024b6c534ca6654d40}{%
+           family={Corcoran},
+           familyi={C\bibinitperiod},
+           given={Niall\bibnamedelima M.},
+           giveni={N\bibinitperiod\bibinitdelim M\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=b0aeb67b11f0fec26cbc579a2acbec9b}{%
+           family={Hovens},
+           familyi={H\bibinitperiod},
+           given={Christopher\bibnamedelima M.},
+           giveni={C\bibinitperiod\bibinitdelim M\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {Nature Publishing Group}%
+      }
+      \strng{namehash}{2532974d1810cbc536e3c46f97b85b54}
+      \strng{fullhash}{19d7c8446fac4355308f6da47b94f5ee}
+      \strng{fullhashraw}{19d7c8446fac4355308f6da47b94f5ee}
+      \strng{bibnamehash}{2532974d1810cbc536e3c46f97b85b54}
+      \strng{authorbibnamehash}{2532974d1810cbc536e3c46f97b85b54}
+      \strng{authornamehash}{2532974d1810cbc536e3c46f97b85b54}
+      \strng{authorfullhash}{19d7c8446fac4355308f6da47b94f5ee}
+      \strng{authorfullhashraw}{19d7c8446fac4355308f6da47b94f5ee}
+      \field{sortinit}{S}
+      \field{sortinithash}{b164b07b29984b41daf1e85279fbc5ab}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{The objective of this study was to determine whether microRNA (miRNA) profiling of urine could identify the presence of urothelial carcinoma of the bladder (UCB) and to compare its performance characteristics to that of cystoscopy.}
+      \field{issn}{1532-1827}
+      \field{journaltitle}{British Journal of Cancer}
+      \field{langid}{english}
+      \field{month}{2}
+      \field{number}{4}
+      \field{shortjournal}{Br J Cancer}
+      \field{title}{A Urinary {{microRNA}} Signature Can Predict the Presence of Bladder Urothelial Carcinoma in Patients Undergoing Surveillance}
+      \field{urlday}{11}
+      \field{urlmonth}{4}
+      \field{urlyear}{2026}
+      \field{volume}{114}
+      \field{year}{2016}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \field{pages}{454\bibrangedash 462}
+      \range{pages}{9}
+      \verb{doi}
+      \verb 10.1038/bjc.2015.472
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/MI9VAJVV/Sapre et al. - 2016 - A urinary microRNA signature can predict the presence of bladder urothelial carcinoma in patients un.pdf
+      \endverb
+      \verb{urlraw}
+      \verb https://www.nature.com/articles/bjc2015472
+      \endverb
+      \verb{url}
+      \verb https://www.nature.com/articles/bjc2015472
+      \endverb
+      \keyw{Bladder cancer,miRNAs,Tumour biomarkers}
+    \endentry
+    \entry{tomaselloMicroRNAFamilyGets2021}{article}{}{}
+      \name{author}{4}{}{%
+        {{un=0,uniquepart=base,hash=ba5344cf557b855acc0cba4094094087}{%
+           family={Tomasello},
+           familyi={T\bibinitperiod},
+           given={Luisa},
+           giveni={L\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=b4dd766c7563a9705b0df9fe0cd84816}{%
+           family={Distefano},
+           familyi={D\bibinitperiod},
+           given={Rosario},
+           giveni={R\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=d3cafd124f5714be374be44ac3e20118}{%
+           family={Nigita},
+           familyi={N\bibinitperiod},
+           given={Giovanni},
+           giveni={G\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=923e44af56a8b13c849c52b80a71ee32}{%
+           family={Croce},
+           familyi={C\bibinitperiod},
+           given={Carlo\bibnamedelima M.},
+           giveni={C\bibinitperiod\bibinitdelim M\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{dc66913b73eba827c546692dfed4c1cd}
+      \strng{fullhash}{9c3258db6db886e80c35f313c282c579}
+      \strng{fullhashraw}{9c3258db6db886e80c35f313c282c579}
+      \strng{bibnamehash}{9c3258db6db886e80c35f313c282c579}
+      \strng{authorbibnamehash}{9c3258db6db886e80c35f313c282c579}
+      \strng{authornamehash}{dc66913b73eba827c546692dfed4c1cd}
+      \strng{authorfullhash}{9c3258db6db886e80c35f313c282c579}
+      \strng{authorfullhashraw}{9c3258db6db886e80c35f313c282c579}
+      \field{sortinit}{T}
+      \field{sortinithash}{9af77f0292593c26bde9a56e688eaee9}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{abstract}{MicroRNAs (miRNAs or miRs) are the most characterized class of non-coding RNAs and are engaged in many cellular processes, including cell differentiation, development, and homeostasis. MicroRNA dysregulation was observed in several diseases, cancer included. Epitranscriptomics is a branch of epigenomics that embraces all RNA modifications occurring after DNA transcription and RNA synthesis and involving coding and non-coding RNAs. The development of new high-throughput technologies, especially deep RNA sequencing, has facilitated the discovery of miRNA isoforms (named isomiRs) resulting from RNA modifications mediated by enzymes, such as deaminases and exonucleases, and differing from the canonical ones in length, sequence, or both. In this review, we summarize the distinct classes of isomiRs, their regulation and biogenesis, and the active role of these newly discovered molecules in cancer and other diseases.}
+      \field{day}{9}
+      \field{eprinttype}{pubmed}
+      \field{issn}{2296-634X}
+      \field{journaltitle}{Frontiers in Cell and Developmental Biology}
+      \field{month}{6}
+      \field{shortjournal}{Front Cell Dev Biol}
+      \field{shorttitle}{The {{MicroRNA Family Gets Wider}}}
+      \field{title}{The {{MicroRNA Family Gets Wider}}: {{The IsomiRs Classification}} and {{Role}}}
+      \field{urlday}{1}
+      \field{urlmonth}{4}
+      \field{urlyear}{2026}
+      \field{volume}{9}
+      \field{year}{2021}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \field{pages}{668648}
+      \range{pages}{1}
+      \verb{doi}
+      \verb 10.3389/fcell.2021.668648
+      \endverb
+      \verb{eprint}
+      \verb 34178993
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/I2N3FN4P/Tomasello et al. - 2021 - The MicroRNA Family Gets Wider The IsomiRs Classification and Role.pdf
+      \endverb
+      \verb{urlraw}
+      \verb https://pmc.ncbi.nlm.nih.gov/articles/PMC8220208/
+      \endverb
+      \verb{url}
+      \verb https://pmc.ncbi.nlm.nih.gov/articles/PMC8220208/
+      \endverb
+    \endentry
+    \entry{xiaoMicroRNAsActivateGene2017}{article}{}{}
+      \name{author}{17}{}{%
+        {{un=0,uniquepart=base,hash=517b82f0954f8c9eb7c168455870a12a}{%
+           family={Xiao},
+           familyi={X\bibinitperiod},
+           given={Min},
+           giveni={M\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=1639dadb1da2bffb2d77f43c6d3247b6}{%
+           family={Li},
+           familyi={L\bibinitperiod},
+           given={Jin},
+           giveni={J\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=be6f1b6df7f1ddfafad18806238fa391}{%
+           family={Li},
+           familyi={L\bibinitperiod},
+           given={Wei},
+           giveni={W\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=b2eccb185095fccfeb40fdffd8b2105f}{%
+           family={Wang},
+           familyi={W\bibinitperiod},
+           given={Yu},
+           giveni={Y\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=6e287fce5a745c62778890818f26128e}{%
+           family={Wu},
+           familyi={W\bibinitperiod},
+           given={Feizhen},
+           giveni={F\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=3c2213c71a13df11d560b1364e716486}{%
+           family={Xi},
+           familyi={X\bibinitperiod},
+           given={Yanping},
+           giveni={Y\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=d1c6c74fe73c23cba043e2842c334294}{%
+           family={Zhang},
+           familyi={Z\bibinitperiod},
+           given={Lan},
+           giveni={L\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=8ab996d7866b63e352139d35937c7624}{%
+           family={Ding},
+           familyi={D\bibinitperiod},
+           given={Chao},
+           giveni={C\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=727a038cf63b509a9c6f017e1f2f83f9}{%
+           family={Luo},
+           familyi={L\bibinitperiod},
+           given={Huaibing},
+           giveni={H\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=92e14a8c19eb5a0c7c199c85db74f106}{%
+           family={Li},
+           familyi={L\bibinitperiod},
+           given={Yan},
+           giveni={Y\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=5c83597894171c3fd0abf23d44d53182}{%
+           family={Peng},
+           familyi={P\bibinitperiod},
+           given={Lina},
+           giveni={L\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=608c4944a242e7c9103f6e1c1b02cc2e}{%
+           family={Zhao},
+           familyi={Z\bibinitperiod},
+           given={Liping},
+           giveni={L\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=108bf4fa419dda75cc93f2f684614643}{%
+           family={Peng},
+           familyi={P\bibinitperiod},
+           given={Shaoliang},
+           giveni={S\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=20807533029da6eb749cba41540b44bc}{%
+           family={Xiao},
+           familyi={X\bibinitperiod},
+           given={Yao},
+           giveni={Y\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=c9f0e0da6e34caf308e108bbb3b1b4a3}{%
+           family={Dong},
+           familyi={D\bibinitperiod},
+           given={Shihua},
+           giveni={S\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=9c40aa498e849f7f722883a4ae1fb336}{%
+           family={Cao},
+           familyi={C\bibinitperiod},
+           given={Jie},
+           giveni={J\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=bc043a183c763d8a5be9a06855b3c0c9}{%
+           family={Yu},
+           familyi={Y\bibinitperiod},
+           given={Wenqiang},
+           giveni={W\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {Taylor \& Francis}%
+      }
+      \strng{namehash}{088d8808334b0ac7b43667625deb2bb0}
+      \strng{fullhash}{e9fc076cf5c875c6414683299bb33831}
+      \strng{fullhashraw}{e9fc076cf5c875c6414683299bb33831}
+      \strng{bibnamehash}{088d8808334b0ac7b43667625deb2bb0}
+      \strng{authorbibnamehash}{088d8808334b0ac7b43667625deb2bb0}
+      \strng{authornamehash}{088d8808334b0ac7b43667625deb2bb0}
+      \strng{authorfullhash}{e9fc076cf5c875c6414683299bb33831}
+      \strng{authorfullhashraw}{e9fc076cf5c875c6414683299bb33831}
+      \field{sortinit}{X}
+      \field{sortinithash}{1965c258adceecf23ce3d67b05113442}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{MicroRNAs (miRNAs) are small non-coding RNAs that function as negative gene expression regulators. Emerging evidence shows that, except for function in the cytoplasm, miRNAs are also present in the nucleus. However, the functional significance of nuclear miRNAs remains largely undetermined. By screening miRNA database, we have identified a subset of miRNA that functions as enhancer regulators. Here, we found a set of miRNAs show gene-activation function. We focused on miR-24-1 and found that this miRNA unconventionally activates gene transcription by targeting enhancers. Consistently, the activation was completely abolished when the enhancer sequence was deleted by TALEN. Furthermore, we found that miR-24-1 activates enhancer RNA (eRNA) expression, alters histone modification, and increases the enrichment of p300 and RNA Pol II at the enhancer locus. Our results demonstrate a novel mechanism of miRNA as an enhancer trigger.}
+      \field{day}{3}
+      \field{eprinttype}{pubmed}
+      \field{issn}{1547-6286}
+      \field{journaltitle}{RNA Biology}
+      \field{month}{10}
+      \field{number}{10}
+      \field{title}{{{MicroRNAs}} Activate Gene Transcription Epigenetically as an Enhancer Trigger}
+      \field{urlday}{1}
+      \field{urlmonth}{4}
+      \field{urlyear}{2026}
+      \field{volume}{14}
+      \field{year}{2017}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \field{pages}{1326\bibrangedash 1334}
+      \range{pages}{9}
+      \verb{doi}
+      \verb 10.1080/15476286.2015.1112487
+      \endverb
+      \verb{eprint}
+      \verb 26853707
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/AI9ZKA24/Xiao et al. - 2017 - MicroRNAs activate gene transcription epigenetically as an enhancer trigger.pdf
+      \endverb
+      \verb{urlraw}
+      \verb https://doi.org/10.1080/15476286.2015.1112487
+      \endverb
+      \verb{url}
+      \verb https://doi.org/10.1080/15476286.2015.1112487
+      \endverb
+      \keyw{Chromatin modification,enhancer,microRNA,miR-24,nucleus,transcriptional activation}
+    \endentry
+    \entry{zengSequenceRequirementsMicro2003}{article}{}{}
+      \name{author}{2}{}{%
+        {{un=0,uniquepart=base,hash=ac97728520689a643e37005c40e0d11d}{%
+           family={Zeng},
+           familyi={Z\bibinitperiod},
+           given={Yan},
+           giveni={Y\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=ade3da27c16c709cff0c24cc7b35a895}{%
+           family={Cullen},
+           familyi={C\bibinitperiod},
+           given={Bryan\bibnamedelima R.},
+           giveni={B\bibinitperiod\bibinitdelim R\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {Cold Spring Harbor Lab}%
+      }
+      \strng{namehash}{eee6830cff3ffe7d7b2cc7fca0489792}
+      \strng{fullhash}{eee6830cff3ffe7d7b2cc7fca0489792}
+      \strng{fullhashraw}{eee6830cff3ffe7d7b2cc7fca0489792}
+      \strng{bibnamehash}{eee6830cff3ffe7d7b2cc7fca0489792}
+      \strng{authorbibnamehash}{eee6830cff3ffe7d7b2cc7fca0489792}
+      \strng{authornamehash}{eee6830cff3ffe7d7b2cc7fca0489792}
+      \strng{authorfullhash}{eee6830cff3ffe7d7b2cc7fca0489792}
+      \strng{authorfullhashraw}{eee6830cff3ffe7d7b2cc7fca0489792}
+      \field{sortinit}{Z}
+      \field{sortinithash}{96892c0b0a36bb8557c40c49813d48b3}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{Most eukaryotes encode a substantial number of small noncoding RNAs termed micro RNAs (miRNAs). Previously, we have demonstrated that miR-30, a 22-nucleotide human miRNA, can be processed from a longer transcript bearing the proposed miR-30 stem-loop precursor and can translationally inhibit an mRNA-bearing artificial target sites. We also demonstrated that the miR-30 precursor stem can be substituted with a heterologous stem, which can be processed to yield novel miRNAs and can block the expression of endogenous mRNAs. Here, we show that a second human miRNA, termed miR-21, can also be effectively expressed when its precursor forms part of a longer mRNA. For both miR-30 and miR-21, mature miRNA production was highly dependent on the integrity of the precursor RNA stem, although the underlying sequence had little effect. In contrast, the sequence of the terminal loop affected miRNA production only moderately. Processing of the initial, miR-30-containing transcript led to the production of not only mature miR-30 but also to the largely nuclear excision of an ∼65-nucleotide RNA that is likely to represent an important intermediate in miR-30 processing. Consistent with this hypothesis, mutations that affected mature miR-30 production inhibited expression of this miR-30 pre-miRNA to an equivalent degree. Although point mutations could block the ability of both miR-30 and miR-21 to inhibit the translation of mRNAs bearing multiple artificial miRNA target sites, single point mutations only attenuated the miRNA-mediated inhibition of genes bearing single, fully complementary targets. These results suggest that miRNAs, and the closely similar small interfering RNAs, cannot totally discriminate between RNA targets differing by a single nucleotide.}
+      \field{day}{1}
+      \field{eprinttype}{pubmed}
+      \field{issn}{1355-8382, 1469-9001}
+      \field{journaltitle}{RNA}
+      \field{langid}{english}
+      \field{month}{1}
+      \field{number}{1}
+      \field{shortjournal}{RNA}
+      \field{title}{Sequence Requirements for Micro {{RNA}} Processing and Function in Human Cells}
+      \field{urlday}{2}
+      \field{urlmonth}{4}
+      \field{urlyear}{2026}
+      \field{volume}{9}
+      \field{year}{2003}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \field{pages}{112\bibrangedash 123}
+      \range{pages}{12}
+      \verb{doi}
+      \verb 10.1261/rna.2780503
+      \endverb
+      \verb{eprint}
+      \verb 12554881
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/H9W9FXYF/Zeng and Cullen - 2003 - Sequence requirements for micro RNA processing and function in human cells.pdf
+      \endverb
+      \verb{urlraw}
+      \verb http://rnajournal.cshlp.org/content/9/1/112
+      \endverb
+      \verb{url}
+      \verb http://rnajournal.cshlp.org/content/9/1/112
+      \endverb
+      \keyw{RNA interference (RNAi),RNA structure,small interfering RNAs (siRNAs),translation}
+    \endentry
+    \entry{zhangTerminalLoopRegion2010}{article}{}{}
+      \name{author}{2}{}{%
+        {{un=0,uniquepart=base,hash=a4a8549d30045328ffbff42415a2951e}{%
+           family={Zhang},
+           familyi={Z\bibinitperiod},
+           given={Xiaoxiao},
+           giveni={X\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=ac97728520689a643e37005c40e0d11d}{%
+           family={Zeng},
+           familyi={Z\bibinitperiod},
+           given={Yan},
+           giveni={Y\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{761113a43a8b291193119991f2cdd637}
+      \strng{fullhash}{761113a43a8b291193119991f2cdd637}
+      \strng{fullhashraw}{761113a43a8b291193119991f2cdd637}
+      \strng{bibnamehash}{761113a43a8b291193119991f2cdd637}
+      \strng{authorbibnamehash}{761113a43a8b291193119991f2cdd637}
+      \strng{authornamehash}{761113a43a8b291193119991f2cdd637}
+      \strng{authorfullhash}{761113a43a8b291193119991f2cdd637}
+      \strng{authorfullhashraw}{761113a43a8b291193119991f2cdd637}
+      \field{sortinit}{Z}
+      \field{sortinithash}{96892c0b0a36bb8557c40c49813d48b3}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{microRNAs are widely expressed, ∼22-nt-long regulatory RNAs. They are first transcribed as much longer primary transcripts, which then undergo a series of processing steps to yield the single-stranded, mature microRNAs, although the mechanisms are incompletely understood. Here, we show that the terminal loop region of human primary microRNA transcripts is an important determinant of microRNA biogenesis. Mutations that restrain the terminal loop region inhibit Drosha processing of primary microRNA transcripts as well as Dicer processing of precursor microRNA transcripts in vitro . The inhibition may result from lower enzyme turnover on the mutant transcripts. Consequently, the mutations reduce miRNA maturation in transfected human cells. We conclude that a flexible terminal loop region is critical for microRNA processing.}
+      \field{day}{1}
+      \field{issn}{0305-1048}
+      \field{journaltitle}{Nucleic Acids Research}
+      \field{month}{11}
+      \field{number}{21}
+      \field{shortjournal}{Nucleic Acids Res}
+      \field{title}{The Terminal Loop Region Controls {{microRNA}} Processing by {{Drosha}} and {{Dicer}}}
+      \field{urlday}{2}
+      \field{urlmonth}{4}
+      \field{urlyear}{2026}
+      \field{volume}{38}
+      \field{year}{2010}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \field{pages}{7689\bibrangedash 7697}
+      \range{pages}{9}
+      \verb{doi}
+      \verb 10.1093/nar/gkq645
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/GECW9WN3/Zhang and Zeng - 2010 - The terminal loop region controls microRNA processing by Drosha and Dicer.pdf;/home/rafail/Zotero/storage/DGWL276Q/gkq645.html
+      \endverb
+      \verb{urlraw}
+      \verb https://doi.org/10.1093/nar/gkq645
+      \endverb
+      \verb{url}
+      \verb https://doi.org/10.1093/nar/gkq645
+      \endverb
+    \endentry
+  \enddatalist
+\endrefsection
+\endinput
+
