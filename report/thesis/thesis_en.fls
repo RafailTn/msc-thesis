@@ -1,4 +1,4 @@
-PWD /home/rafail/Downloads/msc-thesis/thesis
+PWD /home/rafail/Downloads/msc-thesis/pipeline/report/thesis
 INPUT /usr/share/texmf-dist/web2c/texmf.cnf
 INPUT /var/lib/texmf/web2c/xetex/xelatex.fmt
 INPUT thesis_en.tex
@@ -324,6 +324,8 @@ INPUT ./figures/smallrnaseq.jpg
 INPUT ./figures/smallrnaseq.jpg
 INPUT ./figures/agoclash.jpg
 INPUT ./figures/agoclash.jpg
+INPUT ./figures/agoeclip.png
+INPUT ./figures/agoeclip.png
 INPUT /usr/share/texmf-dist/fonts/tfm/public/cm/cmmi12.tfm
 INPUT /usr/share/texmf-dist/fonts/tfm/public/cm/cmsy10.tfm
 INPUT /usr/share/texmf-dist/fonts/tfm/public/cm/cmex10.tfm

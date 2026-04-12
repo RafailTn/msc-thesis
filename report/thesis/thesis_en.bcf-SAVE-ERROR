@@ -2375,77 +2375,32 @@
     <bcf:datasource type="file" datatype="bibtex" glob="false">references.bib</bcf:datasource>
   </bcf:bibdata>
   <bcf:section number="0">
-    <bcf:citekey order="6" intorder="1">ambrosUniformSystemMicroRNA2003</bcf:citekey>
-    <bcf:citekey order="6" intorder="2">kozomaraMiRBaseIntegratingMicroRNA2011</bcf:citekey>
-    <bcf:citekey order="7" intorder="1">tomaselloMicroRNAFamilyGets2021</bcf:citekey>
-    <bcf:citekey order="8" intorder="1">zengSequenceRequirementsMicro2003</bcf:citekey>
-    <bcf:citekey order="8" intorder="2">zhangTerminalLoopRegion2010</bcf:citekey>
+    <bcf:citekey order="5" intorder="1">ambrosUniformSystemMicroRNA2003</bcf:citekey>
+    <bcf:citekey order="5" intorder="2">kozomaraMiRBaseIntegratingMicroRNA2011</bcf:citekey>
+    <bcf:citekey order="6" intorder="1">tomaselloMicroRNAFamilyGets2021</bcf:citekey>
+    <bcf:citekey order="7" intorder="1">zengSequenceRequirementsMicro2003</bcf:citekey>
+    <bcf:citekey order="7" intorder="2">zhangTerminalLoopRegion2010</bcf:citekey>
+    <bcf:citekey order="8" intorder="1">obrienOverviewMicroRNABiogenesis2018</bcf:citekey>
     <bcf:citekey order="9" intorder="1">obrienOverviewMicroRNABiogenesis2018</bcf:citekey>
     <bcf:citekey order="10" intorder="1">obrienOverviewMicroRNABiogenesis2018</bcf:citekey>
-    <bcf:citekey order="11" intorder="1">obrienOverviewMicroRNABiogenesis2018</bcf:citekey>
-    <bcf:citekey order="12" intorder="1">grimsonMicroRNATargetingSpecificity2007</bcf:citekey>
-    <bcf:citekey order="13" intorder="1">dienerMiRNATargetInteractions2024</bcf:citekey>
-    <bcf:citekey order="14" intorder="1">chaluvally-raghavanDirectUpregulationSTAT32016</bcf:citekey>
-    <bcf:citekey order="14" intorder="2">guoNuclearMiR30b5pSuppresses2021</bcf:citekey>
-    <bcf:citekey order="14" intorder="3">kimMicroRNAdirectedTranscriptionalGene2008</bcf:citekey>
-    <bcf:citekey order="14" intorder="4">xiaoMicroRNAsActivateGene2017</bcf:citekey>
-    <bcf:citekey order="15" intorder="1">obrienOverviewMicroRNABiogenesis2018</bcf:citekey>
-    <bcf:citekey order="16" intorder="1">hornsteinMicroRNAMiR196Acts2005</bcf:citekey>
-    <bcf:citekey order="17" intorder="1">corbinRoleMicroRNAsSynaptic2009</bcf:citekey>
-    <bcf:citekey order="18" intorder="1">adamMiR200ExpressionRegulates2009</bcf:citekey>
-    <bcf:citekey order="19" intorder="1">linBladderCancerCellsecreted2019</bcf:citekey>
-    <bcf:citekey order="20" intorder="1">sapreUrinaryMicroRNASignature2016</bcf:citekey>
-    <bcf:citekey order="21" intorder="1">dingMiR222CardiovascularDiseases2017</bcf:citekey>
+    <bcf:citekey order="11" intorder="1">grimsonMicroRNATargetingSpecificity2007</bcf:citekey>
+    <bcf:citekey order="12" intorder="1">dienerMiRNATargetInteractions2024</bcf:citekey>
+    <bcf:citekey order="13" intorder="1">chaluvally-raghavanDirectUpregulationSTAT32016</bcf:citekey>
+    <bcf:citekey order="13" intorder="2">guoNuclearMiR30b5pSuppresses2021</bcf:citekey>
+    <bcf:citekey order="13" intorder="3">kimMicroRNAdirectedTranscriptionalGene2008</bcf:citekey>
+    <bcf:citekey order="13" intorder="4">xiaoMicroRNAsActivateGene2017</bcf:citekey>
+    <bcf:citekey order="14" intorder="1">obrienOverviewMicroRNABiogenesis2018</bcf:citekey>
+    <bcf:citekey order="15" intorder="1">hornsteinMicroRNAMiR196Acts2005</bcf:citekey>
+    <bcf:citekey order="16" intorder="1">corbinRoleMicroRNAsSynaptic2009</bcf:citekey>
+    <bcf:citekey order="17" intorder="1">adamMiR200ExpressionRegulates2009</bcf:citekey>
+    <bcf:citekey order="18" intorder="1">linBladderCancerCellsecreted2019</bcf:citekey>
+    <bcf:citekey order="19" intorder="1">sapreUrinaryMicroRNASignature2016</bcf:citekey>
+    <bcf:citekey order="20" intorder="1">dingMiR222CardiovascularDiseases2017</bcf:citekey>
+    <bcf:citekey order="21" intorder="1">gullerMicroRNAsSkeletalMuscle2010</bcf:citekey>
     <bcf:citekey order="22" intorder="1">gullerMicroRNAsSkeletalMuscle2010</bcf:citekey>
-    <bcf:citekey order="23" intorder="1">gullerMicroRNAsSkeletalMuscle2010</bcf:citekey>
+    <bcf:citekey order="23" intorder="1">benesovaSmallRNASequencingApproaches2021</bcf:citekey>
     <bcf:citekey order="24" intorder="1">benesovaSmallRNASequencingApproaches2021</bcf:citekey>
     <bcf:citekey order="25" intorder="1">benesovaSmallRNASequencingApproaches2021</bcf:citekey>
-    <bcf:citekey order="26" intorder="1">benesovaSmallRNASequencingApproaches2021</bcf:citekey>
-    <bcf:citekey order="27" intorder="1">aMappingHumanMiRNA2013</bcf:citekey>
-    <bcf:citekey order="28" intorder="1">aMappingHumanMiRNA2013</bcf:citekey>
-    <bcf:citekey order="29" intorder="1">aMappingHumanMiRNA2013</bcf:citekey>
-    <bcf:citekey order="30" intorder="1">manakovScalableDeepProfiling2022</bcf:citekey>
-    <bcf:citekey order="31" intorder="1">manakovScalableDeepProfiling2022</bcf:citekey>
-    <bcf:citekey order="32" intorder="1">manakovScalableDeepProfiling2022</bcf:citekey>
-  </bcf:section>
-  <!-- SORTING TEMPLATES -->
-  <bcf:sortingtemplate name="nty">
-    <bcf:sort order="1">
-      <bcf:sortitem order="1">presort</bcf:sortitem>
-    </bcf:sort>
-    <bcf:sort order="2" final="1">
-      <bcf:sortitem order="1">sortkey</bcf:sortitem>
-    </bcf:sort>
-    <bcf:sort order="3">
-      <bcf:sortitem order="1">sortname</bcf:sortitem>
-      <bcf:sortitem order="2">author</bcf:sortitem>
-      <bcf:sortitem order="3">editor</bcf:sortitem>
-      <bcf:sortitem order="4">translator</bcf:sortitem>
-      <bcf:sortitem order="5">sorttitle</bcf:sortitem>
-      <bcf:sortitem order="6">title</bcf:sortitem>
-    </bcf:sort>
-    <bcf:sort order="4">
-      <bcf:sortitem order="1">sorttitle</bcf:sortitem>
-      <bcf:sortitem order="2">title</bcf:sortitem>
-    </bcf:sort>
-    <bcf:sort order="5">
-      <bcf:sortitem order="1">sortyear</bcf:sortitem>
-      <bcf:sortitem order="2">year</bcf:sortitem>
-    </bcf:sort>
-    <bcf:sort order="6">
-      <bcf:sortitem order="1">volume</bcf:sortitem>
-      <bcf:sortitem literal="1" order="2">0</bcf:sortitem>
-    </bcf:sort>
-  </bcf:sortingtemplate>
-  <!-- DATALISTS -->
-  <bcf:datalist section="0"
-                name="nty/global//global/global/global"
-                type="entry"
-                sortingtemplatename="nty"
-                sortingnamekeytemplatename="global"
-                labelprefix=""
-                uniquenametemplatename="global"
-                labelalphanametemplatename="global"
-                namehashtemplatename="global">
-  </bcf:datalist>
-</bcf:controlfile>
+    <bcf:citekey order="26" intorder="1">hejretAnalysisChimericReads2023</bcf:citekey>
+    <bcf:citekey order="27" intorder="1">hejretAnalysisChimericReads2023</bcf:citekey>
+    <bcf:citekey order="28" intorder="1">hejretAnalysisChimericReads2023</bcf:citekey>

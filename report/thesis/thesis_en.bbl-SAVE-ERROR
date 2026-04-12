@@ -19,82 +19,6 @@
 
 \refsection{0}
   \datalist[entry]{nty/global//global/global/global}
-    \entry{aMappingHumanMiRNA2013}{article}{}{}
-      \name{author}{4}{}{%
-        {{un=0,uniquepart=base,hash=70fa82e4fab3936b7ff6c91b244e39f5}{%
-           family={A},
-           familyi={A\bibinitperiod},
-           given={Helwak},
-           giveni={H\bibinitperiod},
-           givenun=0}}%
-        {{un=0,uniquepart=base,hash=3c318e20c3ecc2bea9ebd18815f236fc}{%
-           family={G},
-           familyi={G\bibinitperiod},
-           given={Kudla},
-           giveni={K\bibinitperiod},
-           givenun=0}}%
-        {{un=0,uniquepart=base,hash=e8c2e4924d772d0e62a71f1703ea9457}{%
-           family={T},
-           familyi={T\bibinitperiod},
-           given={Dudnakova},
-           giveni={D\bibinitperiod},
-           givenun=0}}%
-        {{un=0,uniquepart=base,hash=c9d6fe40639ac3ca4724987358a0a442}{%
-           family={D},
-           familyi={D\bibinitperiod},
-           given={Tollervey},
-           giveni={T\bibinitperiod},
-           givenun=0}}%
-      }
-      \list{publisher}{1}{%
-        {Cell}%
-      }
-      \strng{namehash}{e1b711c4fe2b283fbf21dd83cc64bf80}
-      \strng{fullhash}{464dfdd10f3d30a8e4db7135fa202327}
-      \strng{fullhashraw}{464dfdd10f3d30a8e4db7135fa202327}
-      \strng{bibnamehash}{464dfdd10f3d30a8e4db7135fa202327}
-      \strng{authorbibnamehash}{464dfdd10f3d30a8e4db7135fa202327}
-      \strng{authornamehash}{e1b711c4fe2b283fbf21dd83cc64bf80}
-      \strng{authorfullhash}{464dfdd10f3d30a8e4db7135fa202327}
-      \strng{authorfullhashraw}{464dfdd10f3d30a8e4db7135fa202327}
-      \field{sortinit}{A}
-      \field{sortinithash}{2f401846e2029bad6b3ecc16d50031e2}
-      \field{extradatescope}{labelyear}
-      \field{labeldatesource}{}
-      \field{labelnamesource}{author}
-      \field{labeltitlesource}{title}
-      \field{abstract}{MicroRNAs (miRNAs) play key roles in gene regulation, but reliable bioinformatic or experimental identification of their targets remains difficult. To provide an unbiased view of human miRNA targets, we developed a technique for ligation and sequencing of miRNA-target RNA duplexes associated with hu …}
-      \field{day}{25}
-      \field{eprinttype}{pubmed}
-      \field{issn}{1097-4172}
-      \field{journaltitle}{Cell}
-      \field{langid}{english}
-      \field{month}{4}
-      \field{number}{3}
-      \field{title}{Mapping the Human {{miRNA}} Interactome by {{CLASH}} Reveals Frequent Noncanonical Binding}
-      \field{urlday}{2}
-      \field{urlmonth}{4}
-      \field{urlyear}{2026}
-      \field{volume}{153}
-      \field{year}{2013}
-      \field{dateera}{ce}
-      \field{urldateera}{ce}
-      \verb{doi}
-      \verb 10.1016/j.cell.2013.03.043
-      \endverb
-      \verb{eprint}
-      \verb 23622248
-      \endverb
-      \verb{file}
-      \verb /home/rafail/Zotero/storage/IS3XMDIE/A et al. - 2013 - Mapping the human miRNA interactome by CLASH reveals frequent noncanonical binding.pdf;/home/rafail/Zotero/storage/FPWXNMCR/23622248.html
-      \endverb
-      \verb{urlraw}
-      \verb https://pubmed.ncbi.nlm.nih.gov/23622248/?dopt=Abstract
-      \endverb
-      \verb{url}
-      \verb https://pubmed.ncbi.nlm.nih.gov/23622248/?dopt=Abstract
-      \endverb
-    \endentry
     \entry{adamMiR200ExpressionRegulates2009}{article}{}{}
       \name{author}{12}{}{%
         {{un=0,uniquepart=base,hash=709513515444614f5557e8b130edb323}{%
@@ -1029,6 +953,100 @@
       \endverb
       \keyw{Animals,Autophagy,Basic Helix-Loop-Helix Leucine Zipper Transcription Factors,Cell Nucleus,HEK293 Cells,HeLa Cells,Humans,Lysosomes,Male,Mice,Mice Inbred C57BL,MicroRNAs}
     \endentry
+    \entry{hejretAnalysisChimericReads2023}{article}{}{}
+      \name{author}{7}{}{%
+        {{un=0,uniquepart=base,hash=27c1b4b7df5fc286a47aa505756ee04e}{%
+           family={Hejret},
+           familyi={H\bibinitperiod},
+           given={Vaclav},
+           giveni={V\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=1925b759d273315ad1b3068fed0930b3}{%
+           family={Varadarajan},
+           familyi={V\bibinitperiod},
+           given={Nandan\bibnamedelima Mysore},
+           giveni={N\bibinitperiod\bibinitdelim M\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=cc4460c8597622bfcf7061014f970974}{%
+           family={Klimentova},
+           familyi={K\bibinitperiod},
+           given={Eva},
+           giveni={E\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=9acf50f7c1670cb0897c2fb50e435964}{%
+           family={Gresova},
+           familyi={G\bibinitperiod},
+           given={Katarina},
+           giveni={K\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=9e9128dda4813e2b6c1f4a9bdbab9828}{%
+           family={Giassa},
+           familyi={G\bibinitperiod},
+           given={Ilektra-Chara},
+           giveni={I\bibinithyphendelim C\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=a33a5f0f22638f68dc423e2a48a98fbf}{%
+           family={Vanacova},
+           familyi={V\bibinitperiod},
+           given={Stepanka},
+           giveni={S\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=decba2be05b5a28a9b00e78278411316}{%
+           family={Alexiou},
+           familyi={A\bibinitperiod},
+           given={Panagiotis},
+           giveni={P\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {Nature Publishing Group}%
+      }
+      \strng{namehash}{7c3159854380cb82289a341f6a34be8c}
+      \strng{fullhash}{7041156660c730d0a9ee9c42bbf42659}
+      \strng{fullhashraw}{7041156660c730d0a9ee9c42bbf42659}
+      \strng{bibnamehash}{7c3159854380cb82289a341f6a34be8c}
+      \strng{authorbibnamehash}{7c3159854380cb82289a341f6a34be8c}
+      \strng{authornamehash}{7c3159854380cb82289a341f6a34be8c}
+      \strng{authorfullhash}{7041156660c730d0a9ee9c42bbf42659}
+      \strng{authorfullhashraw}{7041156660c730d0a9ee9c42bbf42659}
+      \field{sortinit}{H}
+      \field{sortinithash}{23a3aa7c24e56cfa16945d55545109b5}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{Argonaute proteins are instrumental in regulating RNA stability and translation. AGO2, the major mammalian Argonaute protein, is known to primarily associate with microRNAs, a family of small RNA ‘guide’ sequences, and identifies its targets primarily via a ‘seed’ mediated partial complementarity process. Despite numerous studies, a definitive experimental dataset of AGO2 ‘guide’–’target’ interactions remains elusive. Our study employs two experimental methods—AGO2 CLASH and AGO2 eCLIP, to generate thousands of AGO2 target sites verified by chimeric reads. These chimeric reads contain both the AGO2 loaded small RNA ‘guide’ and the target sequence, providing a robust resource for modeling AGO2 binding preferences. Our novel analysis pipeline reveals thousands of AGO2 target sites driven by microRNAs and a significant number of AGO2 ‘guides’ derived from fragments of other small RNAs such as tRNAs, YRNAs, snoRNAs, rRNAs, and more. We utilize convolutional neural networks to train machine learning models that accurately predict the binding potential for each ‘guide’ class and experimentally validate several interactions. In conclusion, our comprehensive analysis of the AGO2 targetome broadens our understanding of its ‘guide’ repertoire and potential function in development and disease. Moreover, we offer practical bioinformatic tools for future experiments and the prediction of AGO2 targets. All data and code from this study are freely available at https://github.com/ML-Bioinfo-CEITEC/HybriDetector/.}
+      \field{day}{21}
+      \field{issn}{2045-2322}
+      \field{journaltitle}{Scientific Reports}
+      \field{langid}{english}
+      \field{month}{12}
+      \field{number}{1}
+      \field{shortjournal}{Sci Rep}
+      \field{title}{Analysis of Chimeric Reads Characterises the Diverse Targetome of {{AGO2-mediated}} Regulation}
+      \field{urlday}{25}
+      \field{urlmonth}{8}
+      \field{urlyear}{2025}
+      \field{volume}{13}
+      \field{year}{2023}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \field{pages}{22895}
+      \range{pages}{1}
+      \verb{doi}
+      \verb 10.1038/s41598-023-49757-z
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/U43PBKCK/Hejret et al. - 2023 - Analysis of chimeric reads characterises the diverse targetome of AGO2-mediated regulation.pdf
+      \endverb
+      \verb{urlraw}
+      \verb https://www.nature.com/articles/s41598-023-49757-z
+      \endverb
+      \verb{url}
+      \verb https://www.nature.com/articles/s41598-023-49757-z
+      \endverb
+      \keyw{Data processing,Machine learning,miRNAs}
+    \endentry
     \entry{hornsteinMicroRNAMiR196Acts2005}{article}{}{}
       \name{author}{9}{}{%
         {{un=0,uniquepart=base,hash=b80fa683b8b061729946d2a3ce75754d}{%
@@ -1342,112 +1360,6 @@
       \endverb
       \verb{url}
       \verb https://pmc.ncbi.nlm.nih.gov/articles/PMC6910194/
-      \endverb
-    \endentry
-    \entry{manakovScalableDeepProfiling2022}{online}{}{}
-      \name{author}{10}{}{%
-        {{un=0,uniquepart=base,hash=4b996ed540fcd42b4446d9d51fef241e}{%
-           family={Manakov},
-           familyi={M\bibinitperiod},
-           given={Sergei\bibnamedelima A.},
-           giveni={S\bibinitperiod\bibinitdelim A\bibinitperiod},
-           givenun=0}}%
-        {{un=0,uniquepart=base,hash=243c71b946692a33106a3296c5e2ad52}{%
-           family={Shishkin},
-           familyi={S\bibinitperiod},
-           given={Alexander\bibnamedelima A.},
-           giveni={A\bibinitperiod\bibinitdelim A\bibinitperiod},
-           givenun=0}}%
-        {{un=0,uniquepart=base,hash=14b80c62e48cce1571c3364bccb024e8}{%
-           family={Yee},
-           familyi={Y\bibinitperiod},
-           given={Brian\bibnamedelima A.},
-           giveni={B\bibinitperiod\bibinitdelim A\bibinitperiod},
-           givenun=0}}%
-        {{un=0,uniquepart=base,hash=f1f631e86b8475447b75729ca0fc5096}{%
-           family={Shen},
-           familyi={S\bibinitperiod},
-           given={Kylie\bibnamedelima A.},
-           giveni={K\bibinitperiod\bibinitdelim A\bibinitperiod},
-           givenun=0}}%
-        {{un=0,uniquepart=base,hash=a58cdfe3fdc11b320b957aa088008ee3}{%
-           family={Cox},
-           familyi={C\bibinitperiod},
-           given={Diana\bibnamedelima C.},
-           giveni={D\bibinitperiod\bibinitdelim C\bibinitperiod},
-           givenun=0}}%
-        {{un=0,uniquepart=base,hash=4116244b5e4c4021bf7476ac70df369a}{%
-           family={Park},
-           familyi={P\bibinitperiod},
-           given={Samuel\bibnamedelima S.},
-           giveni={S\bibinitperiod\bibinitdelim S\bibinitperiod},
-           givenun=0}}%
-        {{un=0,uniquepart=base,hash=ff650cf60b84db0c0e115ad00580d6f7}{%
-           family={Foster},
-           familyi={F\bibinitperiod},
-           given={Heather\bibnamedelima M.},
-           giveni={H\bibinitperiod\bibinitdelim M\bibinitperiod},
-           givenun=0}}%
-        {{un=0,uniquepart=base,hash=0c575f780fe2c0029a1ea2c5789c4c3f}{%
-           family={Chapman},
-           familyi={C\bibinitperiod},
-           given={Karen\bibnamedelima B.},
-           giveni={K\bibinitperiod\bibinitdelim B\bibinitperiod},
-           givenun=0}}%
-        {{un=0,uniquepart=base,hash=30679ad1ee58aeb8650a725317178a1e}{%
-           family={Yeo},
-           familyi={Y\bibinitperiod},
-           given={Gene\bibnamedelima W.},
-           giveni={G\bibinitperiod\bibinitdelim W\bibinitperiod},
-           givenun=0}}%
-        {{un=0,uniquepart=base,hash=f78c9f2612ea60f5defb8628f37c9269}{%
-           family={Nostrand},
-           familyi={N\bibinitperiod},
-           given={Eric\bibnamedelimb L.\bibnamedelimi Van},
-           giveni={E\bibinitperiod\bibinitdelim L\bibinitperiod\bibinitdelim V\bibinitperiod},
-           givenun=0}}%
-      }
-      \strng{namehash}{cd9b5d5872571c5651deb6d636a6d837}
-      \strng{fullhash}{fd26da0ce248f53ab73e04c3ddda31ba}
-      \strng{fullhashraw}{fd26da0ce248f53ab73e04c3ddda31ba}
-      \strng{bibnamehash}{cd9b5d5872571c5651deb6d636a6d837}
-      \strng{authorbibnamehash}{cd9b5d5872571c5651deb6d636a6d837}
-      \strng{authornamehash}{cd9b5d5872571c5651deb6d636a6d837}
-      \strng{authorfullhash}{fd26da0ce248f53ab73e04c3ddda31ba}
-      \strng{authorfullhashraw}{fd26da0ce248f53ab73e04c3ddda31ba}
-      \field{sortinit}{M}
-      \field{sortinithash}{4625c616857f13d17ce56f7d4f97d451}
-      \field{extradatescope}{labelyear}
-      \field{labeldatesource}{}
-      \field{labelnamesource}{author}
-      \field{labeltitlesource}{title}
-      \field{abstract}{Our expanding knowledge of the roles small regulatory RNAs play across numerous areas of biology, coupled with the promise of RNA-targeted therapies and small RNA-based medicines, create an urgent need for tools that can accurately identify and quantify small RNA:target interactions at scale. MicroRNAs (miRNA) are a major class of small RNAs in plants and animals. The experimental capture of miRNA:mRNA interactions by ligation into chimeric RNA fragments in chimeric CrossLinking and ImmunoPrecipitation (CLIP) provides a direct readout of miRNA targets with high-throughput sequencing. Despite the power of this approach, widespread adoption of chimeric CLIP has been slow due to both methodological technical complexity as well as limited recovery of chimeric molecules (particularly beyond the most abundant miRNAs). Here we describe chimeric eCLIP, in which we integrate a chimeric ligation step into AGO2 eCLIP to enable chimeric read recovery. We show that removal of the cumbersome polyacrylamide gel and nitrocellulose membrane transfer step common to CLIP techniques can be omitted for chimeric AGO2 eCLIP to create a simplified high throughput version of the assay that maintains high signal- to-noise. With the increased yield of recovered miRNA:mRNA interactions in no-gel chimeric eCLIP, we show that simple enrichment steps using either PCR or on-bead probe capture can be added to chimeric eCLIP in order to target and enrich libraries for chimeric reads specific to one or more miRNAs of interest in both cell lines and tissue samples, resulting in 30- to 175-fold increases in recovery of chimeric reads for miRNAs of interest. We further demonstrate that the same probe-capture approach can be used to recover miRNA interactions for a targeted gene of interest, revealing both distinct miRNA targeting as well as co-targeting by several miRNAs from the same seed family. RNA-seq analysis of gene expression following miRNA overexpression confirmed miRNA-mediated repression of chimeric eCLIP-identified targets and indicated that probe-enriched chimeric eCLIP can provide additional sensitivity to detect regulated targets among genes that either contain or lack computationally predicted miRNA target sites. Thus, we believe that chimeric eCLIP will be a useful tool for quantitative profiling of miRNA targets in varied sample types at scale, and for revealing a deeper picture of regulatory networks for specific miRNAs of biological interest. HighlightsNo-gel chimeric eCLIP improves recovery of miRNA:mRNA interactions by 70-foldProbe- and PCR-enrichment deeply profiles mRNA targets of miRNAs of interestChimeric eCLIP targets experimentally identify non-computationally predicted interactionsIncreased depth recovers ∼6 million miRNA:target chimeras in HEK293T}
-      \field{day}{29}
-      \field{eprintclass}{New Results}
-      \field{eprinttype}{bioRxiv}
-      \field{langid}{english}
-      \field{month}{3}
-      \field{pubstate}{prepublished}
-      \field{title}{Scalable and Deep Profiling of {{mRNA}} Targets for Individual {{microRNAs}} with Chimeric {{eCLIP}}}
-      \field{urlday}{27}
-      \field{urlmonth}{3}
-      \field{urlyear}{2026}
-      \field{year}{2022}
-      \field{dateera}{ce}
-      \field{urldateera}{ce}
-      \field{pages}{2022.02.13.480296}
-      \range{pages}{-1}
-      \verb{doi}
-      \verb 10.1101/2022.02.13.480296
-      \endverb
-      \verb{file}
-      \verb /home/rafail/Zotero/storage/S2KJY59W/Manakov et al. - 2022 - Scalable and deep profiling of mRNA targets for individual microRNAs with chimeric eCLIP.pdf
-      \endverb
-      \verb{urlraw}
-      \verb https://www.biorxiv.org/content/10.1101/2022.02.13.480296v2
-      \endverb
-      \verb{url}
-      \verb https://www.biorxiv.org/content/10.1101/2022.02.13.480296v2
       \endverb
     \endentry
     \entry{obrienOverviewMicroRNABiogenesis2018}{article}{}{}
