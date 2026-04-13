@@ -158,7 +158,7 @@ includehead,includefoot]{geometry} % add option showframe=true for debugging
 \RequirePackage[final]{graphicx}
 \RequirePackage{sectsty}   % needed for formatting chapter headings
 \RequirePackage{textcase}  % needed for forcing capital letters (in chapters)
-\RequirePackage[backend=biber, style=nature, citestyle=authoryear, maxcitenames=2, mincitenames=1, uniquelist=false]{biblatex}
+\RequirePackage[backend=biber, style=nature, citestyle=authoryear, maxcitenames=2, mincitenames=1]{biblatex}
 % \RequirePackage[resetlabels]{multibib}
 %\usepackage[notlof,notlot,nottoc,notlop]{tocbibind}
 \RequirePackage[titles]{tocloft}  % needed to adjust Toc margins and fonts

@@ -1566,6 +1566,67 @@
       \endverb
       \keyw{Additional Data File,Central Processing Unit,Human Reference Genome,Memory Footprint,NCBI Short Read Archive}
     \endentry
+    \entry{lewisConservedSeedPairing2005}{article}{}{}
+      \name{author}{3}{}{%
+        {{un=0,uniquepart=base,hash=981303c57dbe16ac340756e7374a9b3e}{%
+           family={Lewis},
+           familyi={L\bibinitperiod},
+           given={Benjamin\bibnamedelima P.},
+           giveni={B\bibinitperiod\bibinitdelim P\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=3dd3adca90b1905746a3cd13e0300698}{%
+           family={Burge},
+           familyi={B\bibinitperiod},
+           given={Christopher\bibnamedelima B.},
+           giveni={C\bibinitperiod\bibinitdelim B\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=056c2b17168f46a2cf5a1a76f287b2f0}{%
+           family={Bartel},
+           familyi={B\bibinitperiod},
+           given={David\bibnamedelima P.},
+           giveni={D\bibinitperiod\bibinitdelim P\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{1814e15f2f86d3921bc42628e368caa4}
+      \strng{fullhash}{e03da04f79dd57e5cf17e1f47a18d2b5}
+      \strng{fullhashraw}{e03da04f79dd57e5cf17e1f47a18d2b5}
+      \strng{bibnamehash}{e03da04f79dd57e5cf17e1f47a18d2b5}
+      \strng{authorbibnamehash}{e03da04f79dd57e5cf17e1f47a18d2b5}
+      \strng{authornamehash}{1814e15f2f86d3921bc42628e368caa4}
+      \strng{authorfullhash}{e03da04f79dd57e5cf17e1f47a18d2b5}
+      \strng{authorfullhashraw}{e03da04f79dd57e5cf17e1f47a18d2b5}
+      \field{sortinit}{L}
+      \field{sortinithash}{7c47d417cecb1f4bd38d1825c427a61a}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{We predict regulatory targets of vertebrate microRNAs (miRNAs) by identifying mRNAs with conserved complementarity to the seed (nucleotides 2-7) of the miRNA. An overrepresentation of conserved adenosines flanking the seed complementary sites in mRNAs indicates that primary sequence determinants can supplement base pairing to specify miRNA target recognition. In a four-genome analysis of 3' UTRs, approximately 13,000 regulatory relationships were detected above the estimate of false-positive predictions, thereby implicating as miRNA targets more than 5300 human genes, which represented 30\% of our gene set. Targeting was also detected in open reading frames. In sum, well over one third of human genes appear to be conserved miRNA targets.}
+      \field{day}{14}
+      \field{eprinttype}{pubmed}
+      \field{issn}{0092-8674}
+      \field{journaltitle}{Cell}
+      \field{langid}{english}
+      \field{month}{1}
+      \field{number}{1}
+      \field{shortjournal}{Cell}
+      \field{title}{Conserved Seed Pairing, Often Flanked by Adenosines, Indicates That Thousands of Human Genes Are {{microRNA}} Targets}
+      \field{volume}{120}
+      \field{year}{2005}
+      \field{dateera}{ce}
+      \field{pages}{15\bibrangedash 20}
+      \range{pages}{6}
+      \verb{doi}
+      \verb 10.1016/j.cell.2004.12.035
+      \endverb
+      \verb{eprint}
+      \verb 15652477
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/XN76J6SP/Lewis et al. - 2005 - Conserved seed pairing, often flanked by adenosines, indicates that thousands of human genes are mic.pdf
+      \endverb
+      \keyw{3' Untranslated Regions,Adenosine,Amino Acid Sequence,Animals,Chickens,Dogs,Gene Expression Regulation,Gene Targeting,Humans,Mice,MicroRNAs,Molecular Sequence Data,Nucleic Acid Hybridization,Nucleotides,Rats,RNA Messenger}
+    \endentry
     \entry{liAligningSequenceReads2013}{online}{}{}
       \name{author}{1}{}{%
         {{un=0,uniquepart=base,hash=466d90849ccf7e74e32d338b7c35491d}{%
@@ -2070,6 +2131,84 @@
       \endverb
       \verb{url}
       \verb https://pmc.ncbi.nlm.nih.gov/articles/PMC8220208/
+      \endverb
+    \endentry
+    \entry{travisHybBioinformaticsPipeline2014}{article}{}{}
+      \name{author}{5}{}{%
+        {{un=0,uniquepart=base,hash=e79518f230e260be680494ad9b235238}{%
+           family={Travis},
+           familyi={T\bibinitperiod},
+           given={Anthony\bibnamedelima J.},
+           giveni={A\bibinitperiod\bibinitdelim J\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=0637d404f2e4815fe9cd7d11ce14db7e}{%
+           family={Moody},
+           familyi={M\bibinitperiod},
+           given={Jonathan},
+           giveni={J\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=9245b74ab7cc834357e208a96558f9ea}{%
+           family={Helwak},
+           familyi={H\bibinitperiod},
+           given={Aleksandra},
+           giveni={A\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=8234fd5fc6c0d72d5fe4b38060964eae}{%
+           family={Tollervey},
+           familyi={T\bibinitperiod},
+           given={David},
+           giveni={D\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=98f48ef446d985699fa73561cd727e97}{%
+           family={Kudla},
+           familyi={K\bibinitperiod},
+           given={Grzegorz},
+           giveni={G\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{9b68fd9c0c401a16ff24f8a60408ba71}
+      \strng{fullhash}{8254384542705d78a90758c42a8123da}
+      \strng{fullhashraw}{8254384542705d78a90758c42a8123da}
+      \strng{bibnamehash}{8254384542705d78a90758c42a8123da}
+      \strng{authorbibnamehash}{8254384542705d78a90758c42a8123da}
+      \strng{authornamehash}{9b68fd9c0c401a16ff24f8a60408ba71}
+      \strng{authorfullhash}{8254384542705d78a90758c42a8123da}
+      \strng{authorfullhashraw}{8254384542705d78a90758c42a8123da}
+      \field{sortinit}{T}
+      \field{sortinithash}{9af77f0292593c26bde9a56e688eaee9}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{abstract}{Associations between proteins and RNA–RNA duplexes are important in post-transcriptional regulation of gene expression. The CLASH (Cross-linking, Ligation and Sequencing of Hybrids) technique captures RNA–RNA interactions by physically joining two RNA molecules associated with a protein complex into a single chimeric RNA molecule. These events are relatively rare and considerable effort is needed to detect a small number of chimeric sequences amongst millions of non-chimeric cDNA reads resulting from a CLASH experiment. We present the “hyb” bioinformatics pipeline, which we developed to analyse high-throughput cDNA sequencing data from CLASH experiments. Although primarily designed for use with AGO CLASH data, hyb can also be used for the detection and annotation of chimeric reads in other high-throughput sequencing datasets. We examined the sensitivity and specificity of chimera detection in a test dataset using the BLAST, BLAST+, BLAT, pBLAT and Bowtie2 read alignment programs. We obtained the most reliable results in the shortest time using a combination of preprocessing with Flexbar and subsequent read-mapping using Bowtie2. The “hyb” software is distributed under the GNU GPL (General Public License) and can be downloaded from https://github.com/gkudla/hyb.}
+      \field{eprinttype}{pubmed}
+      \field{issn}{1046-2023}
+      \field{journaltitle}{Methods (San Diego, Calif.)}
+      \field{month}{2}
+      \field{number}{3}
+      \field{shortjournal}{Methods}
+      \field{shorttitle}{Hyb}
+      \field{title}{Hyb: {{A}} Bioinformatics Pipeline for the Analysis of {{CLASH}} (Crosslinking, Ligation and Sequencing of Hybrids) Data}
+      \field{urlday}{13}
+      \field{urlmonth}{4}
+      \field{urlyear}{2026}
+      \field{volume}{65}
+      \field{year}{2014}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \field{pages}{263\bibrangedash 273}
+      \range{pages}{11}
+      \verb{doi}
+      \verb 10.1016/j.ymeth.2013.10.015
+      \endverb
+      \verb{eprint}
+      \verb 24211736
+      \endverb
+      \verb{urlraw}
+      \verb https://pmc.ncbi.nlm.nih.gov/articles/PMC3969109/
+      \endverb
+      \verb{url}
+      \verb https://pmc.ncbi.nlm.nih.gov/articles/PMC3969109/
       \endverb
     \endentry
     \entry{xiaoMicroRNAsActivateGene2017}{article}{}{}

@@ -245,6 +245,7 @@ Most of the miRNA:MRE complexes in the cell are not perfectly complementary and 
 	\item 7mer m8: 7 matches within the seed region (2-8)
 	\item 7mer A1: 7 matches within the seed region with the first nucleotide being an Adenine (1-7)
 	\item 6mer: 6 matches within the seed region (2-7)
+	\item 6mer offset: 6 matches within the seed region (3-8)
 	\item 5mer: 5 matches within the seed region (2-6)
 \end{enumerate}
 
@@ -336,10 +337,26 @@ Types of experiments that capture and quantify miRNA:MRE complexes are used to s
 
 \par Depending on the sequencing protocol and the end goal, these files are processed following different pipelines which include the usage of a series of computational tools. A common step regardless of the protocol is the Quality Control step (QC) in which various plots are produced in order to examine the integrity of the sequenced molecules based on the quality scores themselves as well as knowledge regarding the expected nucleotide and length distributions. Depending on the results, the next step involves filtering based on specific thresholds and optional removal of the adapter sequences followed by another QC step to ensure integrity has been maintained.
 
-\par The next step is to map the sequences in the filtered file on the human genome/transcriptome and it is the first source of heterogeneity pertaining to such pipelines. Tools that perform this mapping are called Aligners and there is a big number of such tools each of which excels in specific circumstances. For small RNA-seq, two aligners that are commonly used are Bowtie2 and BWA-MEM \parencite{langmeadUltrafastMemoryefficientAlignment2009,liAligningSequenceReads2013}, that achieve high speed alignment of short reads on genomic sequences. The choice of the alignment tool as well as that of its alignment parameters are vital for the quality of the end result which necessitates their inclusion in the pipeline for reproducibility.
+\par The next step is to map the sequences in the filtered file on the human genome/transcriptome and it is the first source of heterogeneity pertaining to such pipelines. Tools that perform this mapping are called Aligners and there is a big number of such tools each of which excels in specific circumstances. For small RNA-seq, two aligners that are commonly used are Bowtie2 and BWA-MEM \parencite{langmeadUltrafastMemoryefficientAlignment2009,liAligningSequenceReads2013}, that achieve high speed alignment of short reads on genomic sequences. The choice of the alignment tool as well as that of its alignment parameters are vital for the quality of the end result which necessitates their inclusion in the pipeline for reproducibility. A vital aspect of this step is the genome version that is used where the reads are to be aligned, as different versions lead to differences in results. Most studies use hg38 which is considered the more up to date and complete version, although with deeper and more accurate sequencing more recent versions like the Telomere to Telomere version have emerged which might come to replace hg38, especially for the analysis of repetitive regions such as centromeres, telomeres and ribosomal array sequences. For AGO-eCLIP and AGO-CLASH, a typical aligner would not suffice as the reads that are sequenced are chimeric molecules, consisting partly of miRNA and of mRNA fragments. Thus, specific tools have been developed that can appropriately align each part, with an example being Hyb \parencite{travisHybBioinformaticsPipeline2014}. Hyb begins by aligning the reads either to the genome or to a known database of molecules (ideally mature mRNAs) in order to identify reads that are non-contiguously aligned and then utilizes folding algorithms to annotate the recovered duplexes.The end result is a list of RNA:RNA hybrids.
 
 \section{miRNA Target Prediction Algorithms} \label{miRNA Target Prediction Algorithms}
+\par Several methods have been developed over the years that utilize the data produced by the aforementioned experiments in order to achieve several goals related to elucidating miRNA biology. In general, predictive algorithms are separated in terms of the type of algorithms they use in order to make the prediction as well as the prediction task itself.
+\begin{itemize}
+	\item Algorithms
+	\begin{itemize}
+		\item Heuristic 
+		\item Physics Based 
+		\item Machine/Deep Learning 
+	\end{itemize}
+	\item Task
+	\begin{itemize}
+		\item Site Level
+		\item Gene Level
+		\item Functional/Pathway Level
+	\end{itemize}
+\end{itemize}
 
+\par In terms of algorithms, a tool is characterized as Heuristic if it makes predictions using preset rules that are based on already discovered interactions \parencite{lewisConservedSeedPairing2005}. Such tools are considered the simplest form of prediction tools but function as a good baseline for comparison with more complex models. Physics based tools may disregard the biology behind the task and focus on expressing the problem as an energy minimization one when it comes to MRE prediction although more recent ones aim to strike a balance between using some heuristics for narrowing down some predictions in combination with energy minimization. The advancement of machine and deep learning algorithms has paved the way for the development of models that go beyond site level prediction.
 \subsection{Page numbering} \label{page_numbering}
 
 Page numbering starts at 1 from the front cover, the English title page in this case, without printing the numbers.

@@ -180,7 +180,7 @@
     </bcf:option>
     <bcf:option type="singlevalued">
       <bcf:key>uniquelist</bcf:key>
-      <bcf:value>false</bcf:value>
+      <bcf:value>true</bcf:value>
     </bcf:option>
     <bcf:option type="singlevalued">
       <bcf:key>uniquename</bcf:key>
@@ -395,7 +395,7 @@
     </bcf:option>
     <bcf:option type="singlevalued">
       <bcf:key>uniquelist</bcf:key>
-      <bcf:value>false</bcf:value>
+      <bcf:value>true</bcf:value>
     </bcf:option>
     <bcf:option type="singlevalued">
       <bcf:key>uniquename</bcf:key>
@@ -2413,6 +2413,8 @@
     <bcf:citekey order="34" intorder="3">germanConstructionParallelAnalysis2009</bcf:citekey>
     <bcf:citekey order="35" intorder="1">langmeadUltrafastMemoryefficientAlignment2009</bcf:citekey>
     <bcf:citekey order="35" intorder="2">liAligningSequenceReads2013</bcf:citekey>
+    <bcf:citekey order="36" intorder="1">travisHybBioinformaticsPipeline2014</bcf:citekey>
+    <bcf:citekey order="37" intorder="1">lewisConservedSeedPairing2005</bcf:citekey>
   </bcf:section>
   <!-- SORTING TEMPLATES -->
   <bcf:sortingtemplate name="nty">
