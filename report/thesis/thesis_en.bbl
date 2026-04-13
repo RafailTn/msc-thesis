@@ -214,6 +214,85 @@
       \verb https://doi.org/10.1158/1078-0432.CCR-08-2245
       \endverb
     \endentry
+    \entry{addo-quayeEndogenousSiRNAMiRNA2008}{article}{}{}
+      \name{author}{4}{}{%
+        {{un=0,uniquepart=base,hash=1e2960da79b95e1bc48e0311f9fbf216}{%
+           family={Addo-Quaye},
+           familyi={A\bibinithyphendelim Q\bibinitperiod},
+           given={Charles},
+           giveni={C\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=a269ca0c84a076fe12b963d133bf823f}{%
+           family={Eshoo},
+           familyi={E\bibinitperiod},
+           given={Tifani\bibnamedelima W.},
+           giveni={T\bibinitperiod\bibinitdelim W\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=056c2b17168f46a2cf5a1a76f287b2f0}{%
+           family={Bartel},
+           familyi={B\bibinitperiod},
+           given={David\bibnamedelima P.},
+           giveni={D\bibinitperiod\bibinitdelim P\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=83b57a3668faa7fb32a0b41d0bbaeb81}{%
+           family={Axtell},
+           familyi={A\bibinitperiod},
+           given={Michael\bibnamedelima J.},
+           giveni={M\bibinitperiod\bibinitdelim J\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {Elsevier}%
+      }
+      \strng{namehash}{92702d40fc3cda92b12108417003b086}
+      \strng{fullhash}{087a9e68914de3eccdcd926b9e49f621}
+      \strng{fullhashraw}{087a9e68914de3eccdcd926b9e49f621}
+      \strng{bibnamehash}{087a9e68914de3eccdcd926b9e49f621}
+      \strng{authorbibnamehash}{087a9e68914de3eccdcd926b9e49f621}
+      \strng{authornamehash}{92702d40fc3cda92b12108417003b086}
+      \strng{authorfullhash}{087a9e68914de3eccdcd926b9e49f621}
+      \strng{authorfullhashraw}{087a9e68914de3eccdcd926b9e49f621}
+      \field{sortinit}{A}
+      \field{sortinithash}{2f401846e2029bad6b3ecc16d50031e2}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{day}{20}
+      \field{eprinttype}{pubmed}
+      \field{issn}{0960-9822}
+      \field{journaltitle}{Current Biology}
+      \field{langid}{english}
+      \field{month}{5}
+      \field{number}{10}
+      \field{shortjournal}{Current Biology}
+      \field{title}{Endogenous {{siRNA}} and {{miRNA Targets Identified}} by {{Sequencing}} of the {{Arabidopsis Degradome}}}
+      \field{urlday}{12}
+      \field{urlmonth}{4}
+      \field{urlyear}{2026}
+      \field{volume}{18}
+      \field{year}{2008}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \field{pages}{758\bibrangedash 762}
+      \range{pages}{5}
+      \verb{doi}
+      \verb 10.1016/j.cub.2008.04.042
+      \endverb
+      \verb{eprint}
+      \verb 18472421
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/4L3CSXTV/Addo-Quaye et al. - 2008 - Endogenous siRNA and miRNA Targets Identified by Sequencing of the Arabidopsis Degradome.pdf
+      \endverb
+      \verb{urlraw}
+      \verb https://www.cell.com/current-biology/abstract/S0960-9822(08)00528-9
+      \endverb
+      \verb{url}
+      \verb https://www.cell.com/current-biology/abstract/S0960-9822(08)00528-9
+      \endverb
+      \keyw{PLANT,RNA}
+    \endentry
     \entry{ambrosUniformSystemMicroRNA2003}{article}{}{}
       \name{author}{13}{}{%
         {{un=0,uniquepart=base,hash=f5aef46443efdfe6d970da5e9181fedf}{%
@@ -762,6 +841,164 @@
       \verb https://pmc.ncbi.nlm.nih.gov/articles/PMC5239839/
       \endverb
     \endentry
+    \entry{germanConstructionParallelAnalysis2009}{article}{}{}
+      \name{author}{5}{}{%
+        {{un=0,uniquepart=base,hash=ddb29160fa89f04ad0e594431d7a3555}{%
+           family={German},
+           familyi={G\bibinitperiod},
+           given={Marcelo\bibnamedelima A.},
+           giveni={M\bibinitperiod\bibinitdelim A\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=637bf3f63e785e26266295887d6ae6ce}{%
+           family={Luo},
+           familyi={L\bibinitperiod},
+           given={Shujun},
+           giveni={S\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=31eb1192bc89b089263f41069b5e9d18}{%
+           family={Schroth},
+           familyi={S\bibinitperiod},
+           given={Gary},
+           giveni={G\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=bdcca9cfb426d43f2d5986961b41a554}{%
+           family={Meyers},
+           familyi={M\bibinitperiod},
+           given={Blake\bibnamedelima C.},
+           giveni={B\bibinitperiod\bibinitdelim C\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=816426d0336a2f4441e3f49381ece2ed}{%
+           family={Green},
+           familyi={G\bibinitperiod},
+           given={Pamela\bibnamedelima J.},
+           giveni={P\bibinitperiod\bibinitdelim J\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{6d4f61c54d6737fdcb6ad71efc51db10}
+      \strng{fullhash}{8157f152ed04c6426cb5c01e9e55a6dd}
+      \strng{fullhashraw}{8157f152ed04c6426cb5c01e9e55a6dd}
+      \strng{bibnamehash}{8157f152ed04c6426cb5c01e9e55a6dd}
+      \strng{authorbibnamehash}{8157f152ed04c6426cb5c01e9e55a6dd}
+      \strng{authornamehash}{6d4f61c54d6737fdcb6ad71efc51db10}
+      \strng{authorfullhash}{8157f152ed04c6426cb5c01e9e55a6dd}
+      \strng{authorfullhashraw}{8157f152ed04c6426cb5c01e9e55a6dd}
+      \field{sortinit}{G}
+      \field{sortinithash}{32d67eca0634bf53703493fb1090a2e8}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{We have developed a novel approach called parallel analysis of RNA ends (PARE) for high-throughput identification of microRNA (miRNA) targets and diverse applications for the study of the RNA degradome. The method described here comprises a modified 5'-rapid amplification of cDNA ends, deep sequencing of 3' cleavage products of mRNA and bioinformatic analysis. Following RNA extraction and isolation of polyadenylated RNA, a 5'-RNA adapter that includes an MmeI recognition site is ligated to 5'-monophosphorylated products, which contain mRNA fragments generated through miRNA-induced cleavage. The ligated products are reverse-transcribed, slightly amplified and cleaved with MmeI. The 5' equally-sized fragments are gel-selected, ligated to a 3' double-stranded DNA adapter and PCR-amplified. Following gel purification, the products are subjected to deep sequencing. The data are then matched to cDNAs and analyzed through bioinformatics filters. We describe the high-throughput protocol in detail and indicate alternative uses for PARE. The procedure presented here can be accomplished in 6-7 d.}
+      \field{eprinttype}{pubmed}
+      \field{issn}{1750-2799}
+      \field{journaltitle}{Nature Protocols}
+      \field{langid}{english}
+      \field{number}{3}
+      \field{shortjournal}{Nat Protoc}
+      \field{title}{Construction of {{Parallel Analysis}} of {{RNA Ends}} ({{PARE}}) Libraries for the Study of Cleaved {{miRNA}} Targets and the {{RNA}} Degradome}
+      \field{volume}{4}
+      \field{year}{2009}
+      \field{dateera}{ce}
+      \field{pages}{356\bibrangedash 362}
+      \range{pages}{7}
+      \verb{doi}
+      \verb 10.1038/nprot.2009.8
+      \endverb
+      \verb{eprint}
+      \verb 19247285
+      \endverb
+      \keyw{Animals,Computational Biology,MicroRNAs,RNA Stability,Sequence Analysis RNA}
+    \endentry
+    \entry{gregoryLinkRNAMetabolism2008}{article}{}{}
+      \name{author}{8}{}{%
+        {{un=0,uniquepart=base,hash=a7a6451e0081858fb0a0547d6b5b92e5}{%
+           family={Gregory},
+           familyi={G\bibinitperiod},
+           given={Brian\bibnamedelima D.},
+           giveni={B\bibinitperiod\bibinitdelim D\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=c367e78c571833f14d634fc8111a9a31}{%
+           family={O'Malley},
+           familyi={O\bibinitperiod},
+           given={Ronan\bibnamedelima C.},
+           giveni={R\bibinitperiod\bibinitdelim C\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=4d6320a48748328ebd1c90e3ddcba997}{%
+           family={Lister},
+           familyi={L\bibinitperiod},
+           given={Ryan},
+           giveni={R\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=6edcabfa9407f8fe3f56b570229c0826}{%
+           family={Urich},
+           familyi={U\bibinitperiod},
+           given={Mark\bibnamedelima A.},
+           giveni={M\bibinitperiod\bibinitdelim A\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=8415a3fb0b3ac48a7a6418706669e7f5}{%
+           family={Tonti-Filippini},
+           familyi={T\bibinithyphendelim F\bibinitperiod},
+           given={Julian},
+           giveni={J\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=0188e3d93aef79ffa0474d4e054abb00}{%
+           family={Chen},
+           familyi={C\bibinitperiod},
+           given={Huaming},
+           giveni={H\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=8f1a169a2c914646fc229e00a5649aab}{%
+           family={Millar},
+           familyi={M\bibinitperiod},
+           given={A.\bibnamedelimi Harvey},
+           giveni={A\bibinitperiod\bibinitdelim H\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=53d68562aa049e353fcbf44785d90e4c}{%
+           family={Ecker},
+           familyi={E\bibinitperiod},
+           given={Joseph\bibnamedelima R.},
+           giveni={J\bibinitperiod\bibinitdelim R\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{3ff8986b4d2fbf55b1b8242f5a0fda40}
+      \strng{fullhash}{5685ff2be06368c3dfd5eb96a2058b90}
+      \strng{fullhashraw}{5685ff2be06368c3dfd5eb96a2058b90}
+      \strng{bibnamehash}{3ff8986b4d2fbf55b1b8242f5a0fda40}
+      \strng{authorbibnamehash}{3ff8986b4d2fbf55b1b8242f5a0fda40}
+      \strng{authornamehash}{3ff8986b4d2fbf55b1b8242f5a0fda40}
+      \strng{authorfullhash}{5685ff2be06368c3dfd5eb96a2058b90}
+      \strng{authorfullhashraw}{5685ff2be06368c3dfd5eb96a2058b90}
+      \field{sortinit}{G}
+      \field{sortinithash}{32d67eca0634bf53703493fb1090a2e8}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{MicroRNAs (miRNAs) and small interfering RNAs (siRNAs) are abundant endogenous small RNAs (smRNAs) that control transcript expression through posttranscriptional gene silencing. Here, we show that concomitant loss of XRN4/EIN5, a 5'-3' exoribonuclease, and ABH1/CBP80, a subunit of the mRNA cap binding complex, results in Arabidopsis plants manifesting myriad developmental defects. We find that ABH1/CBP80 is necessary to obtain proper mature miRNA levels, which suggests this protein affects the miRNA-mediated RNA silencing pathway. Additionally, we show that XRN4/EIN5 affects the levels of a smRNA class that is processed from both sense and antisense strands of approximately 130 endogenous transcripts that apparently are converted to double-stranded RNA (dsRNA) and subsequently processed. We find that the parent transcripts of these smRNAs accumulate in an uncapped form upon loss of XRN4/EIN5, which suggests that uncapped endogenous transcripts can become smRNA biogenesis substrates. Overall, our results reveal unexpected connections between RNA metabolism and silencing pathways.}
+      \field{eprinttype}{pubmed}
+      \field{issn}{1878-1551}
+      \field{journaltitle}{Developmental Cell}
+      \field{langid}{english}
+      \field{month}{6}
+      \field{number}{6}
+      \field{shortjournal}{Dev Cell}
+      \field{title}{A Link between {{RNA}} Metabolism and Silencing Affecting {{Arabidopsis}} Development}
+      \field{volume}{14}
+      \field{year}{2008}
+      \field{dateera}{ce}
+      \field{pages}{854\bibrangedash 866}
+      \range{pages}{13}
+      \verb{doi}
+      \verb 10.1016/j.devcel.2008.04.005
+      \endverb
+      \verb{eprint}
+      \verb 18486559
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/G4JRX5DG/Gregory et al. - 2008 - A link between RNA metabolism and silencing affecting Arabidopsis development.pdf
+      \endverb
+      \keyw{Arabidopsis,Arabidopsis Proteins,Argonaute Proteins,Exoribonucleases,Gene Silencing,Genes Plant,MicroRNAs,Mutation,Plant Proteins,RNA Cap-Binding Proteins,RNA Plant,RNA Processing Post-Transcriptional,RNA Small Interfering}
+    \endentry
     \entry{grimsonMicroRNATargetingSpecificity2007}{article}{}{}
       \name{author}{6}{}{%
         {{un=0,uniquepart=base,hash=c367719f295b64c138126cb9a9de43ad}{%
@@ -1256,6 +1493,131 @@
       \verb{url}
       \verb https://pmc.ncbi.nlm.nih.gov/articles/PMC3013655/
       \endverb
+    \endentry
+    \entry{langmeadUltrafastMemoryefficientAlignment2009}{article}{}{}
+      \name{author}{4}{}{%
+        {{un=0,uniquepart=base,hash=a8ce1a82e3e69aab1bb83e47384c8977}{%
+           family={Langmead},
+           familyi={L\bibinitperiod},
+           given={Ben},
+           giveni={B\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=5621efe15ca5598a9e861fc0a93a06fa}{%
+           family={Trapnell},
+           familyi={T\bibinitperiod},
+           given={Cole},
+           giveni={C\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=d1158162106b04fb306da1364c6754d2}{%
+           family={Pop},
+           familyi={P\bibinitperiod},
+           given={Mihai},
+           giveni={M\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=77807756bbb6060dfad8032265d5333d}{%
+           family={Salzberg},
+           familyi={S\bibinitperiod},
+           given={Steven\bibnamedelima L.},
+           giveni={S\bibinitperiod\bibinitdelim L\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{db8a7b034816d56e0ed62f838dbd5a60}
+      \strng{fullhash}{9b9bdc7f4fc48a017285265e1f8f00fd}
+      \strng{fullhashraw}{9b9bdc7f4fc48a017285265e1f8f00fd}
+      \strng{bibnamehash}{9b9bdc7f4fc48a017285265e1f8f00fd}
+      \strng{authorbibnamehash}{9b9bdc7f4fc48a017285265e1f8f00fd}
+      \strng{authornamehash}{db8a7b034816d56e0ed62f838dbd5a60}
+      \strng{authorfullhash}{9b9bdc7f4fc48a017285265e1f8f00fd}
+      \strng{authorfullhashraw}{9b9bdc7f4fc48a017285265e1f8f00fd}
+      \field{sortinit}{L}
+      \field{sortinithash}{7c47d417cecb1f4bd38d1825c427a61a}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{Bowtie is an ultrafast, memory-efficient alignment program for aligning short DNA sequence reads to large genomes. For the human genome, Burrows-Wheeler indexing allows Bowtie to align more than 25 million reads per CPU hour with a memory footprint of approximately 1.3 gigabytes. Bowtie extends previous Burrows-Wheeler techniques with a novel quality-aware backtracking algorithm that permits mismatches. Multiple processor cores can be used simultaneously to achieve even greater alignment speeds. Bowtie is open source http://bowtie.cbcb.umd.edu.}
+      \field{day}{4}
+      \field{issn}{1474-760X}
+      \field{journaltitle}{Genome Biology}
+      \field{month}{3}
+      \field{number}{3}
+      \field{shortjournal}{Genome Biology}
+      \field{title}{Ultrafast and Memory-Efficient Alignment of Short {{DNA}} Sequences to the Human Genome}
+      \field{urlday}{8}
+      \field{urlmonth}{2}
+      \field{urlyear}{2025}
+      \field{volume}{10}
+      \field{year}{2009}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \field{pages}{R25}
+      \range{pages}{-1}
+      \verb{doi}
+      \verb 10.1186/gb-2009-10-3-r25
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/V7HZHR32/Langmead et al. - 2009 - Ultrafast and memory-efficient alignment of short DNA sequences to the human genome.pdf;/home/rafail/Zotero/storage/TCJ5KA38/gb-2009-10-3-r25.html
+      \endverb
+      \verb{urlraw}
+      \verb https://doi.org/10.1186/gb-2009-10-3-r25
+      \endverb
+      \verb{url}
+      \verb https://doi.org/10.1186/gb-2009-10-3-r25
+      \endverb
+      \keyw{Additional Data File,Central Processing Unit,Human Reference Genome,Memory Footprint,NCBI Short Read Archive}
+    \endentry
+    \entry{liAligningSequenceReads2013}{online}{}{}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=466d90849ccf7e74e32d338b7c35491d}{%
+           family={Li},
+           familyi={L\bibinitperiod},
+           given={Heng},
+           giveni={H\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{466d90849ccf7e74e32d338b7c35491d}
+      \strng{fullhash}{466d90849ccf7e74e32d338b7c35491d}
+      \strng{fullhashraw}{466d90849ccf7e74e32d338b7c35491d}
+      \strng{bibnamehash}{466d90849ccf7e74e32d338b7c35491d}
+      \strng{authorbibnamehash}{466d90849ccf7e74e32d338b7c35491d}
+      \strng{authornamehash}{466d90849ccf7e74e32d338b7c35491d}
+      \strng{authorfullhash}{466d90849ccf7e74e32d338b7c35491d}
+      \strng{authorfullhashraw}{466d90849ccf7e74e32d338b7c35491d}
+      \field{sortinit}{L}
+      \field{sortinithash}{7c47d417cecb1f4bd38d1825c427a61a}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{Summary: BWA-MEM is a new alignment algorithm for aligning sequence reads or long query sequences against a large reference genome such as human. It automatically chooses between local and end-to-end alignments, supports paired-end reads and performs chimeric alignment. The algorithm is robust to sequencing errors and applicable to a wide range of sequence lengths from 70bp to a few megabases. For mapping 100bp sequences, BWA-MEM shows better performance than several state-of-art read aligners to date. Availability and implementation: BWA-MEM is implemented as a component of BWA, which is available at http://github.com/lh3/bwa. Contact: hengli@broadinstitute.org}
+      \field{day}{26}
+      \field{eprintclass}{q-bio}
+      \field{eprinttype}{arXiv}
+      \field{month}{5}
+      \field{pubstate}{prepublished}
+      \field{title}{Aligning Sequence Reads, Clone Sequences and Assembly Contigs with {{BWA-MEM}}}
+      \field{urlday}{13}
+      \field{urlmonth}{4}
+      \field{urlyear}{2026}
+      \field{year}{2013}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \verb{doi}
+      \verb 10.48550/arXiv.1303.3997
+      \endverb
+      \verb{eprint}
+      \verb 1303.3997
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/CP8LTGEH/Li - 2013 - Aligning sequence reads, clone sequences and assembly contigs with BWA-MEM.pdf;/home/rafail/Zotero/storage/F7R3GVRF/1303.html
+      \endverb
+      \verb{urlraw}
+      \verb http://arxiv.org/abs/1303.3997
+      \endverb
+      \verb{url}
+      \verb http://arxiv.org/abs/1303.3997
+      \endverb
+      \keyw{Quantitative Biology - Genomics}
     \endentry
     \entry{linBladderCancerCellsecreted2019}{article}{}{}
       \name{author}{6}{}{%

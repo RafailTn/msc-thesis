@@ -2385,28 +2385,34 @@
     <bcf:citekey order="11" intorder="1">obrienOverviewMicroRNABiogenesis2018</bcf:citekey>
     <bcf:citekey order="12" intorder="1">grimsonMicroRNATargetingSpecificity2007</bcf:citekey>
     <bcf:citekey order="13" intorder="1">dienerMiRNATargetInteractions2024</bcf:citekey>
-    <bcf:citekey order="14" intorder="1">chaluvally-raghavanDirectUpregulationSTAT32016</bcf:citekey>
-    <bcf:citekey order="14" intorder="2">guoNuclearMiR30b5pSuppresses2021</bcf:citekey>
-    <bcf:citekey order="14" intorder="3">kimMicroRNAdirectedTranscriptionalGene2008</bcf:citekey>
-    <bcf:citekey order="14" intorder="4">xiaoMicroRNAsActivateGene2017</bcf:citekey>
-    <bcf:citekey order="15" intorder="1">obrienOverviewMicroRNABiogenesis2018</bcf:citekey>
-    <bcf:citekey order="16" intorder="1">hornsteinMicroRNAMiR196Acts2005</bcf:citekey>
-    <bcf:citekey order="17" intorder="1">corbinRoleMicroRNAsSynaptic2009</bcf:citekey>
-    <bcf:citekey order="18" intorder="1">adamMiR200ExpressionRegulates2009</bcf:citekey>
-    <bcf:citekey order="19" intorder="1">linBladderCancerCellsecreted2019</bcf:citekey>
-    <bcf:citekey order="20" intorder="1">sapreUrinaryMicroRNASignature2016</bcf:citekey>
-    <bcf:citekey order="21" intorder="1">dingMiR222CardiovascularDiseases2017</bcf:citekey>
-    <bcf:citekey order="22" intorder="1">gullerMicroRNAsSkeletalMuscle2010</bcf:citekey>
+    <bcf:citekey order="14" intorder="1">kimMicroRNAdirectedTranscriptionalGene2008</bcf:citekey>
+    <bcf:citekey order="14" intorder="2">chaluvally-raghavanDirectUpregulationSTAT32016</bcf:citekey>
+    <bcf:citekey order="14" intorder="3">xiaoMicroRNAsActivateGene2017</bcf:citekey>
+    <bcf:citekey order="14" intorder="4">guoNuclearMiR30b5pSuppresses2021</bcf:citekey>
+    <bcf:citekey order="15" intorder="1">guoNuclearMiR30b5pSuppresses2021</bcf:citekey>
+    <bcf:citekey order="16" intorder="1">obrienOverviewMicroRNABiogenesis2018</bcf:citekey>
+    <bcf:citekey order="17" intorder="1">hornsteinMicroRNAMiR196Acts2005</bcf:citekey>
+    <bcf:citekey order="18" intorder="1">corbinRoleMicroRNAsSynaptic2009</bcf:citekey>
+    <bcf:citekey order="19" intorder="1">adamMiR200ExpressionRegulates2009</bcf:citekey>
+    <bcf:citekey order="20" intorder="1">linBladderCancerCellsecreted2019</bcf:citekey>
+    <bcf:citekey order="21" intorder="1">sapreUrinaryMicroRNASignature2016</bcf:citekey>
+    <bcf:citekey order="22" intorder="1">dingMiR222CardiovascularDiseases2017</bcf:citekey>
     <bcf:citekey order="23" intorder="1">gullerMicroRNAsSkeletalMuscle2010</bcf:citekey>
-    <bcf:citekey order="24" intorder="1">benesovaSmallRNASequencingApproaches2021</bcf:citekey>
+    <bcf:citekey order="24" intorder="1">gullerMicroRNAsSkeletalMuscle2010</bcf:citekey>
     <bcf:citekey order="25" intorder="1">benesovaSmallRNASequencingApproaches2021</bcf:citekey>
     <bcf:citekey order="26" intorder="1">benesovaSmallRNASequencingApproaches2021</bcf:citekey>
-    <bcf:citekey order="27" intorder="1">aMappingHumanMiRNA2013</bcf:citekey>
+    <bcf:citekey order="27" intorder="1">benesovaSmallRNASequencingApproaches2021</bcf:citekey>
     <bcf:citekey order="28" intorder="1">aMappingHumanMiRNA2013</bcf:citekey>
     <bcf:citekey order="29" intorder="1">aMappingHumanMiRNA2013</bcf:citekey>
-    <bcf:citekey order="30" intorder="1">manakovScalableDeepProfiling2022</bcf:citekey>
+    <bcf:citekey order="30" intorder="1">aMappingHumanMiRNA2013</bcf:citekey>
     <bcf:citekey order="31" intorder="1">manakovScalableDeepProfiling2022</bcf:citekey>
     <bcf:citekey order="32" intorder="1">manakovScalableDeepProfiling2022</bcf:citekey>
+    <bcf:citekey order="33" intorder="1">manakovScalableDeepProfiling2022</bcf:citekey>
+    <bcf:citekey order="34" intorder="1">gregoryLinkRNAMetabolism2008</bcf:citekey>
+    <bcf:citekey order="34" intorder="2">addo-quayeEndogenousSiRNAMiRNA2008</bcf:citekey>
+    <bcf:citekey order="34" intorder="3">germanConstructionParallelAnalysis2009</bcf:citekey>
+    <bcf:citekey order="35" intorder="1">langmeadUltrafastMemoryefficientAlignment2009</bcf:citekey>
+    <bcf:citekey order="35" intorder="2">liAligningSequenceReads2013</bcf:citekey>
   </bcf:section>
   <!-- SORTING TEMPLATES -->
   <bcf:sortingtemplate name="nty">
