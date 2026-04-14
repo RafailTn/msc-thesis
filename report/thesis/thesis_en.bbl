@@ -491,6 +491,71 @@
       \verb https://pmc.ncbi.nlm.nih.gov/articles/PMC8229417/
       \endverb
     \endentry
+    \entry{buschIntaRNAEfficientPrediction2008}{article}{}{}
+      \name{author}{3}{}{%
+        {{un=0,uniquepart=base,hash=459273ef39278d33a5ae3ca070382ab0}{%
+           family={Busch},
+           familyi={B\bibinitperiod},
+           given={Anke},
+           giveni={A\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=3dec1a340e7a9a6f0316e96e663f41e7}{%
+           family={Richter},
+           familyi={R\bibinitperiod},
+           given={Andreas\bibnamedelima S.},
+           giveni={A\bibinitperiod\bibinitdelim S\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=1ae4aff1cad6688754b459f30e5a3678}{%
+           family={Backofen},
+           familyi={B\bibinitperiod},
+           given={Rolf},
+           giveni={R\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{location}{1}{%
+        {Oxford, England}%
+      }
+      \strng{namehash}{f052c378584bb6dd0c68e7d6d82d3064}
+      \strng{fullhash}{ac7bf5ed7af8a41c368434a0b6415622}
+      \strng{fullhashraw}{ac7bf5ed7af8a41c368434a0b6415622}
+      \strng{bibnamehash}{ac7bf5ed7af8a41c368434a0b6415622}
+      \strng{authorbibnamehash}{ac7bf5ed7af8a41c368434a0b6415622}
+      \strng{authornamehash}{f052c378584bb6dd0c68e7d6d82d3064}
+      \strng{authorfullhash}{ac7bf5ed7af8a41c368434a0b6415622}
+      \strng{authorfullhashraw}{ac7bf5ed7af8a41c368434a0b6415622}
+      \field{sortinit}{B}
+      \field{sortinithash}{d7095fff47cda75ca2589920aae98399}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{abstract}{MOTIVATION: During the last few years, several new small regulatory RNAs (sRNAs) have been discovered in bacteria. Most of them act as post-transcriptional regulators by base pairing to a target mRNA, causing translational repression or activation, or mRNA degradation. Numerous sRNAs have already been identified, but the number of experimentally verified targets is considerably lower. Consequently, computational target prediction is in great demand. Many existing target prediction programs neglect the accessibility of target sites and the existence of a seed, while other approaches are either specialized to certain types of RNAs or too slow for genome-wide searches. RESULTS: We introduce INTARNA, a new general and fast approach to the prediction of RNA-RNA interactions incorporating accessibility of target sites as well as the existence of a user-definable seed. We successfully applied INTARNA to the prediction of bacterial sRNA targets and determined the exact locations of the interactions with a higher accuracy than competing programs. AVAILABILITY: http://www.bioinf.uni-freiburg.de/Software/}
+      \field{day}{15}
+      \field{eprinttype}{pubmed}
+      \field{issn}{1367-4811}
+      \field{journaltitle}{Bioinformatics}
+      \field{langid}{english}
+      \field{month}{12}
+      \field{number}{24}
+      \field{shortjournal}{Bioinformatics}
+      \field{shorttitle}{{{IntaRNA}}}
+      \field{title}{{{IntaRNA}}: Efficient Prediction of Bacterial {{sRNA}} Targets Incorporating Target Site Accessibility and Seed Regions}
+      \field{volume}{24}
+      \field{year}{2008}
+      \field{dateera}{ce}
+      \field{pages}{2849\bibrangedash 2856}
+      \range{pages}{8}
+      \verb{doi}
+      \verb 10.1093/bioinformatics/btn544
+      \endverb
+      \verb{eprint}
+      \verb 18940824
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/6JLCEZKF/Busch et al. - 2008 - IntaRNA efficient prediction of bacterial sRNA targets incorporating target site accessibility and.pdf
+      \endverb
+      \keyw{Computational Biology,Escherichia coli,RNA Bacterial,RNA Messenger,RNA Untranslated,Software}
+    \endentry
     \entry{chaluvally-raghavanDirectUpregulationSTAT32016}{article}{}{}
       \name{author}{16}{}{%
         {{un=0,uniquepart=base,hash=ede7c064e21ca7e97f9f25532de7990c}{%
@@ -840,6 +905,78 @@
       \verb{url}
       \verb https://pmc.ncbi.nlm.nih.gov/articles/PMC5239839/
       \endverb
+    \endentry
+    \entry{gelhausenIntaRNAhelixcomposingRNARNAInteractions2019}{article}{}{}
+      \name{author}{5}{}{%
+        {{un=0,uniquepart=base,hash=5514e004d9e36d6e6bdd8255ea762020}{%
+           family={Gelhausen},
+           familyi={G\bibinitperiod},
+           given={Rick},
+           giveni={R\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=7f2fcaa0fb7f84197e8572abd77f1b25}{%
+           family={Will},
+           familyi={W\bibinitperiod},
+           given={Sebastian},
+           giveni={S\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=1e07baf062d6f278c3ac1b6e59a9a285}{%
+           family={Hofacker},
+           familyi={H\bibinitperiod},
+           given={Ivo\bibnamedelima L.},
+           giveni={I\bibinitperiod\bibinitdelim L\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=1ae4aff1cad6688754b459f30e5a3678}{%
+           family={Backofen},
+           familyi={B\bibinitperiod},
+           given={Rolf},
+           giveni={R\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=dff5b12d0d42e0528bcb38469888aafb}{%
+           family={Raden},
+           familyi={R\bibinitperiod},
+           given={Martin},
+           giveni={M\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{64c60bcc5b1b7dae1d4baafa73790b9c}
+      \strng{fullhash}{dd12592381f57fe177e249b7ca4256dc}
+      \strng{fullhashraw}{dd12592381f57fe177e249b7ca4256dc}
+      \strng{bibnamehash}{dd12592381f57fe177e249b7ca4256dc}
+      \strng{authorbibnamehash}{dd12592381f57fe177e249b7ca4256dc}
+      \strng{authornamehash}{64c60bcc5b1b7dae1d4baafa73790b9c}
+      \strng{authorfullhash}{dd12592381f57fe177e249b7ca4256dc}
+      \strng{authorfullhashraw}{dd12592381f57fe177e249b7ca4256dc}
+      \field{sortinit}{G}
+      \field{sortinithash}{32d67eca0634bf53703493fb1090a2e8}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{Efficient computational tools for the identification of putative target RNAs regulated by prokaryotic sRNAs rely on thermodynamic models of RNA secondary structures. While they typically predict RNA-RNA interaction complexes accurately, they yield many highly-ranked false positives in target screens. One obvious source of this low specificity appears to be the disability of current secondary-structure-based models to reflect steric constraints, which nevertheless govern the kinetic formation of RNA-RNA interactions. For example, often~- even thermodynamically favorable~- extensions of short initial kissing hairpin interactions are kinetically prohibited, since this would require unwinding of intra-molecular helices as well as sterically impossible bending of the interaction helix. Another source is the consideration of instable and thus unlikely subinteractions that enable better scoring of longer interactions. In consequence, the efficient prediction methods that do not consider such effects show a high false positive rate. To increase the prediction accuracy we devise IntaRNAhelix, a dynamic programming algorithm that length-restricts the runs of consecutive inter-molecular base pairs (perfect canonical stackings), which we hypothesize to implicitly model the steric and kinetic effects. The novel method is implemented by extending the state-of-the-art tool IntaRNA. Our comprehensive bacterial sRNA target prediction benchmark demonstrates significant improvements of the prediction accuracy and enables more than 40-times faster computations. These results indicate~- supporting our hypothesis~- that stable helix composition increases the accuracy of interaction prediction models compared to the current state-of-the-art approach.}
+      \field{eprinttype}{pubmed}
+      \field{issn}{1757-6334}
+      \field{journaltitle}{Journal of Bioinformatics and Computational Biology}
+      \field{langid}{english}
+      \field{month}{10}
+      \field{number}{5}
+      \field{shortjournal}{J Bioinform Comput Biol}
+      \field{title}{{{IntaRNAhelix-composing RNA-RNA}} Interactions from Stable Inter-Molecular Helices Boosts Bacterial {{sRNA}} Target Prediction}
+      \field{volume}{17}
+      \field{year}{2019}
+      \field{dateera}{ce}
+      \field{pages}{1940009}
+      \range{pages}{1}
+      \verb{doi}
+      \verb 10.1142/S0219720019400092
+      \endverb
+      \verb{eprint}
+      \verb 31856671
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/F5TF5PW2/Gelhausen et al. - 2019 - IntaRNAhelix-composing RNA-RNA interactions from stable inter-molecular helices boosts bacterial sRN.pdf
+      \endverb
+      \keyw{Algorithms,Base Pairing,canonical helix,Computational Biology,constrained helix-length,Nucleic Acid Conformation,RNA Bacterial,RNA–RNA interaction prediction,seed,steric constraints,Thermodynamics}
     \endentry
     \entry{germanConstructionParallelAnalysis2009}{article}{}{}
       \name{author}{5}{}{%
@@ -1266,6 +1403,91 @@
       \endverb
       \keyw{Animals,Autophagy,Basic Helix-Loop-Helix Leucine Zipper Transcription Factors,Cell Nucleus,HEK293 Cells,HeLa Cells,Humans,Lysosomes,Male,Mice,Mice Inbred C57BL,MicroRNAs}
     \endentry
+    \entry{hofackerFastFoldingComparison1994}{article}{}{}
+      \name{author}{6}{}{%
+        {{un=0,uniquepart=base,hash=a8d5a6aed2c64110cc7c8195b40b070f}{%
+           family={Hofacker},
+           familyi={H\bibinitperiod},
+           given={I.\bibnamedelimi L.},
+           giveni={I\bibinitperiod\bibinitdelim L\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=31a8c047df91f54e7ec063f0bb2c071a}{%
+           family={Fontana},
+           familyi={F\bibinitperiod},
+           given={W.},
+           giveni={W\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=6884928ac0c99383a7f06534e7ad9c1e}{%
+           family={Stadler},
+           familyi={S\bibinitperiod},
+           given={P.\bibnamedelimi F.},
+           giveni={P\bibinitperiod\bibinitdelim F\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=07a2152a2f7545a19bc97577131909d2}{%
+           family={Bonhoeffer},
+           familyi={B\bibinitperiod},
+           given={L.\bibnamedelimi S.},
+           giveni={L\bibinitperiod\bibinitdelim S\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=a5b1ddc9d4a5474447b961b91a94db44}{%
+           family={Tacker},
+           familyi={T\bibinitperiod},
+           given={M.},
+           giveni={M\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=b730371d238e18ece5ff5fea4cbae44e}{%
+           family={Schuster},
+           familyi={S\bibinitperiod},
+           given={P.},
+           giveni={P\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{e413d6b3a2ecbc1f6eb8c962d19fcf5a}
+      \strng{fullhash}{9b6e9a7933acb9f3d26cee3825f096c7}
+      \strng{fullhashraw}{9b6e9a7933acb9f3d26cee3825f096c7}
+      \strng{bibnamehash}{e413d6b3a2ecbc1f6eb8c962d19fcf5a}
+      \strng{authorbibnamehash}{e413d6b3a2ecbc1f6eb8c962d19fcf5a}
+      \strng{authornamehash}{e413d6b3a2ecbc1f6eb8c962d19fcf5a}
+      \strng{authorfullhash}{9b6e9a7933acb9f3d26cee3825f096c7}
+      \strng{authorfullhashraw}{9b6e9a7933acb9f3d26cee3825f096c7}
+      \field{sortinit}{H}
+      \field{sortinithash}{23a3aa7c24e56cfa16945d55545109b5}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{Computer codes for computation and comparison of RNA secondary structures, the Vienna RNA package, are presented, that are based on dynamic programming algorithms and aim at predictions of structures with minimum free energies as well as at computations of the equilibrium partition functions and base pairing probabilities.}
+      \field{day}{1}
+      \field{issn}{1434-4475}
+      \field{journaltitle}{Monatshefte für Chemie / Chemical Monthly}
+      \field{langid}{english}
+      \field{month}{2}
+      \field{number}{2}
+      \field{shortjournal}{Monatsh Chem}
+      \field{title}{Fast Folding and Comparison of {{RNA}} Secondary Structures}
+      \field{urlday}{26}
+      \field{urlmonth}{3}
+      \field{urlyear}{2026}
+      \field{volume}{125}
+      \field{year}{1994}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \field{pages}{167\bibrangedash 188}
+      \range{pages}{22}
+      \verb{doi}
+      \verb 10.1007/BF00818163
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/ARYNAYSE/Hofacker et al. - 1994 - Fast folding and comparison of RNA secondary structures.pdf
+      \endverb
+      \verb{urlraw}
+      \verb https://doi.org/10.1007/BF00818163
+      \endverb
+      \verb{url}
+      \verb https://doi.org/10.1007/BF00818163
+      \endverb
+      \keyw{Inverse folding,parallel computing,public domain software,RNA folding,RNA secondary structures,tree editing}
+    \endentry
     \entry{hornsteinMicroRNAMiR196Acts2005}{article}{}{}
       \name{author}{9}{}{%
         {{un=0,uniquepart=base,hash=b80fa683b8b061729946d2a3ce75754d}{%
@@ -1567,7 +1789,7 @@
       \keyw{Additional Data File,Central Processing Unit,Human Reference Genome,Memory Footprint,NCBI Short Read Archive}
     \endentry
     \entry{lewisConservedSeedPairing2005}{article}{}{}
-      \name{author}{3}{}{%
+      \name{author}{3}{ul=2}{%
         {{un=0,uniquepart=base,hash=981303c57dbe16ac340756e7374a9b3e}{%
            family={Lewis},
            familyi={L\bibinitperiod},
@@ -1587,12 +1809,12 @@
            giveni={D\bibinitperiod\bibinitdelim P\bibinitperiod},
            givenun=0}}%
       }
-      \strng{namehash}{1814e15f2f86d3921bc42628e368caa4}
+      \strng{namehash}{edfbe7ecc2fa196e754cab6b18ef2fed}
       \strng{fullhash}{e03da04f79dd57e5cf17e1f47a18d2b5}
       \strng{fullhashraw}{e03da04f79dd57e5cf17e1f47a18d2b5}
       \strng{bibnamehash}{e03da04f79dd57e5cf17e1f47a18d2b5}
       \strng{authorbibnamehash}{e03da04f79dd57e5cf17e1f47a18d2b5}
-      \strng{authornamehash}{1814e15f2f86d3921bc42628e368caa4}
+      \strng{authornamehash}{edfbe7ecc2fa196e754cab6b18ef2fed}
       \strng{authorfullhash}{e03da04f79dd57e5cf17e1f47a18d2b5}
       \strng{authorfullhashraw}{e03da04f79dd57e5cf17e1f47a18d2b5}
       \field{sortinit}{L}
@@ -1626,6 +1848,90 @@
       \verb /home/rafail/Zotero/storage/XN76J6SP/Lewis et al. - 2005 - Conserved seed pairing, often flanked by adenosines, indicates that thousands of human genes are mic.pdf
       \endverb
       \keyw{3' Untranslated Regions,Adenosine,Amino Acid Sequence,Animals,Chickens,Dogs,Gene Expression Regulation,Gene Targeting,Humans,Mice,MicroRNAs,Molecular Sequence Data,Nucleic Acid Hybridization,Nucleotides,Rats,RNA Messenger}
+    \endentry
+    \entry{lewisPredictionMammalianMicroRNA2003}{article}{}{}
+      \name{author}{5}{ul=2}{%
+        {{un=0,uniquepart=base,hash=981303c57dbe16ac340756e7374a9b3e}{%
+           family={Lewis},
+           familyi={L\bibinitperiod},
+           given={Benjamin\bibnamedelima P.},
+           giveni={B\bibinitperiod\bibinitdelim P\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=97f9be9cda1aec89b256c53f3d101f71}{%
+           family={Shih},
+           familyi={S\bibinitperiod},
+           given={I.-hung},
+           giveni={I\bibinithyphendelim h\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=db077301d3d21a590987c67c7fec6dfa}{%
+           family={Jones-Rhoades},
+           familyi={J\bibinithyphendelim R\bibinitperiod},
+           given={Matthew\bibnamedelima W.},
+           giveni={M\bibinitperiod\bibinitdelim W\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=056c2b17168f46a2cf5a1a76f287b2f0}{%
+           family={Bartel},
+           familyi={B\bibinitperiod},
+           given={David\bibnamedelima P.},
+           giveni={D\bibinitperiod\bibinitdelim P\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=3dd3adca90b1905746a3cd13e0300698}{%
+           family={Burge},
+           familyi={B\bibinitperiod},
+           given={Christopher\bibnamedelima B.},
+           giveni={C\bibinitperiod\bibinitdelim B\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {Elsevier}%
+      }
+      \strng{namehash}{ca3acea4bb2d35a7a7e0c9c9980f63cd}
+      \strng{fullhash}{8d4bf0e64bc4d7c277d023208d829839}
+      \strng{fullhashraw}{8d4bf0e64bc4d7c277d023208d829839}
+      \strng{bibnamehash}{8d4bf0e64bc4d7c277d023208d829839}
+      \strng{authorbibnamehash}{8d4bf0e64bc4d7c277d023208d829839}
+      \strng{authornamehash}{ca3acea4bb2d35a7a7e0c9c9980f63cd}
+      \strng{authorfullhash}{8d4bf0e64bc4d7c277d023208d829839}
+      \strng{authorfullhashraw}{8d4bf0e64bc4d7c277d023208d829839}
+      \field{sortinit}{L}
+      \field{sortinithash}{7c47d417cecb1f4bd38d1825c427a61a}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{day}{26}
+      \field{eprinttype}{pubmed}
+      \field{issn}{0092-8674, 1097-4172}
+      \field{journaltitle}{Cell}
+      \field{langid}{english}
+      \field{month}{12}
+      \field{number}{7}
+      \field{shortjournal}{Cell}
+      \field{title}{Prediction of {{Mammalian MicroRNA Targets}}}
+      \field{urlday}{14}
+      \field{urlmonth}{4}
+      \field{urlyear}{2026}
+      \field{volume}{115}
+      \field{year}{2003}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \field{pages}{787\bibrangedash 798}
+      \range{pages}{12}
+      \verb{doi}
+      \verb 10.1016/S0092-8674(03)01018-3
+      \endverb
+      \verb{eprint}
+      \verb 14697198
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/LDYZK57M/Lewis et al. - 2003 - Prediction of Mammalian MicroRNA Targets.pdf
+      \endverb
+      \verb{urlraw}
+      \verb https://www.cell.com/cell/abstract/S0092-8674(03)01018-3
+      \endverb
+      \verb{url}
+      \verb https://www.cell.com/cell/abstract/S0092-8674(03)01018-3
+      \endverb
     \endentry
     \entry{liAligningSequenceReads2013}{online}{}{}
       \name{author}{1}{}{%
@@ -1873,6 +2179,139 @@
       \verb https://www.biorxiv.org/content/10.1101/2022.02.13.480296v2
       \endverb
     \endentry
+    \entry{mannIntaRNA20Enhanced2017}{article}{}{}
+      \name{author}{3}{}{%
+        {{un=0,uniquepart=base,hash=9699e73dc0463d1f389d8853b8ad59c1}{%
+           family={Mann},
+           familyi={M\bibinitperiod},
+           given={Martin},
+           giveni={M\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=d9def7fe359799c166c1d34dd4df4a9c}{%
+           family={Wright},
+           familyi={W\bibinitperiod},
+           given={Patrick\bibnamedelima R.},
+           giveni={P\bibinitperiod\bibinitdelim R\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=1ae4aff1cad6688754b459f30e5a3678}{%
+           family={Backofen},
+           familyi={B\bibinitperiod},
+           given={Rolf},
+           giveni={R\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{ea21fb7fe4d268efbb7b15ffd445492c}
+      \strng{fullhash}{2122d313bcd8566853bfc0aee544fc6b}
+      \strng{fullhashraw}{2122d313bcd8566853bfc0aee544fc6b}
+      \strng{bibnamehash}{2122d313bcd8566853bfc0aee544fc6b}
+      \strng{authorbibnamehash}{2122d313bcd8566853bfc0aee544fc6b}
+      \strng{authornamehash}{ea21fb7fe4d268efbb7b15ffd445492c}
+      \strng{authorfullhash}{2122d313bcd8566853bfc0aee544fc6b}
+      \strng{authorfullhashraw}{2122d313bcd8566853bfc0aee544fc6b}
+      \field{sortinit}{M}
+      \field{sortinithash}{4625c616857f13d17ce56f7d4f97d451}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{abstract}{The IntaRNA algorithm enables fast and accurate prediction of RNA-RNA hybrids by incorporating seed constraints and interaction site accessibility. Here, we introduce IntaRNAv2, which enables enhanced parameterization as well as fully customizable control over the prediction modes and output formats. Based on up to date benchmark data, the enhanced predictive quality is shown and further improvements due to more restrictive seed constraints are highlighted. The extended web interface provides visualizations of the new minimal energy profiles for RNA-RNA interactions. These allow a detailed investigation of interaction alternatives and can reveal potential interaction site multiplicity. IntaRNAv2 is freely available (source and binary), and distributed via the conda package manager. Furthermore, it has been included into the Galaxy workflow framework and its already established web interface enables ad hoc usage.}
+      \field{day}{3}
+      \field{eprinttype}{pubmed}
+      \field{issn}{1362-4962}
+      \field{journaltitle}{Nucleic Acids Research}
+      \field{langid}{english}
+      \field{month}{7}
+      \field{number}{W1}
+      \field{shortjournal}{Nucleic Acids Res}
+      \field{shorttitle}{{{IntaRNA}} 2.0}
+      \field{title}{{{IntaRNA}} 2.0: Enhanced and Customizable Prediction of {{RNA-RNA}} Interactions}
+      \field{volume}{45}
+      \field{year}{2017}
+      \field{dateera}{ce}
+      \field{pages}{W435\bibrangedash W439}
+      \range{pages}{-1}
+      \verb{doi}
+      \verb 10.1093/nar/gkx279
+      \endverb
+      \verb{eprint}
+      \verb 28472523
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/7ZLPYJ59/Mann et al. - 2017 - IntaRNA 2.0 enhanced and customizable prediction of RNA-RNA interactions.pdf
+      \endverb
+      \keyw{Algorithms,Genome,Internet,RNA,Software}
+    \endentry
+    \entry{miladiIntegrationAccessibilityData2019}{article}{}{}
+      \name{author}{4}{}{%
+        {{un=0,uniquepart=base,hash=b069af5ed2a7e64d657a4ae37c1066ea}{%
+           family={Miladi},
+           familyi={M\bibinitperiod},
+           given={Milad},
+           giveni={M\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=f6bc129d0c035e9e515fa8962eb728f1}{%
+           family={Montaseri},
+           familyi={M\bibinitperiod},
+           given={Soheila},
+           giveni={S\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=1ae4aff1cad6688754b459f30e5a3678}{%
+           family={Backofen},
+           familyi={B\bibinitperiod},
+           given={Rolf},
+           giveni={R\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=dff5b12d0d42e0528bcb38469888aafb}{%
+           family={Raden},
+           familyi={R\bibinitperiod},
+           given={Martin},
+           giveni={M\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{f9637f894606d6056c5dfb074748276f}
+      \strng{fullhash}{ec3f5628fb902e3eff8e9cf6ff0f1659}
+      \strng{fullhashraw}{ec3f5628fb902e3eff8e9cf6ff0f1659}
+      \strng{bibnamehash}{ec3f5628fb902e3eff8e9cf6ff0f1659}
+      \strng{authorbibnamehash}{ec3f5628fb902e3eff8e9cf6ff0f1659}
+      \strng{authornamehash}{f9637f894606d6056c5dfb074748276f}
+      \strng{authorfullhash}{ec3f5628fb902e3eff8e9cf6ff0f1659}
+      \strng{authorfullhashraw}{ec3f5628fb902e3eff8e9cf6ff0f1659}
+      \field{sortinit}{M}
+      \field{sortinithash}{4625c616857f13d17ce56f7d4f97d451}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{Experimental structure probing data has been shown to improve thermodynamics-based RNA secondary structure prediction. To this end, chemical reactivity information (as provided e.g. by SHAPE) is incorporated, which encodes whether or not individual nucleotides are involved in intra-molecular structure. Since inter-molecular RNA–RNA interactions are often confined to unpaired RNA regions, SHAPE data is even more promising to improve interaction prediction. Here, we show how such experimental data can be incorporated seamlessly into accessibility-based RNA–RNA interaction prediction approaches, as implemented in IntaRNA. This is possible via the computation and use of unpaired probabilities that incorporate the structure probing information. We show that experimental SHAPE data can significantly improve RNA–RNA interaction prediction. We evaluate our approach by investigating interactions of a spliceosomal U1 snRNA transcript with its target splice sites. When SHAPE data is incorporated, known target sites are predicted with increased precision and specificity.https://github.com/BackofenLab/IntaRNASupplementary data are available at Bioinformatics online.}
+      \field{day}{15}
+      \field{issn}{1367-4803}
+      \field{journaltitle}{Bioinformatics}
+      \field{month}{8}
+      \field{number}{16}
+      \field{shortjournal}{Bioinformatics}
+      \field{title}{Integration of Accessibility Data from Structure Probing into {{RNA}}–{{RNA}} Interaction Prediction}
+      \field{urlday}{14}
+      \field{urlmonth}{4}
+      \field{urlyear}{2026}
+      \field{volume}{35}
+      \field{year}{2019}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \field{pages}{2862\bibrangedash 2864}
+      \range{pages}{3}
+      \verb{doi}
+      \verb 10.1093/bioinformatics/bty1029
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/HE7KX4HK/Miladi et al. - 2019 - Integration of accessibility data from structure probing into RNA–RNA interaction prediction.pdf;/home/rafail/Zotero/storage/XSFNPCHW/bty1029.html
+      \endverb
+      \verb{urlraw}
+      \verb https://doi.org/10.1093/bioinformatics/bty1029
+      \endverb
+      \verb{url}
+      \verb https://doi.org/10.1093/bioinformatics/bty1029
+      \endverb
+    \endentry
     \entry{obrienOverviewMicroRNABiogenesis2018}{article}{}{}
       \name{author}{4}{}{%
         {{un=0,uniquepart=base,hash=4ac8bc5c4bc1fc559274c5b92a5345ce}{%
@@ -1946,6 +2385,85 @@
       \verb{url}
       \verb https://pmc.ncbi.nlm.nih.gov/articles/PMC6085463/
       \endverb
+    \endentry
+    \entry{radenImpactVariousSeed2020}{article}{}{}
+      \name{author}{5}{}{%
+        {{un=0,uniquepart=base,hash=dff5b12d0d42e0528bcb38469888aafb}{%
+           family={Raden},
+           familyi={R\bibinitperiod},
+           given={Martin},
+           giveni={M\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=7dc57d14837c360e291e31749286b7e7}{%
+           family={Müller},
+           familyi={M\bibinitperiod},
+           given={Teresa},
+           giveni={T\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=97c4dc6fecee2c760291cd6c10902bc8}{%
+           family={Mautner},
+           familyi={M\bibinitperiod},
+           given={Stefan},
+           giveni={S\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=5514e004d9e36d6e6bdd8255ea762020}{%
+           family={Gelhausen},
+           familyi={G\bibinitperiod},
+           given={Rick},
+           giveni={R\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=1ae4aff1cad6688754b459f30e5a3678}{%
+           family={Backofen},
+           familyi={B\bibinitperiod},
+           given={Rolf},
+           giveni={R\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{befcdb31d265e8bd1e91bb2f0ae2e655}
+      \strng{fullhash}{191139ba9b0758e40f34c919677591b7}
+      \strng{fullhashraw}{191139ba9b0758e40f34c919677591b7}
+      \strng{bibnamehash}{191139ba9b0758e40f34c919677591b7}
+      \strng{authorbibnamehash}{191139ba9b0758e40f34c919677591b7}
+      \strng{authornamehash}{befcdb31d265e8bd1e91bb2f0ae2e655}
+      \strng{authorfullhash}{191139ba9b0758e40f34c919677591b7}
+      \strng{authorfullhashraw}{191139ba9b0758e40f34c919677591b7}
+      \field{sortinit}{R}
+      \field{sortinithash}{5e1c39a9d46ffb6bebd8f801023a9486}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{Seed and accessibility constraints are core features to enable highly accurate sRNA target screens based on RNA-RNA interaction prediction. Currently, available tools provide different (sets of) constraints and default parameter sets. Thus, it is hard to impossible for users to estimate the influence of individual restrictions on the prediction results.}
+      \field{day}{13}
+      \field{issn}{1471-2105}
+      \field{journaltitle}{BMC Bioinformatics}
+      \field{langid}{english}
+      \field{month}{1}
+      \field{number}{1}
+      \field{shortjournal}{BMC Bioinformatics}
+      \field{title}{The Impact of Various Seed, Accessibility and Interaction Constraints on {{sRNA}} Target Prediction- a Systematic Assessment}
+      \field{urlday}{14}
+      \field{urlmonth}{4}
+      \field{urlyear}{2026}
+      \field{volume}{21}
+      \field{year}{2020}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \field{pages}{15}
+      \range{pages}{1}
+      \verb{doi}
+      \verb 10.1186/s12859-019-3143-4
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/H27ST7LY/Raden et al. - 2020 - The impact of various seed, accessibility and interaction constraints on sRNA target prediction- a s.pdf
+      \endverb
+      \verb{urlraw}
+      \verb https://doi.org/10.1186/s12859-019-3143-4
+      \endverb
+      \verb{url}
+      \verb https://doi.org/10.1186/s12859-019-3143-4
+      \endverb
+      \keyw{Accessibility,Constraints,RNA-RNA interaction,Seed,sRNA,Target prediction}
     \endentry
     \entry{sapreUrinaryMicroRNASignature2016}{article}{}{}
       \name{author}{10}{}{%
@@ -2210,6 +2728,103 @@
       \verb{url}
       \verb https://pmc.ncbi.nlm.nih.gov/articles/PMC3969109/
       \endverb
+    \endentry
+    \entry{wrightCopraRNAIntaRNAPredicting2014}{article}{}{}
+      \name{author}{9}{}{%
+        {{un=0,uniquepart=base,hash=d9def7fe359799c166c1d34dd4df4a9c}{%
+           family={Wright},
+           familyi={W\bibinitperiod},
+           given={Patrick\bibnamedelima R.},
+           giveni={P\bibinitperiod\bibinitdelim R\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=9268ae7ef3ee1b2f2666d643e98ffb9e}{%
+           family={Georg},
+           familyi={G\bibinitperiod},
+           given={Jens},
+           giveni={J\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=9699e73dc0463d1f389d8853b8ad59c1}{%
+           family={Mann},
+           familyi={M\bibinitperiod},
+           given={Martin},
+           giveni={M\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=bfe6e18ad4942606e0860e9c986f19f8}{%
+           family={Sorescu},
+           familyi={S\bibinitperiod},
+           given={Dragos\bibnamedelima A.},
+           giveni={D\bibinitperiod\bibinitdelim A\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=3dec1a340e7a9a6f0316e96e663f41e7}{%
+           family={Richter},
+           familyi={R\bibinitperiod},
+           given={Andreas\bibnamedelima S.},
+           giveni={A\bibinitperiod\bibinitdelim S\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=a09962668801c2f11f494c43c25978f4}{%
+           family={Lott},
+           familyi={L\bibinitperiod},
+           given={Steffen},
+           giveni={S\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=06b8a6620191cc085f739eef464aec09}{%
+           family={Kleinkauf},
+           familyi={K\bibinitperiod},
+           given={Robert},
+           giveni={R\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=368f6b4e9a1d9ba29ad994c7477d4a4f}{%
+           family={Hess},
+           familyi={H\bibinitperiod},
+           given={Wolfgang\bibnamedelima R.},
+           giveni={W\bibinitperiod\bibinitdelim R\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=1ae4aff1cad6688754b459f30e5a3678}{%
+           family={Backofen},
+           familyi={B\bibinitperiod},
+           given={Rolf},
+           giveni={R\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{92467f23cf2aac5070b345346e9f804a}
+      \strng{fullhash}{e1cde022cb37fe269bccf78d558ea82a}
+      \strng{fullhashraw}{e1cde022cb37fe269bccf78d558ea82a}
+      \strng{bibnamehash}{92467f23cf2aac5070b345346e9f804a}
+      \strng{authorbibnamehash}{92467f23cf2aac5070b345346e9f804a}
+      \strng{authornamehash}{92467f23cf2aac5070b345346e9f804a}
+      \strng{authorfullhash}{e1cde022cb37fe269bccf78d558ea82a}
+      \strng{authorfullhashraw}{e1cde022cb37fe269bccf78d558ea82a}
+      \field{sortinit}{W}
+      \field{sortinithash}{4315d78024d0cea9b57a0c6f0e35ed0d}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{abstract}{CopraRNA (Comparative prediction algorithm for small RNA targets) is the most recent asset to the Freiburg RNA Tools webserver. It incorporates and extends the functionality of the existing tool IntaRNA (Interacting RNAs) in order to predict targets, interaction domains and consequently the regulatory networks of bacterial small RNA molecules. The CopraRNA prediction results are accompanied by extensive postprocessing methods such as functional enrichment analysis and visualization of interacting regions. Here, we introduce the functionality of the CopraRNA and IntaRNA webservers and give detailed explanations on their postprocessing functionalities. Both tools are freely accessible at http://rna.informatik.uni-freiburg.de.}
+      \field{eprinttype}{pubmed}
+      \field{issn}{1362-4962}
+      \field{issue}{Web Server issue}
+      \field{journaltitle}{Nucleic Acids Research}
+      \field{langid}{english}
+      \field{month}{7}
+      \field{shortjournal}{Nucleic Acids Res}
+      \field{shorttitle}{{{CopraRNA}} and {{IntaRNA}}}
+      \field{title}{{{CopraRNA}} and {{IntaRNA}}: Predicting Small {{RNA}} Targets, Networks and Interaction Domains}
+      \field{volume}{42}
+      \field{year}{2014}
+      \field{dateera}{ce}
+      \field{pages}{W119\bibrangedash 123}
+      \range{pages}{-1}
+      \verb{doi}
+      \verb 10.1093/nar/gku359
+      \endverb
+      \verb{eprint}
+      \verb 24838564
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/F55XGVDQ/Wright et al. - 2014 - CopraRNA and IntaRNA predicting small RNA targets, networks and interaction domains.pdf
+      \endverb
+      \keyw{Algorithms,Gene Regulatory Networks,Internet,RNA Bacterial,RNA Small Untranslated,Sequence Analysis RNA,Software}
     \endentry
     \entry{xiaoMicroRNAsActivateGene2017}{article}{}{}
       \name{author}{17}{}{%

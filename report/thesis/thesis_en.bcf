@@ -2414,7 +2414,15 @@
     <bcf:citekey order="35" intorder="1">langmeadUltrafastMemoryefficientAlignment2009</bcf:citekey>
     <bcf:citekey order="35" intorder="2">liAligningSequenceReads2013</bcf:citekey>
     <bcf:citekey order="36" intorder="1">travisHybBioinformaticsPipeline2014</bcf:citekey>
-    <bcf:citekey order="37" intorder="1">lewisConservedSeedPairing2005</bcf:citekey>
+    <bcf:citekey order="37" intorder="1">lewisPredictionMammalianMicroRNA2003</bcf:citekey>
+    <bcf:citekey order="37" intorder="2">lewisConservedSeedPairing2005</bcf:citekey>
+    <bcf:citekey order="38" intorder="1">hofackerFastFoldingComparison1994</bcf:citekey>
+    <bcf:citekey order="39" intorder="1">buschIntaRNAEfficientPrediction2008</bcf:citekey>
+    <bcf:citekey order="39" intorder="2">mannIntaRNA20Enhanced2017</bcf:citekey>
+    <bcf:citekey order="39" intorder="3">gelhausenIntaRNAhelixcomposingRNARNAInteractions2019</bcf:citekey>
+    <bcf:citekey order="39" intorder="4">wrightCopraRNAIntaRNAPredicting2014</bcf:citekey>
+    <bcf:citekey order="39" intorder="5">miladiIntegrationAccessibilityData2019</bcf:citekey>
+    <bcf:citekey order="39" intorder="6">radenImpactVariousSeed2020</bcf:citekey>
   </bcf:section>
   <!-- SORTING TEMPLATES -->
   <bcf:sortingtemplate name="nty">
