@@ -421,6 +421,73 @@
       \verb https://pmc.ncbi.nlm.nih.gov/articles/PMC1370393/
       \endverb
     \endentry
+    \entry{behrouzTitansLearningMemorize2024}{online}{}{}
+      \name{author}{3}{}{%
+        {{un=0,uniquepart=base,hash=fda9bcdee304295b17342b718fb07ea9}{%
+           family={Behrouz},
+           familyi={B\bibinitperiod},
+           given={Ali},
+           giveni={A\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=472103e277d34ee281ee6a867552a158}{%
+           family={Zhong},
+           familyi={Z\bibinitperiod},
+           given={Peilin},
+           giveni={P\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=2403978c38056af7a74b3ef42192cc46}{%
+           family={Mirrokni},
+           familyi={M\bibinitperiod},
+           given={Vahab},
+           giveni={V\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{46cb188e32a2af2a9f82500312b0bedd}
+      \strng{fullhash}{e99e04db1a4cd52b3e593fad2f377ae8}
+      \strng{fullhashraw}{e99e04db1a4cd52b3e593fad2f377ae8}
+      \strng{bibnamehash}{e99e04db1a4cd52b3e593fad2f377ae8}
+      \strng{authorbibnamehash}{e99e04db1a4cd52b3e593fad2f377ae8}
+      \strng{authornamehash}{46cb188e32a2af2a9f82500312b0bedd}
+      \strng{authorfullhash}{e99e04db1a4cd52b3e593fad2f377ae8}
+      \strng{authorfullhashraw}{e99e04db1a4cd52b3e593fad2f377ae8}
+      \field{sortinit}{B}
+      \field{sortinithash}{d7095fff47cda75ca2589920aae98399}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{abstract}{Over more than a decade there has been an extensive research effort on how to effectively utilize recurrent models and attention. While recurrent models aim to compress the data into a fixed-size memory (called hidden state), attention allows attending to the entire context window, capturing the direct dependencies of all tokens. This more accurate modeling of dependencies, however, comes with a quadratic cost, limiting the model to a fixed-length context. We present a new neural long-term memory module that learns to memorize historical context and helps attention to attend to the current context while utilizing long past information. We show that this neural memory has the advantage of fast parallelizable training while maintaining a fast inference. From a memory perspective, we argue that attention due to its limited context but accurate dependency modeling performs as a short-term memory, while neural memory due to its ability to memorize the data, acts as a long-term, more persistent, memory. Based on these two modules, we introduce a new family of architectures, called Titans, and present three variants to address how one can effectively incorporate memory into this architecture. Our experimental results on language modeling, common-sense reasoning, genomics, and time series tasks show that Titans are more effective than Transformers and recent modern linear recurrent models. They further can effectively scale to larger than 2M context window size with higher accuracy in needle-in-haystack tasks compared to baselines.}
+      \field{day}{31}
+      \field{eprintclass}{cs}
+      \field{eprinttype}{arXiv}
+      \field{month}{12}
+      \field{pubstate}{prepublished}
+      \field{shorttitle}{Titans}
+      \field{title}{Titans: {{Learning}} to {{Memorize}} at {{Test Time}}}
+      \field{urlday}{28}
+      \field{urlmonth}{7}
+      \field{urlyear}{2025}
+      \field{version}{1}
+      \field{year}{2024}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \verb{doi}
+      \verb 10.48550/arXiv.2501.00663
+      \endverb
+      \verb{eprint}
+      \verb 2501.00663
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/ZKESUQ54/Behrouz et al. - 2024 - Titans Learning to Memorize at Test Time.pdf;/home/rafail/Zotero/storage/X96W6G6R/2501.html
+      \endverb
+      \verb{urlraw}
+      \verb http://arxiv.org/abs/2501.00663
+      \endverb
+      \verb{url}
+      \verb http://arxiv.org/abs/2501.00663
+      \endverb
+      \keyw{Computer Science - Artificial Intelligence,Computer Science - Computation and Language,Computer Science - Machine Learning}
+    \endentry
     \entry{benesovaSmallRNASequencingApproaches2021}{article}{}{}
       \name{author}{3}{}{%
         {{un=0,uniquepart=base,hash=073267cee74e7d164ea19bb253ca43fb}{%
@@ -694,6 +761,159 @@
       \verb /home/rafail/Zotero/storage/4FQVT4CE/Chaluvally-Raghavan et al. - 2016 - Direct Upregulation of STAT3 by MicroRNA-551b-3p Deregulates Growth and Metastasis of Ovarian Cancer.pdf
       \endverb
       \keyw{Animals,Carcinoma Ovarian Epithelial,Cell Line Tumor,Cell Proliferation,Cell Self Renewal,Cell Survival,Down-Regulation,Female,Gene Amplification,Gene Expression Regulation Neoplastic,Gene Knockdown Techniques,Gene Silencing,Humans,Mice Nude,MicroRNAs,Neoplasm Metastasis,Neoplasms Glandular and Epithelial,Nuclear Proteins,Ovarian Neoplasms,Promoter Regions Genetic,RNA Polymerase II,Spheroids Cellular,STAT3 Transcription Factor,Transcription Genetic,Treatment Outcome,Tumor Burden,Twist-Related Protein 1,Up-Regulation}
+    \endentry
+    \entry{chiuCupidSimultaneousReconstruction2015}{article}{}{}
+      \name{author}{17}{}{%
+        {{un=0,uniquepart=base,hash=89e33711796b7a41953eac9dea9666fa}{%
+           family={Chiu},
+           familyi={C\bibinitperiod},
+           given={Hua-Sheng},
+           giveni={H\bibinithyphendelim S\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=c3b29c57073268f9c315ab829c8bcf81}{%
+           family={Llobet-Navas},
+           familyi={L\bibinithyphendelim N\bibinitperiod},
+           given={David},
+           giveni={D\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=ae680c93ac70700437fc3c53bd7ab7f4}{%
+           family={Yang},
+           familyi={Y\bibinitperiod},
+           given={Xuerui},
+           giveni={X\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=dba1021bea4adcac2575f1d3d7ea9363}{%
+           family={Chung},
+           familyi={C\bibinitperiod},
+           given={Wei-Jen},
+           giveni={W\bibinithyphendelim J\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=97170242091e3bddc0b44baf5aa8cab8}{%
+           family={Ambesi-Impiombato},
+           familyi={A\bibinithyphendelim I\bibinitperiod},
+           given={Alberto},
+           giveni={A\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=8084e458a3a62a3dcf5d87b0a3cd9878}{%
+           family={Iyer},
+           familyi={I\bibinitperiod},
+           given={Archana},
+           giveni={A\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=e6e8a0186ccd67f76634da201fa50fcb}{%
+           family={Kim},
+           familyi={K\bibinitperiod},
+           given={Hyunjae\bibnamedelima Ryan},
+           giveni={H\bibinitperiod\bibinitdelim R\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=325f8c12a13bc9b8db95ac3e12be5d64}{%
+           family={Seviour},
+           familyi={S\bibinitperiod},
+           given={Elena\bibnamedelima G.},
+           giveni={E\bibinitperiod\bibinitdelim G\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=0fda95ee311811e3fc99aa325ad8dc94}{%
+           family={Luo},
+           familyi={L\bibinitperiod},
+           given={Zijun},
+           giveni={Z\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=7b1367f3a89190cbd1993de001aa0b12}{%
+           family={Sehgal},
+           familyi={S\bibinitperiod},
+           given={Vasudha},
+           giveni={V\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=a015d30e0b83cd743f65aa98f31b8800}{%
+           family={Moss},
+           familyi={M\bibinitperiod},
+           given={Tyler},
+           giveni={T\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=3241715d59d53dec8b5e5756af6585fe}{%
+           family={Lu},
+           familyi={L\bibinitperiod},
+           given={Yiling},
+           giveni={Y\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=3346854d8dcf3dd863006e2e28cfed78}{%
+           family={Ram},
+           familyi={R\bibinitperiod},
+           given={Prahlad},
+           giveni={P\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=c625614e84540d85247ab139a968e793}{%
+           family={Silva},
+           familyi={S\bibinitperiod},
+           given={José},
+           giveni={J\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=9d783423e5e5cf74c5f3844bc1e22034}{%
+           family={Mills},
+           familyi={M\bibinitperiod},
+           given={Gordon\bibnamedelima B.},
+           giveni={G\bibinitperiod\bibinitdelim B\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=1e42541b98e8a21182d42313065b4026}{%
+           family={Califano},
+           familyi={C\bibinitperiod},
+           given={Andrea},
+           giveni={A\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=2749c3463d422b16cf5bf49d47b4ffe5}{%
+           family={Sumazin},
+           familyi={S\bibinitperiod},
+           given={Pavel},
+           giveni={P\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{0a9eb29172542a434de9b030fdb0f0de}
+      \strng{fullhash}{0bc0a83abfdf42d199376e761b197a68}
+      \strng{fullhashraw}{0bc0a83abfdf42d199376e761b197a68}
+      \strng{bibnamehash}{0a9eb29172542a434de9b030fdb0f0de}
+      \strng{authorbibnamehash}{0a9eb29172542a434de9b030fdb0f0de}
+      \strng{authornamehash}{0a9eb29172542a434de9b030fdb0f0de}
+      \strng{authorfullhash}{0bc0a83abfdf42d199376e761b197a68}
+      \strng{authorfullhashraw}{0bc0a83abfdf42d199376e761b197a68}
+      \field{sortinit}{C}
+      \field{sortinithash}{4d103a86280481745c9c897c925753c0}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{abstract}{We introduce a method for simultaneous prediction of microRNA–target interactions and their mediated competitive endogenous RNA (ceRNA) interactions. Using high-throughput validation assays in breast cancer cell lines, we show that our integrative approach significantly improves on microRNA–target prediction accuracy as assessed by both mRNA and protein level measurements. Our biochemical assays support nearly 500 microRNA–target interactions with evidence for regulation in breast cancer tumors. Moreover, these assays constitute the most extensive validation platform for computationally inferred networks of microRNA–target interactions in breast cancer tumors, providing a useful benchmark to ascertain future improvements.}
+      \field{eprinttype}{pubmed}
+      \field{issn}{1088-9051}
+      \field{journaltitle}{Genome Research}
+      \field{month}{2}
+      \field{number}{2}
+      \field{shortjournal}{Genome Res}
+      \field{shorttitle}{Cupid}
+      \field{title}{Cupid: Simultaneous Reconstruction of {{microRNA-target}} and {{ceRNA}} Networks}
+      \field{urlday}{15}
+      \field{urlmonth}{4}
+      \field{urlyear}{2026}
+      \field{volume}{25}
+      \field{year}{2015}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \field{pages}{257\bibrangedash 267}
+      \range{pages}{11}
+      \verb{doi}
+      \verb 10.1101/gr.178194.114
+      \endverb
+      \verb{eprint}
+      \verb 25378249
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/EMK96ZBG/Chiu et al. - 2015 - Cupid simultaneous reconstruction of microRNA-target and ceRNA networks.pdf
+      \endverb
+      \verb{urlraw}
+      \verb https://pmc.ncbi.nlm.nih.gov/articles/PMC4315299/
+      \endverb
+      \verb{url}
+      \verb https://pmc.ncbi.nlm.nih.gov/articles/PMC4315299/
+      \endverb
     \endentry
     \entry{corbinRoleMicroRNAsSynaptic2009}{article}{}{}
       \name{author}{3}{}{%
@@ -1228,6 +1448,66 @@
       \endverb
       \keyw{RNA,SYSBIO}
     \endentry
+    \entry{guMambaLinearTimeSequence2024}{online}{}{}
+      \name{author}{2}{}{%
+        {{un=0,uniquepart=base,hash=aa9ec56190423bb01ead50d96b94ba93}{%
+           family={Gu},
+           familyi={G\bibinitperiod},
+           given={Albert},
+           giveni={A\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=ede2395a7f566a456448fcb5f8222c99}{%
+           family={Dao},
+           familyi={D\bibinitperiod},
+           given={Tri},
+           giveni={T\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{babde771e7de935487275312d2f755a5}
+      \strng{fullhash}{babde771e7de935487275312d2f755a5}
+      \strng{fullhashraw}{babde771e7de935487275312d2f755a5}
+      \strng{bibnamehash}{babde771e7de935487275312d2f755a5}
+      \strng{authorbibnamehash}{babde771e7de935487275312d2f755a5}
+      \strng{authornamehash}{babde771e7de935487275312d2f755a5}
+      \strng{authorfullhash}{babde771e7de935487275312d2f755a5}
+      \strng{authorfullhashraw}{babde771e7de935487275312d2f755a5}
+      \field{sortinit}{G}
+      \field{sortinithash}{32d67eca0634bf53703493fb1090a2e8}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{abstract}{Foundation models, now powering most of the exciting applications in deep learning, are almost universally based on the Transformer architecture and its core attention module. Many subquadratic-time architectures such as linear attention, gated convolution and recurrent models, and structured state space models (SSMs) have been developed to address Transformers' computational inefficiency on long sequences, but they have not performed as well as attention on important modalities such as language. We identify that a key weakness of such models is their inability to perform content-based reasoning, and make several improvements. First, simply letting the SSM parameters be functions of the input addresses their weakness with discrete modalities, allowing the model to selectively propagate or forget information along the sequence length dimension depending on the current token. Second, even though this change prevents the use of efficient convolutions, we design a hardware-aware parallel algorithm in recurrent mode. We integrate these selective SSMs into a simplified end-to-end neural network architecture without attention or even MLP blocks (Mamba). Mamba enjoys fast inference (5\$\textbackslash times\$ higher throughput than Transformers) and linear scaling in sequence length, and its performance improves on real data up to million-length sequences. As a general sequence model backbone, Mamba achieves state-of-the-art performance across several modalities such as language, audio, and genomics. On language modeling, our Mamba-3B model outperforms Transformers of the same size and matches Transformers twice its size, both in pretraining and downstream evaluation.}
+      \field{day}{31}
+      \field{eprintclass}{cs}
+      \field{eprinttype}{arXiv}
+      \field{month}{5}
+      \field{pubstate}{prepublished}
+      \field{shorttitle}{Mamba}
+      \field{title}{Mamba: {{Linear-Time Sequence Modeling}} with {{Selective State Spaces}}}
+      \field{urlday}{31}
+      \field{urlmonth}{7}
+      \field{urlyear}{2025}
+      \field{year}{2024}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \verb{doi}
+      \verb 10.48550/arXiv.2312.00752
+      \endverb
+      \verb{eprint}
+      \verb 2312.00752
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/K9IUIZAY/Gu and Dao - 2024 - Mamba Linear-Time Sequence Modeling with Selective State Spaces.pdf;/home/rafail/Zotero/storage/QE8X8WEI/2312.html
+      \endverb
+      \verb{urlraw}
+      \verb http://arxiv.org/abs/2312.00752
+      \endverb
+      \verb{url}
+      \verb http://arxiv.org/abs/2312.00752
+      \endverb
+      \keyw{Computer Science - Artificial Intelligence,Computer Science - Machine Learning}
+    \endentry
     \entry{gullerMicroRNAsSkeletalMuscle2010}{article}{}{}
       \name{author}{2}{}{%
         {{un=0,uniquepart=base,hash=a4e9ef3dc1f36d597cb0466ea671b126}{%
@@ -1591,6 +1871,73 @@
       \verb https://www.nature.com/articles/nature04138
       \endverb
       \keyw{Humanities and Social Sciences,multidisciplinary,Science}
+    \endentry
+    \entry{jinTransparentSparseGraph2024}{article}{}{}
+      \name{author}{3}{}{%
+        {{un=0,uniquepart=base,hash=b8577e7c37f93dda37e5b3e0bb0bc0a6}{%
+           family={Jin},
+           familyi={J\bibinitperiod},
+           given={Zhibin},
+           giveni={Z\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=0463745f3a61e4c05b1009dd7f63e711}{%
+           family={Shi},
+           familyi={S\bibinitperiod},
+           given={Yuhu},
+           giveni={Y\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=664ac187f62072468de11cba9c9a43d8}{%
+           family={Zhou},
+           familyi={Z\bibinitperiod},
+           given={Lili},
+           giveni={L\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {Frontiers}%
+      }
+      \strng{namehash}{04d9ff936b946bfbeafbe2d32248f326}
+      \strng{fullhash}{7b4d381feb6f64a171e98a494fbd0126}
+      \strng{fullhashraw}{7b4d381feb6f64a171e98a494fbd0126}
+      \strng{bibnamehash}{7b4d381feb6f64a171e98a494fbd0126}
+      \strng{authorbibnamehash}{7b4d381feb6f64a171e98a494fbd0126}
+      \strng{authornamehash}{04d9ff936b946bfbeafbe2d32248f326}
+      \strng{authorfullhash}{7b4d381feb6f64a171e98a494fbd0126}
+      \strng{authorfullhashraw}{7b4d381feb6f64a171e98a494fbd0126}
+      \field{sortinit}{J}
+      \field{sortinithash}{b2f54a9081ace9966a7cb9413811edb4}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{While finding the key biomarkers and improving the accuracy of the model, it is equally important to understand the interaction relationship in diseases. In this study, a transparent sparse graph pathway network (TSGPN) is proposed based on the structure of graph neural networks. This network simulates the action of genes in vivo, adds prior knowledge, and improves the accuracy of the model. Firstly, the graph connection is constructed according to protein-protein interaction networks and competing endogenous RNAs (ceRNA) network, and then some noises or unimportant connections are removed spontaneously based on graph attention mechanism and hard concrete estimation, so as to realize the reconstruction of ceRNA network which represents the influence of other genes in the disease on mRNA. Next, the gene-based interpretation is transformed into the pathway-based interpretation based on the pathway database, and the hidden layer is added to realize the high-dimensional analysis of the pathway. Finally, the experimental results show that the proposed TSGPN method is superior to other comparison methods in F1 score and AUC, and more importantly, it can well display the role of genes. Through the data analysis applied to lung cancer prognosis, 10 pathways related to LUSC prognosis were found, as well as the key biomarkers closely related to these pathways, such as HOXA10, hsa-mir-182 and LINC02544. The relationship between them has also been reconstructed to better explain the internal mechanism of disease.}
+      \field{day}{1}
+      \field{issn}{1664-8021}
+      \field{journaltitle}{Frontiers in Genetics}
+      \field{langid}{english}
+      \field{month}{10}
+      \field{shortjournal}{Front. Genet.}
+      \field{title}{Transparent Sparse Graph Pathway Network for Analyzing the Internal Relationship of Lung Cancer}
+      \field{urlday}{15}
+      \field{urlmonth}{4}
+      \field{urlyear}{2026}
+      \field{volume}{15}
+      \field{year}{2024}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \verb{doi}
+      \verb 10.3389/fgene.2024.1437174
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/E34EZHBM/Jin et al. - 2024 - Transparent sparse graph pathway network for analyzing the internal relationship of lung cancer.pdf
+      \endverb
+      \verb{urlraw}
+      \verb https://www.frontiersin.org/journals/genetics/articles/10.3389/fgene.2024.1437174/full
+      \endverb
+      \verb{url}
+      \verb https://www.frontiersin.org/journals/genetics/articles/10.3389/fgene.2024.1437174/full
+      \endverb
+      \keyw{biological pathway,ceRNA,Edge prediction,Graph neural networks,LUSC}
     \endentry
     \entry{kimMicroRNAdirectedTranscriptionalGene2008}{article}{}{}
       \name{author}{4}{}{%
@@ -2072,6 +2419,155 @@
       \verb{url}
       \verb https://pmc.ncbi.nlm.nih.gov/articles/PMC6910194/
       \endverb
+    \endentry
+    \entry{lorenzViennaRNAPackage202011}{article}{}{}
+      \name{author}{7}{ul=2}{%
+        {{un=0,uniquepart=base,hash=cdf91c87fcae9ff79f9732f66b2fb969}{%
+           family={Lorenz},
+           familyi={L\bibinitperiod},
+           given={Ronny},
+           giveni={R\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=17269ef0b2e697d204cfa396306144ec}{%
+           family={Bernhart},
+           familyi={B\bibinitperiod},
+           given={Stephan\bibnamedelima H.},
+           giveni={S\bibinitperiod\bibinitdelim H\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=e275fa03ee021ccf6190dbfa2d66c225}{%
+           family={Höner\bibnamedelimb zu\bibnamedelima Siederdissen},
+           familyi={H\bibinitperiod\bibinitdelim z\bibinitperiod\bibinitdelim S\bibinitperiod},
+           given={Christian},
+           giveni={C\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=f363d6c2880c13dfd903f050fd357863}{%
+           family={Tafer},
+           familyi={T\bibinitperiod},
+           given={Hakim},
+           giveni={H\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=b55421f384dce57ae38e9e8bcf44850b}{%
+           family={Flamm},
+           familyi={F\bibinitperiod},
+           given={Christoph},
+           giveni={C\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=9982debdce05bebbf7a7f24842a44650}{%
+           family={Stadler},
+           familyi={S\bibinitperiod},
+           given={Peter\bibnamedelima F.},
+           giveni={P\bibinitperiod\bibinitdelim F\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=1e07baf062d6f278c3ac1b6e59a9a285}{%
+           family={Hofacker},
+           familyi={H\bibinitperiod},
+           given={Ivo\bibnamedelima L.},
+           giveni={I\bibinitperiod\bibinitdelim L\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{27711e05764374fc6a2bcd269b81c6f9}
+      \strng{fullhash}{9f9266039b1496caa10bb06ad7370d23}
+      \strng{fullhashraw}{9f9266039b1496caa10bb06ad7370d23}
+      \strng{bibnamehash}{27711e05764374fc6a2bcd269b81c6f9}
+      \strng{authorbibnamehash}{27711e05764374fc6a2bcd269b81c6f9}
+      \strng{authornamehash}{27711e05764374fc6a2bcd269b81c6f9}
+      \strng{authorfullhash}{9f9266039b1496caa10bb06ad7370d23}
+      \strng{authorfullhashraw}{9f9266039b1496caa10bb06ad7370d23}
+      \field{sortinit}{L}
+      \field{sortinithash}{7c47d417cecb1f4bd38d1825c427a61a}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{Secondary structure forms an important intermediate level of description of nucleic acids that encapsulates the dominating part of the folding energy, is often well conserved in evolution, and is routinely used as a basis to explain experimental findings. Based on carefully measured thermodynamic parameters, exact dynamic programming algorithms can be used to compute ground states, base pairing probabilities, as well as thermodynamic properties.}
+      \field{day}{24}
+      \field{issn}{1748-7188}
+      \field{journaltitle}{Algorithms for Molecular Biology}
+      \field{langid}{english}
+      \field{month}{11}
+      \field{number}{1}
+      \field{shortjournal}{Algorithms Mol Biol}
+      \field{title}{{{ViennaRNA Package}} 2.0}
+      \field{urlday}{26}
+      \field{urlmonth}{3}
+      \field{urlyear}{2026}
+      \field{volume}{6}
+      \field{year}{2011}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \field{pages}{26}
+      \range{pages}{1}
+      \verb{doi}
+      \verb 10.1186/1748-7188-6-26
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/DFGV38YN/Lorenz et al. - 2011 - ViennaRNA Package 2.0.pdf
+      \endverb
+      \verb{urlraw}
+      \verb https://doi.org/10.1186/1748-7188-6-26
+      \endverb
+      \verb{url}
+      \verb https://doi.org/10.1186/1748-7188-6-26
+      \endverb
+      \keyw{Consensus Structure,Folding Algorithm,Matthews Correlation Coefficient,Minimum Free Energy,Partition Function}
+    \endentry
+    \entry{lorenzRNAFoldingHard2016}{article}{}{}
+      \name{author}{3}{ul=2}{%
+        {{un=0,uniquepart=base,hash=cdf91c87fcae9ff79f9732f66b2fb969}{%
+           family={Lorenz},
+           familyi={L\bibinitperiod},
+           given={Ronny},
+           giveni={R\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=1e07baf062d6f278c3ac1b6e59a9a285}{%
+           family={Hofacker},
+           familyi={H\bibinitperiod},
+           given={Ivo\bibnamedelima L.},
+           giveni={I\bibinitperiod\bibinitdelim L\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=9982debdce05bebbf7a7f24842a44650}{%
+           family={Stadler},
+           familyi={S\bibinitperiod},
+           given={Peter\bibnamedelima F.},
+           giveni={P\bibinitperiod\bibinitdelim F\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{0f4b42f6f5acfc731e19c6fbd6a738af}
+      \strng{fullhash}{c4b42d5210a9e3dd4c3c7fbd06238c57}
+      \strng{fullhashraw}{c4b42d5210a9e3dd4c3c7fbd06238c57}
+      \strng{bibnamehash}{c4b42d5210a9e3dd4c3c7fbd06238c57}
+      \strng{authorbibnamehash}{c4b42d5210a9e3dd4c3c7fbd06238c57}
+      \strng{authornamehash}{0f4b42f6f5acfc731e19c6fbd6a738af}
+      \strng{authorfullhash}{c4b42d5210a9e3dd4c3c7fbd06238c57}
+      \strng{authorfullhashraw}{c4b42d5210a9e3dd4c3c7fbd06238c57}
+      \field{sortinit}{L}
+      \field{sortinithash}{7c47d417cecb1f4bd38d1825c427a61a}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{BACKGROUND: A large class of RNA secondary structure prediction programs uses an elaborate energy model grounded in extensive thermodynamic measurements and exact dynamic programming algorithms. External experimental evidence can be in principle be incorporated by means of hard constraints that restrict the search space or by means of soft constraints that distort the energy model. In particular recent advances in coupling chemical and enzymatic probing with sequencing techniques but also comparative approaches provide an increasing amount of experimental data to be combined with secondary structure prediction. RESULTS: Responding to the increasing needs for a versatile and user-friendly inclusion of external evidence into diverse flavors of RNA secondary structure prediction tools we implemented a generic layer of constraint handling into the ViennaRNA Package. It makes explicit use of the conceptual separation of the "folding grammar" defining the search space and the actual energy evaluation, which allows constraints to be interleaved in a natural way between recursion steps and evaluation of the standard energy function. CONCLUSIONS: The extension of the ViennaRNA Package provides a generic way to include diverse types of constraints into RNA folding algorithms. The computational overhead incurred is negligible in practice. A wide variety of application scenarios can be accommodated by the new framework, including the incorporation of structure probing data, non-standard base pairs and chemical modifications, as well as structure-dependent ligand binding.}
+      \field{eprinttype}{pubmed}
+      \field{issn}{1748-7188}
+      \field{journaltitle}{Algorithms for molecular biology: AMB}
+      \field{langid}{english}
+      \field{shortjournal}{Algorithms Mol Biol}
+      \field{title}{{{RNA}} Folding with Hard and Soft Constraints}
+      \field{volume}{11}
+      \field{year}{2016}
+      \field{dateera}{ce}
+      \field{pages}{8}
+      \range{pages}{1}
+      \verb{doi}
+      \verb 10.1186/s13015-016-0070-z
+      \endverb
+      \verb{eprint}
+      \verb 27110276
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/MUHML6LJ/Lorenz et al. - 2016 - RNA folding with hard and soft constraints.pdf
+      \endverb
+      \keyw{Constraints,Dynamic programming,RNA folding}
     \endentry
     \entry{manakovScalableDeepProfiling2022}{online}{}{}
       \name{author}{10}{}{%
@@ -2729,6 +3225,61 @@
       \verb https://pmc.ncbi.nlm.nih.gov/articles/PMC3969109/
       \endverb
     \endentry
+    \entry{turnerNNDBNearestNeighbor2010}{article}{}{}
+      \name{author}{2}{}{%
+        {{un=0,uniquepart=base,hash=7db43a280d1e2aab1ff0b2ee1b6b25ba}{%
+           family={Turner},
+           familyi={T\bibinitperiod},
+           given={Douglas\bibnamedelima H.},
+           giveni={D\bibinitperiod\bibinitdelim H\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=9404b4f86986156dbf4627df9afc9432}{%
+           family={Mathews},
+           familyi={M\bibinitperiod},
+           given={David\bibnamedelima H.},
+           giveni={D\bibinitperiod\bibinitdelim H\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{dabc72ffcd701da0e39ca75376926018}
+      \strng{fullhash}{dabc72ffcd701da0e39ca75376926018}
+      \strng{fullhashraw}{dabc72ffcd701da0e39ca75376926018}
+      \strng{bibnamehash}{dabc72ffcd701da0e39ca75376926018}
+      \strng{authorbibnamehash}{dabc72ffcd701da0e39ca75376926018}
+      \strng{authornamehash}{dabc72ffcd701da0e39ca75376926018}
+      \strng{authorfullhash}{dabc72ffcd701da0e39ca75376926018}
+      \strng{authorfullhashraw}{dabc72ffcd701da0e39ca75376926018}
+      \field{sortinit}{T}
+      \field{sortinithash}{9af77f0292593c26bde9a56e688eaee9}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{abstract}{The Nearest Neighbor Database (NNDB, http://rna.urmc.rochester.edu/NNDB) is a web-based resource for disseminating parameter sets for predicting nucleic acid secondary structure stabilities. For each set of parameters, the database includes the set of rules with descriptive text, sequence-dependent parameters in plain text and html, literature references to experiments and usage tutorials. The initial release covers parameters for predicting RNA folding free energy and enthalpy changes.}
+      \field{eprinttype}{pubmed}
+      \field{issn}{1362-4962}
+      \field{issue}{Database issue}
+      \field{journaltitle}{Nucleic Acids Research}
+      \field{langid}{english}
+      \field{month}{1}
+      \field{shortjournal}{Nucleic Acids Res}
+      \field{shorttitle}{{{NNDB}}}
+      \field{title}{{{NNDB}}: The Nearest Neighbor Parameter Database for Predicting Stability of Nucleic Acid Secondary Structure}
+      \field{volume}{38}
+      \field{year}{2010}
+      \field{dateera}{ce}
+      \field{pages}{D280\bibrangedash 282}
+      \range{pages}{-1}
+      \verb{doi}
+      \verb 10.1093/nar/gkp892
+      \endverb
+      \verb{eprint}
+      \verb 19880381
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/L3P7IS2Z/Turner and Mathews - 2010 - NNDB the nearest neighbor parameter database for predicting stability of nucleic acid secondary str.pdf
+      \endverb
+      \keyw{Algorithms,Base Sequence,Computational Biology,Databases Genetic,Databases Nucleic Acid,Information Storage and Retrieval,Internet,Molecular Sequence Data,Nucleic Acid Conformation,Nucleic Acid Denaturation,RNA,Software,Thermodynamics}
+    \endentry
     \entry{wrightCopraRNAIntaRNAPredicting2014}{article}{}{}
       \name{author}{9}{}{%
         {{un=0,uniquepart=base,hash=d9def7fe359799c166c1d34dd4df4a9c}{%
@@ -2981,6 +3532,118 @@
       \verb https://doi.org/10.1080/15476286.2015.1112487
       \endverb
       \keyw{Chromatin modification,enhancer,microRNA,miR-24,nucleus,transcriptional activation}
+    \endentry
+    \entry{zacharopoulouMicroTCNNAvantgardeDeep2024}{article}{}{}
+      \name{author}{10}{}{%
+        {{un=0,uniquepart=base,hash=43fdba2590dd53f13404a09d0c8121e2}{%
+           family={Zacharopoulou},
+           familyi={Z\bibinitperiod},
+           given={Elissavet},
+           giveni={E\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=00534872d65d44957c8f42943bedb5a1}{%
+           family={Paraskevopoulou},
+           familyi={P\bibinitperiod},
+           given={Maria\bibnamedelima D},
+           giveni={M\bibinitperiod\bibinitdelim D\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=6e69fc5b1f8def620577dc2098b47ab6}{%
+           family={Tastsoglou},
+           familyi={T\bibinitperiod},
+           given={Spyros},
+           giveni={S\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=2a5e9ed69a23573845270ae6a7aed1e0}{%
+           family={Alexiou},
+           familyi={A\bibinitperiod},
+           given={Athanasios},
+           giveni={A\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=678c1e1159de0a5a12c1bdb21fdb256f}{%
+           family={Karavangeli},
+           familyi={K\bibinitperiod},
+           given={Anna},
+           giveni={A\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=fe2e45e08beb000868b09a66a8826eed}{%
+           family={Pierros},
+           familyi={P\bibinitperiod},
+           given={Vasilis},
+           giveni={V\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=771d21ea0d8f02052f33cf9ed8e31db9}{%
+           family={Digenis},
+           familyi={D\bibinitperiod},
+           given={Stefanos},
+           giveni={S\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=2184f502cb1297901346a0271f0b87a2}{%
+           family={Mavromati},
+           familyi={M\bibinitperiod},
+           given={Galatea},
+           giveni={G\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=23848790ad318cad4ad5e747edc46063}{%
+           family={Hatzigeorgiou},
+           familyi={H\bibinitperiod},
+           given={Artemis\bibnamedelima G},
+           giveni={A\bibinitperiod\bibinitdelim G\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=94581d1ae128e8a3d65e8826328850c8}{%
+           family={Karagkouni},
+           familyi={K\bibinitperiod},
+           given={Dimitra},
+           giveni={D\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{44ec3668378472cab1474c176a4585ce}
+      \strng{fullhash}{524f4ec23ec2b2de57fe1b0f6c287eab}
+      \strng{fullhashraw}{524f4ec23ec2b2de57fe1b0f6c287eab}
+      \strng{bibnamehash}{44ec3668378472cab1474c176a4585ce}
+      \strng{authorbibnamehash}{44ec3668378472cab1474c176a4585ce}
+      \strng{authornamehash}{44ec3668378472cab1474c176a4585ce}
+      \strng{authorfullhash}{524f4ec23ec2b2de57fe1b0f6c287eab}
+      \strng{authorfullhashraw}{524f4ec23ec2b2de57fe1b0f6c287eab}
+      \field{sortinit}{Z}
+      \field{sortinithash}{96892c0b0a36bb8557c40c49813d48b3}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{abstract}{microRNAs (miRNAs) are central post-transcriptional gene expression regulators in healthy and diseased states. Despite decades of effort, deciphering miRNA targets remains challenging, leading to an incomplete miRNA interactome and partially elucidated miRNA functions. Here, we introduce microT-CNN, an avant-garde deep convolutional neural network model that moves the needle by integrating hundreds of tissue-matched (in-)direct experiments from 26 distinct cell types, corresponding to a unique training and evaluation set of {$>$}60~000 miRNA binding events and\,\textasciitilde 30~000 unique miRNA–gene target pairs. The multilayer sequence-based design enables the prediction of both host and virus-encoded miRNA interactions, providing for the first time up to 67\% of direct genuine Epstein–Barr virus– and Kaposi’s sarcoma–associated herpesvirus–derived miRNA–target pairs corresponding to one out of four binding events of virus-encoded miRNAs. microT-CNN fills the existing gap of the miRNA–target prediction by providing functional targets beyond the canonical sites, including 3′ compensatory miRNA pairings, prompting 1.4-fold more validated miRNA binding events compared to other implementations and shedding light on previously unexplored facets of the miRNA interactome.}
+      \field{day}{31}
+      \field{eprinttype}{pubmed}
+      \field{issn}{1467-5463}
+      \field{journaltitle}{Briefings in Bioinformatics}
+      \field{month}{12}
+      \field{number}{1}
+      \field{shortjournal}{Brief Bioinform}
+      \field{shorttitle}{{{microT-CNN}}}
+      \field{title}{{{microT-CNN}}: An Avant-Garde Deep Convolutional Neural Network Unravels Functional {{miRNA}} Targets beyond Canonical Sites}
+      \field{urlday}{23}
+      \field{urlmonth}{3}
+      \field{urlyear}{2025}
+      \field{volume}{26}
+      \field{year}{2024}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \field{pages}{bbae678}
+      \range{pages}{-1}
+      \verb{doi}
+      \verb 10.1093/bib/bbae678
+      \endverb
+      \verb{eprint}
+      \verb 39737571
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/8V46S73E/Zacharopoulou et al. - 2024 - microT-CNN an avant-garde deep convolutional neural network unravels functional miRNA targets beyon.pdf
+      \endverb
+      \verb{urlraw}
+      \verb https://www.ncbi.nlm.nih.gov/pmc/articles/PMC11685103/
+      \endverb
+      \verb{url}
+      \verb https://www.ncbi.nlm.nih.gov/pmc/articles/PMC11685103/
+      \endverb
     \endentry
     \entry{zengSequenceRequirementsMicro2003}{article}{}{}
       \name{author}{2}{}{%

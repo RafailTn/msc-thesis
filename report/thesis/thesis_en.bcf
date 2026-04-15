@@ -2423,6 +2423,15 @@
     <bcf:citekey order="39" intorder="4">wrightCopraRNAIntaRNAPredicting2014</bcf:citekey>
     <bcf:citekey order="39" intorder="5">miladiIntegrationAccessibilityData2019</bcf:citekey>
     <bcf:citekey order="39" intorder="6">radenImpactVariousSeed2020</bcf:citekey>
+    <bcf:citekey order="40" intorder="1">lorenzViennaRNAPackage202011</bcf:citekey>
+    <bcf:citekey order="40" intorder="2">hofackerFastFoldingComparison1994</bcf:citekey>
+    <bcf:citekey order="40" intorder="3">lorenzRNAFoldingHard2016</bcf:citekey>
+    <bcf:citekey order="40" intorder="4">turnerNNDBNearestNeighbor2010</bcf:citekey>
+    <bcf:citekey order="41" intorder="1">zacharopoulouMicroTCNNAvantgardeDeep2024</bcf:citekey>
+    <bcf:citekey order="42" intorder="1">chiuCupidSimultaneousReconstruction2015</bcf:citekey>
+    <bcf:citekey order="42" intorder="2">jinTransparentSparseGraph2024</bcf:citekey>
+    <bcf:citekey order="43" intorder="1">behrouzTitansLearningMemorize2024</bcf:citekey>
+    <bcf:citekey order="43" intorder="2">guMambaLinearTimeSequence2024</bcf:citekey>
   </bcf:section>
   <!-- SORTING TEMPLATES -->
   <bcf:sortingtemplate name="nty">
