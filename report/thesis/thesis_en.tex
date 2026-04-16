@@ -69,6 +69,7 @@
 \usepackage{listings}
 \usepackage{csquotes}
 \usepackage{float}
+\usepackage{amsmath}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%% User-specific configuration %%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -373,400 +374,91 @@ Types of experiments that capture and quantify miRNA:MRE complexes are used to s
 \par The site-specific partition function, $Z(S)$, is calculated by multiplying the Boltzmann weights of the accessibility penalties ($E_{D1}$ and $E_{D2}$) by the sum of the Boltzmann weights for all hybridization interactions ($I$) at that site. Here, $R$ represents the universal gas constant and $T$ is the temperature (with $RT \approx 0.616$ at 37°C). This partition function is used to determine the ensemble energy of all interactions at a given site using the equation $E(S) = -RT \ln(Z(S))$. By calculating ensemble energy rather than relying on a single, static base-pairing model, this approach accounts for the inherent flexibility and dynamic nature of the interacting regions. Furthermore, summing the partition functions across all potential sites yields the global partition function, $Z_{all} = \sum Z(S)$. This allows for the calculation of the probability that a specific interaction $I$ will form, defined as $P_E(I) = \exp(-E(I)/RT) / Z_{all}$. IntaRNA provides additional options that function like other widely used software for the same task like RNADuplex, TargetScan and RNAup \parencite{lorenzViennaRNAPackage202011,hofackerFastFoldingComparison1994,lorenzRNAFoldingHard2016,turnerNNDBNearestNeighbor2010}. 
 
 \subsection{Functional and Pathway Level predictors}
-\par The advancement of machine and deep learning algorithms has paved the way for the development of models that circumvent the need for feature engineering and go beyond site level prediction. Heuristic and Physical approaches as those described above, as well as classical machine learning algorithms, need to take as input a number of features among which they try to calculate weights and correlations so as to create a function that separates the samples into predifined categories or fit a regression line on a multi-dimensional distribution. This requires prior processing of the samples so as to extract such meaningful features utilizing domain knowledge for the specific task. Modern deep learning models do not require such intensive preprocessing as they are developed in order to process the nucleotide sequence directly and find more abstract patterns that correlate with the desired output. The first and simplest type of architecture that has been used is Convolutional Neural Networks (CNNs). CNNs allow for the processing of the nucleotide sequence outside of the tabular limitations of classical Machine Learning by reading it in predifined windows along which mathematical operations are performed with the goal of creating a feature map whereby pooling is performed in order to reduce overfitting and make the model translation invariant. The final part usually consists of a classification layer that is used to output a probability for a specific class. Some modern architectures like the one from \cite{zacharopoulouMicroTCNNAvantgardeDeep2024} employ such architectures combining them with ones like Graph Neural Networks (GNNs) in order to extract a unified score across an entire gene and use it as a feature for a meta learner that is trained on expression data to predict functional binding which goes beyond site level predictions. The most recent and advanced models perform what is called Pathway Level prediction, by taking advantadge of site/gene level predictors and GNNs, they predict pathway level interactions between mRNAs-miRNAs-Competing Endogenous RNAs (ceRNAs), making them more relevant for identifying which of these pathways are crucial for disease states \parencite{chiuCupidSimultaneousReconstruction2015,jinTransparentSparseGraph2024}. Finally, modern models may also rely on Transformer based architectures which are able to treat DNA/RNA as a language and learn more intricate pattern that are not necessarily in proximity in the input sequence. Examples of these include the vanilla Transformer, Titans and the Mamba architecture which is not transformer based but has shown promise in DNA related tasks \parencite{behrouzTitansLearningMemorize2024,guMambaLinearTimeSequence2024}
+\par The advancement of machine and deep learning algorithms has paved the way for the development of models that circumvent the need for feature engineering and go beyond site level prediction. Heuristic and Physical approaches as those described above, as well as classical machine learning algorithms, need to take as input a number of features among which they try to calculate weights and correlations so as to create a function that separates the samples into predifined categories or fit a regression line on a multi-dimensional distribution. This requires prior processing of the samples so as to extract such meaningful features utilizing domain knowledge for the specific task. Modern deep learning models do not require such intensive preprocessing as they are developed in order to process the nucleotide sequence directly and find more abstract patterns that correlate with the desired output. The first and simplest type of architecture that has been used is Convolutional Neural Networks (CNNs). CNNs allow for the processing of the nucleotide sequence outside of the tabular limitations of classical Machine Learning by reading it in predifined windows along which mathematical operations are performed with the goal of creating a feature map whereby pooling is performed in order to reduce overfitting and make the model translation invariant. The final part usually consists of a classification layer that is used to output a probability for a specific class. 
 
+\par Some modern architectures like the one from \cite{zacharopoulouMicroTCNNAvantgardeDeep2024} employ such architectures combining them with ones like Graph Neural Networks (GNNs) in order to extract a unified score across an entire gene and use it as a feature for a meta learner that is trained on expression data to predict functional binding which goes beyond site level predictions. The most recent and advanced models perform what is called Pathway Level prediction, by taking advantadge of site/gene level predictors and GNNs, they predict pathway level interactions between mRNAs-miRNAs-Competing Endogenous RNAs (ceRNAs), making them more relevant for identifying which of these pathways are crucial for disease states \parencite{chiuCupidSimultaneousReconstruction2015,jinTransparentSparseGraph2024}. Finally, modern models may also rely on Transformer based architectures which are able to treat DNA/RNA as a language and learn more intricate pattern that are not necessarily in proximity in the input sequence. Examples of these include the vanilla Transformer, Titans and the Mamba architecture which is not transformer based but has shown promise in DNA related tasks \parencite{behrouzTitansLearningMemorize2024,guMambaLinearTimeSequence2024}
 
-\subsection{Page numbering} \label{page_numbering}
+\subsection{Transformers}
+\par Transformers were introduced in the landmark paper "Attention is All You Need" \parencite{vaswaniAttentionAllYou2023}. First, the input sequence is tokenized and mapped to dense vector embeddings. To inject information about the relative or absolute position of the tokens in the sequence, positional encodings, which are either learned or based on sinusoidal functions, are added to these embeddings. Through learned linear projections, the input is mapped into three distinct matrices: Queries ($Q$), Keys ($K$), and Values ($V$). The scaled dot-product attention mechanism, which is vital to the architecture's success, is defined by the following formula:
 
-Page numbering starts at 1 from the front cover, the English title page in this case, without printing the numbers.
-When printing on both sides of the sheet (two-sided by default), any blank pages are included towards the page count, but do not include any headers or footers including page numbers.
-If printing on one side of the page (done by including the \emph{oneside} option in the \verb|\documentclass|), only the pages on the right are printed and any blank pages (including those on the left side) are not included towards the page count.
-Numbering always finishes on the last printed page.
-
-On two-sided theses, numbers are printed on the center of each footer.
-On one-sided theses, numbers are printed on the right side of each footer.
-
-\subsection{Page formatting} \label{page_formatting}
-
-Pages are formatted as in this sample:
-
-\begin{itemize}
-    \item \textbf{Margins:} 2cm on all sides, plus a 0.5cm gutter on the center of the book where the pages are bound (i.e, on the left side for printed odd pages and on the right for printed even pages).
-    \item \textbf{Header:} 1.25cm from the top of the page.
-    Contains the title of the thesis, on the right side for odd pages, on the left for even pages, if printed two-side.
-    Appears only in the main matter, that is not in the cover pages or the front matter (abstract, inscription, table of contents, ...), and not in blank pages.
-    \item \textbf{Footer:} 1.25cm from the bottom of the page.
-    Contains the name(s) of the author(s)
-    \begin{itemize}
-        \item on the right side for odd pages, on the left for even pages, if printed two-side.
-        \item on the left side of all pages if printed one-side.
-    \end{itemize}
-    Appears only in the main matter, that is not in the cover pages or the front matter (abstract, inscription, table of contents, ...), and not in blank pages.
-    \item \textbf{Page number:} included in the footer
-    \begin{itemize}
-        \item at the center if printed two-side.
-        \item on the right if printed one-side.
-    \end{itemize}
-    \item \textbf{Paragraph formatting:}
-    \begin{itemize}
-        \item \textbf{Justification:} Justified, each non paragraph-breaking line covers the entire line width spaced as necessary.
-        \item \textbf{Paragraph spacing:} 0pt for the first, 6pt between all paragraphs.
-        \item \textbf{Line spacing:} 1 line.
-    \end{itemize}
-    \item \textbf{Font:} Arial, 12pt, Normal or Regular style
-    \item \textbf{Chapter numbering:} Arial, bold, 12pt or 14 pt
-    \item \textbf{Chapter title:} Arial, bold, uppercase, 14pt., centered
-    \item \textbf{Section and further division title:} Arial, bold, 12pt.
-    \item \textbf{Figures:} Each figure must be uniquely numbered either by chapter or by the whole document.
-    They must also include a caption below them, as in this sample.
-    \item \textbf{Tables:} Each table must be uniquely numbered either by chapter or by the whole document.
-    They must also include a caption above them, as in this sample.
-\end{itemize}
-
-\section{Sample section}
-
-The section title will appear in the Table of Contents.
-
-\subsection{Sample Subsection}
-
-The subsection title will appear in the Table of Contents.
-
-\subsubsection{Sample subsubsection}
-
-The subsubsection title will appear in the Table of Contents.
-
-\paragraph{Sample paragraph}
-
-The paragraph title will not appear in the Table of Contents.
-
-\subparagraph{Sample subparagraph}
-
-The subparagraph title will not appear in the Table of Contents.
-
-\chapter{A BRIEF INTRODUCTION TO \LaTeX} \label{introduction_to_latex}
-
-\LaTeX{} is a typesetting system.
-The authors compose a \textbf{.tex} file which is then compiled to produce a document, nowadays a PDF file.
-This chapter will give a brief, non-exhaustive introduction to the system.
-
-\section{Installing \LaTeX} \label{installing_latex}
-
-If you use macOS or Linux as your operating system, chances are \LaTeX{} is already included.
-Windows does not include \LaTeX{} out-of-the-box.
-If not, just install one of the following:
-\begin{itemize}
-    \item TeX Live (\url{https://www.tug.org/texlive/}).
-    Contains a comprehensive \LaTeX{} installation with most packages included.
-    Thus, it also requires a few GB worth of space in a typical installation.
-    Supports most if not all packages used in this sample.
-    \item MiKTeX (\url{https://miktex.org/}) is a more minimalist installation.
-    Typical installations only include the essential packages, with the option of downloading more, either from the console or automatically when compiling.
-    This document uses packages that are not included in the typical MiKTeX installation, but it will offer you to install them upon first compilation.
-\end{itemize}
-
-Both of these are cross-platform, they can install under Windows, macOS, or Linux.
-
-\section{Editing} \label{editing}
-
-\TeX{} files can be modified by any plain text processor program, such as Notepad.
-Compilation to PDF is traditionally done via the terminal.
-Nonetheless, it is recommended to use a dedicated \TeX{} IDE, a program designed to edit, compile and view the resulting PDF all in one program.
-
-Some IDEs one could use to edit and compile \TeX{} files are:
-\begin{itemize}
-    \item \textbf{TeXworks} (\url{https://tug.org/texworks/}).
-    Very basic functionality.
-    This is bundled with both TeX Live and MiKTeX, so by installing any of those you don't have to install this program as well.
-    \item \textbf{Texmaker} (\url{https://www.xm1math.net/texmaker/}).
-    More advanced functionality.
-    Includes document structure, symbol insertion, and other \LaTeX{} commands that can be added to the document with the push of a button.
-    \item \textbf{TeXstudio} (\url{https://www.texstudio.org/}).
-    Forked from Texmaker.
-    Functions almost the same as Texmaker.
-    \item \textbf{Kile} (\url{https://kile.sourceforge.io/}).
-    Built by KDE.
-\end{itemize}
-
-\section{Compiling} \label{compiling}
-
-Before we begin with the commands, I should mention that this project---either in English or Greek---uses the XeLaTeX engine to compile.
-This is because while LaTeX uses the ASCII character set to typeset, XeLaTeX uses Unicode, which includes a lot more characters than ASCII.
-
-The compilation recipe will typically consist of:
-\begin{enumerate}
-    \item Running xelatex
-    \item Running bibtex to compile the references
-    \item Running xelatex
-    \item Running xelatex
-\end{enumerate}
-
-It appears that \textit{xelatex} runs a total of 3 times, once before then twice after \textit{bibtex}.
-This is to ensure all \verb|\label|s have been scanned and paired with their \verb|\ref|.
-
-\section{Formatting} \label{formatting}
-
-\subsection{Basics} \label{basics}
-
-Take at look at the following excerpt:
-
-\begin{verbatim}
-This is the first paragraph.
-This is the next line, but is still part of the first paragraph.
-
-This is the second paragraph. Notice the blank line between the two.
-% This is a comment. Comments are not rendered in the final file.
-% Comments begin with the percent symbol(%)
-% and extend to the end of the line.
-\end{verbatim}
-
-In \LaTeX{}, it's rendered like this:
-
-This is the first paragraph.
-This is the next line, but is still part of the first paragraph.
-
-This is the second paragraph. Notice the blank line between the two.
-% This is a comment. Comments are not rendered in the typeset file.
-% Comments begin with the percent symbol(%) and extend to the end of the line.
-
-As we can see, if we type something onto the next line it will remain part of that paragraph.
-But if we leave one line blank between texts, the next part of the text will appear on a new paragraph.
-
-You might have also noticed that the lines starting with '\%' did not print.
-That's because the \% symbol works like the // in C-inspired languages: it begins a comment until the next line.
-"But wait", you might ask, "how did you type the '\%' just now"?
-Simple: if you type \verb|\%| in \LaTeX{} you'll get a \% character.
-Most commands begin with the backslash (\textbackslash) character, which is also used in escaping other special characters, as we'll see in \ref{escaping}.
-
-\subsection{Escaping} \label{escaping}
-Some characters like the \% are special, and behave differently in \LaTeX{} than in text documents.
-For example:
-\begin{itemize}
-    \item The \textbf{\%} starts comments.
-    \item The \textbf{\&} is used to separate columns in a row in tables.
-    \item The \textbf{\textbackslash\textbackslash} either creates a new line without breaking the paragraph or starts a new row in a table environment.
-    \item \textbf{\{} and \textbf{\}} to enclose into a group.
-    \item \textbf{\$} to write some math.
-    \item \textbf{\# \_ \~{} \^{}} as other reserved characters.
-\end{itemize}
-
-Most of these are escaped by adding the backslash character next to them (e.g. \textbackslash\&).
-But to print the backslash itself, only the \verb|\textbackslash| command will print the '\textbackslash'.
-
-\subsection{Formatting commands} \label{formatting_commands}
-
-Some \LaTeX{} commands act like their word processor equivalents.
-For example:
-
-\begin{center}
-    \begin{tabular}{c|c}
-        This... & will print this \\
-        \hline
-        \verb|\textbf{bold}| & \textbf{bold} \\
-        \verb|\textit{italics}| & \textit{italics} \\
-        \verb|\underline{underline}| & \underline{underline} \\
-        \verb|\textbf{\textit{bold and italics}}| & \textbf{\textit{bold and italics}}
-    \end{tabular}
-\end{center}
-
-Want to center something like the table above?
-Just type something like:
-\begin{verbatim}
-\begin{center}
-    I'm a centered section!
-    I start in the .tex file with \verb|\begin{center}|
-    and end with \verb|\end{center}|.
-\end{center}
-\end{verbatim}
-
-and you'll get:
-
-\begin{center}
-    I'm a centered section!
-    I start in the .tex file with \verb|\begin{center}|
-    and end with \verb|\end{center}|.
-\end{center}
-
-Want to make a list?
-For unordered (bulleted) lists:
-\begin{verbatim}
-\begin{itemize}
-    \item This is an item in an \textit{itemize} environment.
-    \item Each item starts with \verb|\item|
-          and continues until the next \verb|\item|
-          or \verb|\end{itemize}|.
-    \item You can also nest lists.
-          \begin{itemize}
-              \item Just open another \textit{itemize}
-                    environment inside.
-          \end{itemize}
-\end{itemize}
-\end{verbatim}
-
-will produce:
-\begin{itemize}
-    \item This is an item.
-    \item Each item starts with \verb|\item|
-    and continues until the next \verb|\item|
-    or \verb|\end{itemize}|.
-\item You can also nest lists.
-    \begin{itemize}
-        \item Just open another \textit{itemize} environment inside.
-    \end{itemize}
-\end{itemize}
-
-\clearpage
-
-If you want to make ordered lists, with numbers:
-\begin{verbatim}
-\begin{enumerate}
-    \item This is an ordered item
-          in an \textit{enumerate} environment.
-    \item It behaves like in the \textit{itemize} environment.
-          But instead of bullets that are the same for each item,
-          you see sequences of numbers or letters.
-    \item Once again, you may nest lists.
-          \begin{enumerate}
-              \item Just like that.
-              \item But you can go deeper:
-                    \begin{itemize}
-                        \item You can even nest unordered lists.
-                              \begin{enumerate}
-                                  \item Just how deep can this
-                                        rabbit hole go?
-                              \end{enumerate}
-                    \end{itemize}
-          \end{enumerate}
-    \item Phew, back at last!
-\end{enumerate}
-\end{verbatim}
-
-this is what you get:
-\begin{enumerate}
-    \item This is an ordered item in an \textit{enumerate} environment.
-    \item It behaves like in the \textit{itemize} environment.
-    But instead of bullets that are the same for each item,
-    you see sequences of numbers or letters.
-    \item Once again, you may nest lists.
-    \begin{enumerate}
-        \item Just like that.
-        \item But you can go deeper:
-        \begin{itemize}
-            \item You can even nest unordered lists.
-            \begin{enumerate}
-                \item Just how deep can this rabbit hole go?
-            \end{enumerate}
-        \end{itemize}
-    \end{enumerate}
-    \item Phew, back at last!
-\end{enumerate}
-
-To add footnotes, you can do something like this:
-
-\begin{verbatim}
-Hello there!\footnote{General Kenobi!}
-\end{verbatim}
-
-to get:
-
-Hello there!\footnote{General Kenobi!}
-
-Want to add URLs in your document? Simple! Just type:
-
-\begin{verbatim}
-\TeX{} Users Group homepage: \url{https://www.tug.org/}
-\end{verbatim}
-
-to get:
-
-\TeX{} Users Group homepage: \url{https://www.tug.org/}
-
-And speaking of links, if you wish to add a bibliographical reference as it's declared in the \textbf{references.bib} file, type:
-
-Just pay attention to the label as it is given in the corresponding \textbf{references.bib} entry.
-A sample has been given in this project.
-Bibliographical entries don't have to begin with "bib:", but it helps in organizing labels.
-
-Finally, if you want to link to another reference:
-\begin{verbatim}
-Go to Chapter \ref{figures_and_tables}.
-\end{verbatim}
-
-will show up as:
-
-Go to Chapter \ref{figures_and_tables}.
-
-As you can see, this not only displays the number of the "FIGURES AND TABLES" chapter, but clicking on it navigates to the start of that chapter.
-This can be used to reference anything with the \verb|\label{label_key}| command.
-Just tag something with \verb|\label{key}|, then refer (link) to it with \verb|\ref{key}|.
-
-Tables and figures are analyzed in the next sample chapter.
-If you want to know more about advanced \LaTeX{} commands, there are a few tutorials online.
-
-\subsection{Adding math equations} \label{adding_math_equations}
-
-\LaTeX{} also supports adding math formulae and equations.
-These expressions tend to use a different notation and font than the rest of the document.
-
-There are two ways to add a math expression: \emph{inline} and \emph{display}.
-
-In inline mode, the math expression is written on the same paragraph as the text.
-For example, typing:
-\begin{verbatim}
-One of Albert Einstein's famous equations is \(E = mc^2\),
-where \(E\) is energy,
-\(m\) is mass,
-\(c\) is the speed of light (approx. 300,000,000 m/s).
-\end{verbatim}
-
-will yield:
-
-One of Albert Einstein's famous equations is \(E = mc^2\),
-where \(E\) is energy,
-\(m\) is mass,
-\(c\) is the speed of light (approx. 300,000,000 m/s).
-
-In display mode, math expressions are rendered in their own blocks, usually centered.
-For instance, if one types:
-\begin{verbatim}
-Ohm's law is expressed as:
-\[V = I R \quad \textrm{or} \quad
-I = \frac{V}{R} \quad \textrm{or} \quad
-R = \frac{V}{I} \]
-where \(V\) is voltage, \(I\) is current, \(R\) is resistance.
-\end{verbatim}
-
-this will output:
-
-Ohm's law is expressed as:
-\[V = I R \quad \textrm{or} \quad
-I = \frac{V}{R} \quad \textrm{or} \quad
-R = \frac{V}{I} \]
-where \(V\) is voltage, \(I\) is current, \(R\) is resistance.
-
-And if you want numbered equations:
-\begin{verbatim}
-The ideal gas law is defined as:
 \begin{equation}
-    p V = n R T
+	\text{Attention}(Q, K, V) = \text{softmax}\left( \frac{QK^\top}{\sqrt{d_k}} \right) V
 \end{equation}
-where \(p\) is pressure of the gas,
-\(V\) is the volume,
-\(n\) the number of moles (not the animal kind),
-\(R\) the gas constant,
-\(T\) the temperature expressed in the Kelvin scale.
-\end{verbatim}
 
-to display:
+\par Rather than computing a single attention function, Transformers employ Multi-Head Attention, projecting the queries, keys, and values into multiple subspaces, performing the attention function in parallel, and concatenating the outputs. The standard Transformer encoder consists of a stack of identical layers. Each layer contains two primary sub-layers: a Multi-Head Attention mechanism and a position-wise Feed-Forward Neural Network. Every sub-layer is encompassed by a residual connection followed by layer normalization, formulated mathematically as $\text{LayerNorm}(x + \text{Sublayer}(x))$.
 
-The ideal gas law is defined as:
+The Decoder follows a similar structural philosophy to the Encoder but introduces critical modifications to facilitate autoregressive sequence generation. Each identical decoder layer comprises three primary sub-layers: a Masked Multi-Head Self-Attention mechanism, an Encoder-Decoder Multi-Head Attention mechanism (often termed Cross-Attention), and a position-wise Feed-Forward Neural Network. As with the Encoder, residual connections and layer normalization encompass each of these sub-layers.
+
+The masking in the first sub-layer is an essential modification; it mathematically prevents sequence positions from attending to subsequent positions. By setting the scaled dot-product attention scores of future tokens to $-\infty$ prior to the softmax operation, the model ensures that the prediction for position $i$ depends exclusively on the known outputs at positions strictly prior to $i$. 
+
+In the subsequent Encoder-Decoder Attention sub-layer, the queries ($Q$) are derived from the output of the previous decoder layer, while the keys ($K$) and values ($V$) are sourced directly from the final output of the Encoder. This cross-attention mechanism allows every position in the decoder to attend over the entire input sequence, effectively grounding the generated output in the original provided context. Finally, the output of the decoder stack is passed through a linear transformation and a softmax function to produce a probability distribution over the vocabulary for the next predicted token.
+
+\subsection{Titans}
+While Transformers have achieved unprecedented success across various domains, their standard architecture suffers from two fundamental limitations: the quadratic computational complexity of the attention mechanism with respect to sequence length ($\mathcal{O}(N^2)$), which severely bounds the maximum context window, and the static nature of their weights during inference. Because a trained Transformer's weights are frozen, it cannot learn from new context dynamically; it merely caches tokens in its finite working memory.
+
+To address these bottlenecks, the Titans architecture \parencite{behrouzTitansLearningMemorize2024} departs from relying exclusively on self-attention by introducing a dynamic, biologically inspired Neural Memory System. Rather than forcing a single attention mechanism to process the entirety of a sequence, the Titans architecture partitions the cognitive workload across three distinct memory modules:
+
+\begin{description}
+	\item[Short-Term Memory] This module operates identically to the traditional Transformer attention mechanism. It serves as the model's immediate mental workspace, providing high-resolution, precise processing strictly for the local, immediate context.
+	
+	\item[Long-Term Memory] This is the core innovation of the architecture. Instead of attempting to scale the context window to infinity, Titans introduce a secondary neural network whose weights are dynamically updated \textit{during inference} (test time). This module compresses historical context into neural weights rather than caching explicit token representations.
+	
+	\item[Persistent Memory] This tier consists of learnable, static parameters that encode the fundamental rules and meta-knowledge of the task itself, ensuring the model does not suffer from catastrophic forgetting while its Long-Term Memory aggressively adapts to novel prompts.
+\end{description}
+
+\subsubsection*{Mathematical Formulation of the Neural Long-Term Memory}
+
+The foundational mathematics of the Titans architecture redefines long-term memory not as a static cache of tokens, but as an online optimization problem. The independent neural network ($\mathcal{M}$) governing this memory adapts its parameters at test time via gradient descent, driven by an associative loss function and a biologically inspired "surprise" metric.
+
+\par The long-term memory module aims to learn associations between historical keys ($k_t$) and values ($v_t$) generated from the input sequence. The memory network $\mathcal{M}$, parameterized by weights at time step $t-1$ ($W_{t-1}$), attempts to reconstruct the value given the key: $\mathcal{M}(k_t; W_{t-1}) \approx v_t$. The accuracy of this reconstruction is measured by an associative loss function, typically defined as Mean Squared Error (MSE):
+
 \begin{equation}
-    p V = n R T
+	\mathcal{L}_t = \left\| \mathcal{M}(k_t; W_{t-1}) - v_t \right\|^2
 \end{equation}
-where \(p\) is pressure of the gas,
-\(V\) is the volume,
-\(n\) the number of moles (not the animal kind),
-\(R\) the gas constant,
-\(T\) the temperature expressed in the Kelvin scale.
+
+\par Drawing from cognitive science, Titans posit that highly predictable data should require little memorization, whereas unexpected data requires structural changes in the neural pathways. Mathematically, "surprise" is quantified as the gradient of the associative loss with respect to the memory parameters. If the memory module flawlessly predicts the value (low loss), the gradient is near zero (low surprise). Conversely, a failed prediction yields a large gradient (high surprise):
+
+\begin{equation}
+	S_t = \nabla_{W_{t-1}} \mathcal{L}_t
+\end{equation}
+
+\par Instead of remaining frozen after training, the memory module updates its parameters sequentially during inference. To prevent memory overflow and catastrophic forgetting, the update mechanism incorporates a decay factor ($\alpha$) for past gradients and a learning rate ($\theta$) for the momentary surprise ($S_t$). This creates a momentum-based update rule:
+
+\begin{equation}
+	W_t = W_{t-1} - \left( \alpha \Delta W_{t-1} + \theta S_t \right)
+\end{equation}
+
+where $\Delta W_{t-1}$ represents the accumulated historical surprise. By embedding this test-time gradient descent directly into the forward pass, the Titans architecture effectively compresses the entirety of the sequence history into the deep weights of $W_t$. When a new query ($q_t$) arrives, the model simply queries this dynamically updated network ($\mathcal{M}(q_t; W_t)$) to retrieve context, entirely circumventing the $\mathcal{O}(N^2)$ dot-product computations required by standard attention mechanisms.
+
+\subsection{Mamba}
+While the Titans architecture addresses the context bottleneck by compressing history into dynamic weights, an alternative and highly successful paradigm has emerged in the form of Structured State Space Sequence Models (SSMs), most notably the Mamba architecture \parencite{guMambaLinearTimeSequence2024}. Mamba completely discards the attention mechanism, offering a fundamental architectural shift that scales linearly in time ($\mathcal{O}(N)$) with respect to sequence length, while maintaining a constant memory footprint during autoregressive generation.
+
+\subsubsection*{Mathematical Foundation of Structured State Space Models}
+
+At its core, Mamba is inspired by continuous-time control theory. It maps a 1-dimensional input sequence $x(t) \in \mathbb{R}$ to an output $y(t) \in \mathbb{R}$ through an implicit latent state $h(t) \in \mathbb{R}^N$.
+
+The classical continuous-time SSM is defined by a system of linear ordinary differential equations:
+\begin{align}
+	h'(t) &= A h(t) + B x(t) \\
+	y(t) &= C h(t)
+\end{align}
+To process discrete tokens (such as text), this continuous system must be discretized. Using a timescale parameter $\Delta$, the continuous matrices $A$ and $B$ are transformed into their discrete counterparts $\bar{A}$ and $\bar{B}$ (typically via the zero-order hold method). This yields a highly efficient recurrent formulation:
+\begin{equation}
+	h_t = \bar{A} h_{t-1} + \bar{B} x_t, \quad y_t = C h_t
+\end{equation}
+
+\par Previous iterations of SSMs (such as S4) suffered from a fatal constraint: they were Linear Time-Invariant (LTI). Because their transition matrices ($B$, $C$, and $\Delta$) were static and fixed across all time steps, they could not selectively focus on or ignore specific tokens, making tasks like targeted information retrieval or copy-pasting nearly impossible. 
+
+Mamba resolves this by introducing a \textit{Selection Mechanism}. It parameterizes $B$, $C$, and the step size $\Delta$ to be input-dependent functions of the current token $x_t$:
+\begin{equation}
+	B_t = \text{Linear}_B(x_t), \quad C_t = \text{Linear}_C(x_t), \quad \Delta_t = \text{softplus}(\text{Linear}_\Delta(x_t))
+\end{equation}
+By allowing $\Delta_t$ to vary based on the input, the model dynamically dictates the degree to which it should integrate the current token into the hidden state ($h_t$) or completely ignore it. This effectively grants the recurrent model the data-filtering capabilities of an attention mechanism, without the $\mathcal{O}(N^2)$ computational penalty.
+
+\par Because Mamba's parameters are time-varying, the model cannot be computed using efficient Fast Fourier Transforms (FFTs) like its LTI predecessors. To overcome this, Mamba relies on a hardware-aware parallel scan algorithm. By fusing the scan operations and materializing the expanded hidden states ($h_t$) exclusively in the faster, on-chip SRAM of the GPU (bypassing the slower High Bandwidth Memory (HBM) IO bottleneck) Mamba achieves training speeds competitive with highly optimized Transformers while preserving the inference efficiency of a recurrent neural network.
+
+\subsection{Main Goal}
+\par The main goal of this thesis is to explore the use of architectures and algorithms that aim to surpass vanilla Transformers in terms of either performance or explainability. Thus, the Titans and Mamba architectures were employed and their results were compared to those of a vanilla Transformer deep neural network. Additionally, simpler machine learning models and their ensembles were employed in order to further examine the tradeoff between their higher degree of explainability and (potentially) speed and their performance on the \cite{manakovScalableDeepProfiling2022} dataset.
 
 \chapter{FIGURES AND TABLES} \label{figures_and_tables}
 
