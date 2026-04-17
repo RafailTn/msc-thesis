@@ -2433,9 +2433,9 @@
     <bcf:citekey order="43" intorder="1">behrouzTitansLearningMemorize2024</bcf:citekey>
     <bcf:citekey order="43" intorder="2">guMambaLinearTimeSequence2024</bcf:citekey>
     <bcf:citekey order="44" intorder="1">vaswaniAttentionAllYou2023</bcf:citekey>
-    <bcf:citekey order="45" intorder="1">behrouzTitansLearningMemorize2024</bcf:citekey>
-    <bcf:citekey order="46" intorder="1">guMambaLinearTimeSequence2024</bcf:citekey>
-    <bcf:citekey order="47" intorder="1">manakovScalableDeepProfiling2022</bcf:citekey>
+    <bcf:citekey order="45" intorder="1">guMambaLinearTimeSequence2024</bcf:citekey>
+    <bcf:citekey order="46" intorder="1">manakovScalableDeepProfiling2022</bcf:citekey>
+    <bcf:citekey order="47" intorder="1">zacharopoulouMicroTCNNAvantgardeDeep2024</bcf:citekey>
   </bcf:section>
   <!-- SORTING TEMPLATES -->
   <bcf:sortingtemplate name="nty">

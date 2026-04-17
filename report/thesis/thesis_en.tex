@@ -393,45 +393,8 @@ The masking in the first sub-layer is an essential modification; it mathematical
 
 In the subsequent Encoder-Decoder Attention sub-layer, the queries ($Q$) are derived from the output of the previous decoder layer, while the keys ($K$) and values ($V$) are sourced directly from the final output of the Encoder. This cross-attention mechanism allows every position in the decoder to attend over the entire input sequence, effectively grounding the generated output in the original provided context. Finally, the output of the decoder stack is passed through a linear transformation and a softmax function to produce a probability distribution over the vocabulary for the next predicted token.
 
-\subsection{Titans}
-While Transformers have achieved unprecedented success across various domains, their standard architecture suffers from two fundamental limitations: the quadratic computational complexity of the attention mechanism with respect to sequence length ($\mathcal{O}(N^2)$), which severely bounds the maximum context window, and the static nature of their weights during inference. Because a trained Transformer's weights are frozen, it cannot learn from new context dynamically; it merely caches tokens in its finite working memory.
-
-To address these bottlenecks, the Titans architecture \parencite{behrouzTitansLearningMemorize2024} departs from relying exclusively on self-attention by introducing a dynamic, biologically inspired Neural Memory System. Rather than forcing a single attention mechanism to process the entirety of a sequence, the Titans architecture partitions the cognitive workload across three distinct memory modules:
-
-\begin{description}
-	\item[Short-Term Memory] This module operates identically to the traditional Transformer attention mechanism. It serves as the model's immediate mental workspace, providing high-resolution, precise processing strictly for the local, immediate context.
-	
-	\item[Long-Term Memory] This is the core innovation of the architecture. Instead of attempting to scale the context window to infinity, Titans introduce a secondary neural network whose weights are dynamically updated \textit{during inference} (test time). This module compresses historical context into neural weights rather than caching explicit token representations.
-	
-	\item[Persistent Memory] This tier consists of learnable, static parameters that encode the fundamental rules and meta-knowledge of the task itself, ensuring the model does not suffer from catastrophic forgetting while its Long-Term Memory aggressively adapts to novel prompts.
-\end{description}
-
-\subsubsection*{Mathematical Formulation of the Neural Long-Term Memory}
-
-The foundational mathematics of the Titans architecture redefines long-term memory not as a static cache of tokens, but as an online optimization problem. The independent neural network ($\mathcal{M}$) governing this memory adapts its parameters at test time via gradient descent, driven by an associative loss function and a biologically inspired "surprise" metric.
-
-\par The long-term memory module aims to learn associations between historical keys ($k_t$) and values ($v_t$) generated from the input sequence. The memory network $\mathcal{M}$, parameterized by weights at time step $t-1$ ($W_{t-1}$), attempts to reconstruct the value given the key: $\mathcal{M}(k_t; W_{t-1}) \approx v_t$. The accuracy of this reconstruction is measured by an associative loss function, typically defined as Mean Squared Error (MSE):
-
-\begin{equation}
-	\mathcal{L}_t = \left\| \mathcal{M}(k_t; W_{t-1}) - v_t \right\|^2
-\end{equation}
-
-\par Drawing from cognitive science, Titans posit that highly predictable data should require little memorization, whereas unexpected data requires structural changes in the neural pathways. Mathematically, "surprise" is quantified as the gradient of the associative loss with respect to the memory parameters. If the memory module flawlessly predicts the value (low loss), the gradient is near zero (low surprise). Conversely, a failed prediction yields a large gradient (high surprise):
-
-\begin{equation}
-	S_t = \nabla_{W_{t-1}} \mathcal{L}_t
-\end{equation}
-
-\par Instead of remaining frozen after training, the memory module updates its parameters sequentially during inference. To prevent memory overflow and catastrophic forgetting, the update mechanism incorporates a decay factor ($\alpha$) for past gradients and a learning rate ($\theta$) for the momentary surprise ($S_t$). This creates a momentum-based update rule:
-
-\begin{equation}
-	W_t = W_{t-1} - \left( \alpha \Delta W_{t-1} + \theta S_t \right)
-\end{equation}
-
-where $\Delta W_{t-1}$ represents the accumulated historical surprise. By embedding this test-time gradient descent directly into the forward pass, the Titans architecture effectively compresses the entirety of the sequence history into the deep weights of $W_t$. When a new query ($q_t$) arrives, the model simply queries this dynamically updated network ($\mathcal{M}(q_t; W_t)$) to retrieve context, entirely circumventing the $\mathcal{O}(N^2)$ dot-product computations required by standard attention mechanisms.
-
 \subsection{Mamba}
-While the Titans architecture addresses the context bottleneck by compressing history into dynamic weights, an alternative and highly successful paradigm has emerged in the form of Structured State Space Sequence Models (SSMs), most notably the Mamba architecture \parencite{guMambaLinearTimeSequence2024}. Mamba completely discards the attention mechanism, offering a fundamental architectural shift that scales linearly in time ($\mathcal{O}(N)$) with respect to sequence length, while maintaining a constant memory footprint during autoregressive generation.
+ An alternative and highly successful paradigm has emerged in the form of Structured State Space Sequence Models (SSMs), most notably the Mamba architecture \parencite{guMambaLinearTimeSequence2024}. Mamba completely discards the attention mechanism, offering a fundamental architectural shift that scales linearly in time ($\mathcal{O}(N)$) with respect to sequence length, while maintaining a constant memory footprint during autoregressive generation.
 
 \subsubsection*{Mathematical Foundation of Structured State Space Models}
 
@@ -456,9 +419,15 @@ Mamba resolves this by introducing a \textit{Selection Mechanism}. It parameteri
 By allowing $\Delta_t$ to vary based on the input, the model dynamically dictates the degree to which it should integrate the current token into the hidden state ($h_t$) or completely ignore it. This effectively grants the recurrent model the data-filtering capabilities of an attention mechanism, without the $\mathcal{O}(N^2)$ computational penalty.
 
 \par Because Mamba's parameters are time-varying, the model cannot be computed using efficient Fast Fourier Transforms (FFTs) like its LTI predecessors. To overcome this, Mamba relies on a hardware-aware parallel scan algorithm. By fusing the scan operations and materializing the expanded hidden states ($h_t$) exclusively in the faster, on-chip SRAM of the GPU (bypassing the slower High Bandwidth Memory (HBM) IO bottleneck) Mamba achieves training speeds competitive with highly optimized Transformers while preserving the inference efficiency of a recurrent neural network.
-
+\newpage
 \subsection{Main Goal}
-\par The main goal of this thesis is to explore the use of architectures and algorithms that aim to surpass vanilla Transformers in terms of either performance or explainability. Thus, the Titans and Mamba architectures were employed and their results were compared to those of a vanilla Transformer deep neural network. Additionally, simpler machine learning models and their ensembles were employed in order to further examine the tradeoff between their higher degree of explainability and (potentially) speed and their performance on the \cite{manakovScalableDeepProfiling2022} dataset.
+\par The main goal of this thesis is to explore the use of architectures and algorithms that aim to surpass Transformers in terms of either performance or explainability. Thus,the Mamba architecture was employed and its results were compared to those of a vanilla Transformer deep neural network. Additionally, simpler machine learning models and their ensembles were employed in order to further examine the tradeoff between their higher degree of explainability and (potentially) speed and their performance on the \cite{manakovScalableDeepProfiling2022} dataset.
+
+\chapter{Results}
+\par Inspired by microT-CNN \parencite{zacharopoulouMicroTCNNAvantgardeDeep2024}, two approaches were followed with the final goal of making an enhanced algorithm for achieving site-level miRNA target site prediction. Language model architectrures were developed based on Mamba in order to test their capabilities of learning miRNA binding rules based only on nucleotide sequences. The initial experiment involved using the kmer encoded (k=4) chimeric sequences, that are the result of merging the miRNA and MRE sequences as input to a Transformer model. Unfortunately, this led to a model that seemed to be underfitting despite subsequent trials to fine tune its hyperparameters. The same held true even with the attempt of making a siamese neural network that processed the miRNA and the MRE sequences separately and tried to minimize the distance between them in the embedded space. The Mamba architecture seemed to yield similar results and thus a change in terms of encoding was needed.
+
+\par The kmer encoding was swapped with One Hot encoding and results changed drammatically.
+
 
 \chapter{FIGURES AND TABLES} \label{figures_and_tables}
 

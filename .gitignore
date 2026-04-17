@@ -1,1 +1,4 @@
 models/autogluon_final_model/
+transformer/
+siamese/
+AGENTS.md
