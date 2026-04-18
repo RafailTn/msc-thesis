@@ -212,7 +212,7 @@
 \mainmatter
 
 % add main chapters (should be given in capital letters)
-\chapter{INTRODUCTION} \label{Introduction}
+\chapter{Introduction} \label{Introduction}
 
 \section{MicroRNAs} \label{MicroRNAs}
 \par MicroRNAs are the most well characterized class of non-coding RNA molecules, most commonly between 18-22 nucleotides long, that act mainly to regulate the post-transcriptional landscape of the cell, functioning as small guide RNAs for proteins of the Argonaute (AGO) family. Typically, miRNAs bind to the target mRNA sequence via their seed region which covers positions 2-8 in their sequence. Perfect complementarity leads to AGO mediated cleavage of the target with the Argonaute proteins functioning as endonucleases. Consequently, the translation of the target mRNA molecule halts and it is further targeted by other cellular RNA nucleases that lead to its complete degradation. In that manner, they are able to function in a vast variety of regulatory networks that control cellular behaviour. MicroRNAs are named based on the miRBase scheme whereby a 3-letter code denotes the species the miRNA was discovered in (e.g hsa: Homo sapiens), followed by miR in the case of mature sequences (or mir for precursor ones) and finally a number that conveys when the molecule was discovered/published with respect to the other entries \parencite{ambrosUniformSystemMicroRNA2003,kozomaraMiRBaseIntegratingMicroRNA2011}. As a rule, miRNAs from different organisms that are orthologous share the same name after the species identifier, whereas paralogous sequences have a single-letter suffix that distinguishes them and hairpin loci that give rise to the same mature miRNA are specified by a single-digit suffix. Finally, in cases where two different molecules are excised from the same precursor, a 5p or 3p suffix is used. It is also worth noting that with the advent of advanced high-throughput sequencing techniques, it has become plausible to detect isoforms of miRNAs. Such molecules differ from the canonical miRNA sequence either in terms of length of their 5' and/or 3' ends or because their sequence has been modified via processes like A-to-I or C-to-U editing. These modifications subsequently change how they are loaded to AGO and how they interact with target MREs \parencite{tomaselloMicroRNAFamilyGets2021}.
@@ -423,11 +423,45 @@ By allowing $\Delta_t$ to vary based on the input, the model dynamically dictate
 \subsection{Main Goal}
 \par The main goal of this thesis is to explore the use of architectures and algorithms that aim to surpass Transformers in terms of either performance or explainability. Thus,the Mamba architecture was employed and its results were compared to those of a vanilla Transformer deep neural network. Additionally, simpler machine learning models and their ensembles were employed in order to further examine the tradeoff between their higher degree of explainability and (potentially) speed and their performance on the \cite{manakovScalableDeepProfiling2022} dataset.
 
+\chapter{Methods}
+\section{Data preprocessing}
+\par The dataset used for training and testing was taken from \cite{sammutMiRBenchNovelBenchmark2025} and contains preprocessed files from experimental results produced by \cite{manakovScalableDeepProfiling2022,hejretAnalysisChimericReads2023}. These include, apart from the DNA sequences of the miRNA and the MREs, information about the miRNA family, the isomiR that the molecule is identified as, the hg38 genomic coordinates of the MRE, two types of conservation vector scores (genePhastCons100way and genePhyloP) in lists, what region of the MRE is targeted (exon, intron, 3'UTR, 5'UTR and boundaries between them), gene cluster ID (which is used for negative sample generation) and labels (1 for positives, 0 for negatives). The dataset is balanced in terms of positives and negatives not only in its totality but also within miRNA families. This is crucial, as different families may bind in different manners and with different criteria and thus it is important that any potential model learns all such patterns.
+
+The steps for negative sample generation according to \cite{sammutMiRBenchNovelBenchmark2025} are as follows:
+\begin{enumerate}
+	\item Cluster MREs of >90\% similarity
+	\item For a given miRNA family:
+	\begin{enumerate}
+		\item Identify clusters containing targets of that family 
+		\item Choose an MRE from a cluster that does not overlap with the aforementioned ones
+		\item Assign it to each miRNA of that family to create the negative sample pair
+	\end{enumerate}
+\end{enumerate}
+
+\par Another bias that occurs apart from the skewed positives to negative ratio, has to do with the tissue of origin. More specifically, given that the dataset used comes from a single cell line (in this case HEK-293), it is essentially certain that there will be a sampling bias since tissue specific expression is not uniform. Therefore, specific miRNAs and targets are expressed more than others and are more likely to be captured by the experimental procedure. Adding to that, specific interactions of miRNA and MREs might exist solely due to this tissue specific expression pattern and conversely, specific negative samples might be detected as valid interactions if one was to use another tissue for the same experiment, due to different expression patterns. In order to mitigate this, data from TarBase \parencite{sethupathyTarBaseComprehensiveDatabase2006} were extracted in order to assess which of the interactions in the Manakov dataset were truly negative, based on their absence in experimental data, and which are false negatives that could hinder the models ability to learn binding patterns.
+\newpage
+
+\par The latest version of the file TarBase provides for Homo sapiens was downloaded (v9) and cleaning was performed so as to keep only valid entries with existing genomic coordinates. If an entry, that is detected as a pair of miRNA name - Gene name, had missing coordinates for the target site it was either dropped (if the same pair exists either within the same trascript region or not) or the coordinates from the entire gene were kept from Ensembl (in the case no other entry for that pair existed). The goal of this process is to keep as many valid pairs of miRNA - Target gene from TarBase along with coordinates that can be used for overlapping with the ones from the dataset later.
+
+The pipeline to remove falsely assigned negative samples from the dataset adheres to the steps below in order to retain the initial positive to negative ratio:
+\begin{itemize}
+	\item For a given miRNA:
+	\begin{enumerate}
+		\item Check for overlapping coordinates of its target between the cleaned TarBase file and the negative samples of the dataset
+		\item If overlaps are found, remove the corresponding negative sample and keep track of removed samples per family
+		\item Remove at random as many positive samples from each family 
+	\end{enumerate}
+\end{itemize}
+
+
 \chapter{Results}
+\section{Language Models}
 \par Inspired by microT-CNN \parencite{zacharopoulouMicroTCNNAvantgardeDeep2024}, two approaches were followed with the final goal of making an enhanced algorithm for achieving site-level miRNA target site prediction. Language model architectrures were developed based on Mamba in order to test their capabilities of learning miRNA binding rules based only on nucleotide sequences. The initial experiment involved using the kmer encoded (k=4) chimeric sequences, that are the result of merging the miRNA and MRE sequences as input to a Transformer model. Unfortunately, this led to a model that seemed to be underfitting despite subsequent trials to fine tune its hyperparameters. The same held true even with the attempt of making a siamese neural network that processed the miRNA and the MRE sequences separately and tried to minimize the distance between them in the embedded space. The Mamba architecture seemed to yield similar results and thus a change in terms of encoding was needed.
 
-\par The kmer encoding was swapped with One Hot encoding and results changed drammatically.
+\par The kmer encoding was swapped with One Hot encoding and  
 
+\section{Machine Learning}
+\par Starting with 
 
 \chapter{FIGURES AND TABLES} \label{figures_and_tables}
 

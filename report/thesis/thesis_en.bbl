@@ -1683,6 +1683,100 @@
       \endverb
       \keyw{Animals,Autophagy,Basic Helix-Loop-Helix Leucine Zipper Transcription Factors,Cell Nucleus,HEK293 Cells,HeLa Cells,Humans,Lysosomes,Male,Mice,Mice Inbred C57BL,MicroRNAs}
     \endentry
+    \entry{hejretAnalysisChimericReads2023}{article}{}{}
+      \name{author}{7}{}{%
+        {{un=0,uniquepart=base,hash=27c1b4b7df5fc286a47aa505756ee04e}{%
+           family={Hejret},
+           familyi={H\bibinitperiod},
+           given={Vaclav},
+           giveni={V\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=1925b759d273315ad1b3068fed0930b3}{%
+           family={Varadarajan},
+           familyi={V\bibinitperiod},
+           given={Nandan\bibnamedelima Mysore},
+           giveni={N\bibinitperiod\bibinitdelim M\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=cc4460c8597622bfcf7061014f970974}{%
+           family={Klimentova},
+           familyi={K\bibinitperiod},
+           given={Eva},
+           giveni={E\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=9acf50f7c1670cb0897c2fb50e435964}{%
+           family={Gresova},
+           familyi={G\bibinitperiod},
+           given={Katarina},
+           giveni={K\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=9e9128dda4813e2b6c1f4a9bdbab9828}{%
+           family={Giassa},
+           familyi={G\bibinitperiod},
+           given={Ilektra-Chara},
+           giveni={I\bibinithyphendelim C\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=a33a5f0f22638f68dc423e2a48a98fbf}{%
+           family={Vanacova},
+           familyi={V\bibinitperiod},
+           given={Stepanka},
+           giveni={S\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=decba2be05b5a28a9b00e78278411316}{%
+           family={Alexiou},
+           familyi={A\bibinitperiod},
+           given={Panagiotis},
+           giveni={P\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {Nature Publishing Group}%
+      }
+      \strng{namehash}{7c3159854380cb82289a341f6a34be8c}
+      \strng{fullhash}{7041156660c730d0a9ee9c42bbf42659}
+      \strng{fullhashraw}{7041156660c730d0a9ee9c42bbf42659}
+      \strng{bibnamehash}{7c3159854380cb82289a341f6a34be8c}
+      \strng{authorbibnamehash}{7c3159854380cb82289a341f6a34be8c}
+      \strng{authornamehash}{7c3159854380cb82289a341f6a34be8c}
+      \strng{authorfullhash}{7041156660c730d0a9ee9c42bbf42659}
+      \strng{authorfullhashraw}{7041156660c730d0a9ee9c42bbf42659}
+      \field{sortinit}{H}
+      \field{sortinithash}{23a3aa7c24e56cfa16945d55545109b5}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{Argonaute proteins are instrumental in regulating RNA stability and translation. AGO2, the major mammalian Argonaute protein, is known to primarily associate with microRNAs, a family of small RNA ‘guide’ sequences, and identifies its targets primarily via a ‘seed’ mediated partial complementarity process. Despite numerous studies, a definitive experimental dataset of AGO2 ‘guide’–’target’ interactions remains elusive. Our study employs two experimental methods—AGO2 CLASH and AGO2 eCLIP, to generate thousands of AGO2 target sites verified by chimeric reads. These chimeric reads contain both the AGO2 loaded small RNA ‘guide’ and the target sequence, providing a robust resource for modeling AGO2 binding preferences. Our novel analysis pipeline reveals thousands of AGO2 target sites driven by microRNAs and a significant number of AGO2 ‘guides’ derived from fragments of other small RNAs such as tRNAs, YRNAs, snoRNAs, rRNAs, and more. We utilize convolutional neural networks to train machine learning models that accurately predict the binding potential for each ‘guide’ class and experimentally validate several interactions. In conclusion, our comprehensive analysis of the AGO2 targetome broadens our understanding of its ‘guide’ repertoire and potential function in development and disease. Moreover, we offer practical bioinformatic tools for future experiments and the prediction of AGO2 targets. All data and code from this study are freely available at https://github.com/ML-Bioinfo-CEITEC/HybriDetector/.}
+      \field{day}{21}
+      \field{issn}{2045-2322}
+      \field{journaltitle}{Scientific Reports}
+      \field{langid}{english}
+      \field{month}{12}
+      \field{number}{1}
+      \field{shortjournal}{Sci Rep}
+      \field{title}{Analysis of Chimeric Reads Characterises the Diverse Targetome of {{AGO2-mediated}} Regulation}
+      \field{urlday}{25}
+      \field{urlmonth}{8}
+      \field{urlyear}{2025}
+      \field{volume}{13}
+      \field{year}{2023}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \field{pages}{22895}
+      \range{pages}{1}
+      \verb{doi}
+      \verb 10.1038/s41598-023-49757-z
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/U43PBKCK/Hejret et al. - 2023 - Analysis of chimeric reads characterises the diverse targetome of AGO2-mediated regulation.pdf
+      \endverb
+      \verb{urlraw}
+      \verb https://www.nature.com/articles/s41598-023-49757-z
+      \endverb
+      \verb{url}
+      \verb https://www.nature.com/articles/s41598-023-49757-z
+      \endverb
+      \keyw{Data processing,Machine learning,miRNAs}
+    \endentry
     \entry{hofackerFastFoldingComparison1994}{article}{}{}
       \name{author}{6}{}{%
         {{un=0,uniquepart=base,hash=a8d5a6aed2c64110cc7c8195b40b070f}{%
@@ -2961,6 +3055,90 @@
       \endverb
       \keyw{Accessibility,Constraints,RNA-RNA interaction,Seed,sRNA,Target prediction}
     \endentry
+    \entry{sammutMiRBenchNovelBenchmark2025}{article}{}{}
+      \name{author}{6}{}{%
+        {{un=0,uniquepart=base,hash=3f2e9b794b4a25a1e7f6969834feb224}{%
+           family={Sammut},
+           familyi={S\bibinitperiod},
+           given={Stephanie},
+           giveni={S\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=9acf50f7c1670cb0897c2fb50e435964}{%
+           family={Gresova},
+           familyi={G\bibinitperiod},
+           given={Katarina},
+           giveni={K\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=2b2b655b875a1ff1abcf440bded6204f}{%
+           family={Tzimotoudis},
+           familyi={T\bibinitperiod},
+           given={Dimosthenis},
+           giveni={D\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=8cd45cd54820578a2c02376c519ba548}{%
+           family={Marsalkova},
+           familyi={M\bibinitperiod},
+           given={Eva},
+           giveni={E\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=08e863148ac436180a72fa441ba03aa0}{%
+           family={Cechak},
+           familyi={C\bibinitperiod},
+           given={David},
+           giveni={D\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=decba2be05b5a28a9b00e78278411316}{%
+           family={Alexiou},
+           familyi={A\bibinitperiod},
+           given={Panagiotis},
+           giveni={P\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{4be1fa8cfce25389004fec7b4552e17a}
+      \strng{fullhash}{e4b52a13e41fc5177ac956390619c2dc}
+      \strng{fullhashraw}{e4b52a13e41fc5177ac956390619c2dc}
+      \strng{bibnamehash}{4be1fa8cfce25389004fec7b4552e17a}
+      \strng{authorbibnamehash}{4be1fa8cfce25389004fec7b4552e17a}
+      \strng{authornamehash}{4be1fa8cfce25389004fec7b4552e17a}
+      \strng{authorfullhash}{e4b52a13e41fc5177ac956390619c2dc}
+      \strng{authorfullhashraw}{e4b52a13e41fc5177ac956390619c2dc}
+      \field{sortinit}{S}
+      \field{sortinithash}{b164b07b29984b41daf1e85279fbc5ab}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{abstract}{MicroRNAs (miRNAs) are crucial regulators of gene expression, but the precise mechanisms governing their binding to target sites remain unclear. A major contributing factor to this is the lack of unbiased experimental datasets for training accurate prediction models. While recent experimental advances have provided numerous miRNA–target interactions, these are solely positive interactions. Generating negative examples in silico is challenging and prone to introducing biases, such as the miRNA frequency class bias identified in this work. Biases within datasets can compromise model generalization, leading models to learn dataset-specific artifacts rather than true biological patterns.We introduce a novel methodology for negative sample generation that effectively mitigates the miRNA frequency class bias. Using this methodology, we curate several new, extensive datasets and benchmark several state-of-the-art methods on them. We find that a simple convolutional neural network model, retrained on some of these datasets, is able to outperform state-of-the-art methods reaching average precision scores between 0.81 and 0.86 in test datasets. This highlights the potential for leveraging unbiased datasets to achieve improved performance in miRNA binding site prediction. To facilitate further research and lower the barrier to entry for machine learning researchers, we provide an easily accessible Python package, miRBench, for dataset retrieval, sequence encoding, and the execution of state-of-the-art models.The miRBench Python package is accessible at https://github.com/katarinagresova/miRBench/releases/tag/v1.0.1.}
+      \field{day}{1}
+      \field{issn}{1367-4811}
+      \field{issue}{Supplement\_1}
+      \field{journaltitle}{Bioinformatics}
+      \field{month}{7}
+      \field{shortjournal}{Bioinformatics}
+      \field{shorttitle}{{{miRBench}}}
+      \field{title}{{{miRBench}}: Novel Benchmark Datasets for {{microRNA}} Binding Site Prediction That Mitigate against Prevalent {{microRNA}} Frequency Class Bias}
+      \field{urlday}{18}
+      \field{urlmonth}{4}
+      \field{urlyear}{2026}
+      \field{volume}{41}
+      \field{year}{2025}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \field{pages}{i542\bibrangedash i551}
+      \range{pages}{-1}
+      \verb{doi}
+      \verb 10.1093/bioinformatics/btaf233
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/7ZCM63P7/Sammut et al. - 2025 - miRBench novel benchmark datasets for microRNA binding site prediction that mitigate against preval.pdf;/home/rafail/Zotero/storage/82HMJUHY/btaf233.html
+      \endverb
+      \verb{urlraw}
+      \verb https://doi.org/10.1093/bioinformatics/btaf233
+      \endverb
+      \verb{url}
+      \verb https://doi.org/10.1093/bioinformatics/btaf233
+      \endverb
+    \endentry
     \entry{sapreUrinaryMicroRNASignature2016}{article}{}{}
       \name{author}{10}{}{%
         {{un=0,uniquepart=base,hash=728b890a77d1c02ff6aab39f9ea1849e}{%
@@ -3071,6 +3249,75 @@
       \verb https://www.nature.com/articles/bjc2015472
       \endverb
       \keyw{Bladder cancer,miRNAs,Tumour biomarkers}
+    \endentry
+    \entry{sethupathyTarBaseComprehensiveDatabase2006}{article}{}{}
+      \name{author}{3}{}{%
+        {{un=0,uniquepart=base,hash=d089f15c1e43e40e28de27386da9ede6}{%
+           family={SETHUPATHY},
+           familyi={S\bibinitperiod},
+           given={PRAVEEN},
+           giveni={P\bibinitperiod\bibinitdelim R\bibinitperiod\bibinitdelim A\bibinitperiod\bibinitdelim V\bibinitperiod\bibinitdelim E\bibinitperiod\bibinitdelim E\bibinitperiod\bibinitdelim N\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=12d20646f439f7bf47955e16b1c46387}{%
+           family={CORDA},
+           familyi={C\bibinitperiod},
+           given={BENOIT},
+           giveni={B\bibinitperiod\bibinitdelim E\bibinitperiod\bibinitdelim N\bibinitperiod\bibinitdelim O\bibinitperiod\bibinitdelim I\bibinitperiod\bibinitdelim T\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=c2d10103bf3ebe0e0c17ae650de6d1a1}{%
+           family={HATZIGEORGIOU},
+           familyi={H\bibinitperiod},
+           given={ARTEMIS\bibnamedelima G.},
+           giveni={A\bibinitperiod\bibinitdelim G\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{1dbc36422d87319df3c4de2650232fb6}
+      \strng{fullhash}{f2ecaa25a8e15c21cebb2eb130f5d8d5}
+      \strng{fullhashraw}{f2ecaa25a8e15c21cebb2eb130f5d8d5}
+      \strng{bibnamehash}{f2ecaa25a8e15c21cebb2eb130f5d8d5}
+      \strng{authorbibnamehash}{f2ecaa25a8e15c21cebb2eb130f5d8d5}
+      \strng{authornamehash}{1dbc36422d87319df3c4de2650232fb6}
+      \strng{authorfullhash}{f2ecaa25a8e15c21cebb2eb130f5d8d5}
+      \strng{authorfullhashraw}{f2ecaa25a8e15c21cebb2eb130f5d8d5}
+      \field{sortinit}{S}
+      \field{sortinithash}{b164b07b29984b41daf1e85279fbc5ab}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{abstract}{MicroRNAs (miRNAs) are \textasciitilde 22-nt RNA segments that are involved in the regulation of protein expression primarily by binding to one or more target sites on an mRNA transcript and inhibiting translation. MicroRNAs are likely to factor into multiple developmental pathways, multiple mechanisms of gene regulation, and underlie an array of inherited disease processes and phenotypic determinants. Several computational programs exist to predict miRNA targets in mammals, fruit flies, worms, and plants. However, to date, there is no systematic collection and description of miRNA targets with experimental support. We describe a database, TarBase, which houses a manually curated collection of experimentally tested miRNA targets, in human/mouse, fruit fly, worm, and zebrafish, distinguishing between those that tested positive and those that tested negative. Each positive target site is described by the miRNA that binds it, the gene in which it occurs, the nature of the experiments that were conducted to test it, the sufficiency of the site to induce translational repression and/or cleavage, and the paper from which all these data were extracted. Additionally, the database is functionally linked to several other useful databases such as Gene Ontology (GO) and UCSC Genome Browser. TarBase reveals significantly more experimentally supported targets than even recent reviews claim, thereby providing a comprehensive data set from which to assess features of miRNA targeting that will be useful for the next generation of target prediction programs. TarBase can be accessed at http://www.diana.pcbi.upenn.edu/tarbase.}
+      \field{eprinttype}{pubmed}
+      \field{issn}{1355-8382}
+      \field{journaltitle}{RNA}
+      \field{month}{2}
+      \field{number}{2}
+      \field{shortjournal}{RNA}
+      \field{shorttitle}{{{TarBase}}}
+      \field{title}{{{TarBase}}: {{A}} Comprehensive Database of Experimentally Supported Animal {{microRNA}} Targets}
+      \field{urlday}{23}
+      \field{urlmonth}{3}
+      \field{urlyear}{2026}
+      \field{volume}{12}
+      \field{year}{2006}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \field{pages}{192\bibrangedash 197}
+      \range{pages}{6}
+      \verb{doi}
+      \verb 10.1261/rna.2239606
+      \endverb
+      \verb{eprint}
+      \verb 16373484
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/DWR8YHAE/SETHUPATHY et al. - 2006 - TarBase A comprehensive database of experimentally supported animal microRNA targets.pdf
+      \endverb
+      \verb{urlraw}
+      \verb https://pmc.ncbi.nlm.nih.gov/articles/PMC1370898/
+      \endverb
+      \verb{url}
+      \verb https://pmc.ncbi.nlm.nih.gov/articles/PMC1370898/
+      \endverb
     \endentry
     \entry{tomaselloMicroRNAFamilyGets2021}{article}{}{}
       \name{author}{4}{}{%

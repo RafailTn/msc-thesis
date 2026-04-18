@@ -5,7 +5,7 @@
 \babel@toc {greek}{}\relax 
 \babel@toc {english}{}\relax 
 {\pdfbookmark [0]{CONTENTS}{toc}}
-\contentsline {chapter}{\numberline {1}INTRODUCTION}{25}{chapter.1}%
+\contentsline {chapter}{\numberline {1}Introduction}{25}{chapter.1}%
 \contentsline {section}{\numberline {1.1}MicroRNAs}{25}{section.1.1}%
 \contentsline {subsection}{\numberline {1.1.1}Biogenesis}{25}{subsection.1.1.1}%
 \contentsline {subsection}{\numberline {1.1.2}Target Binding}{27}{subsection.1.1.2}%
@@ -18,11 +18,15 @@
 \contentsline {subsection}{\numberline {1.2.3}Transformers}{35}{subsection.1.2.3}%
 \contentsline {subsection}{\numberline {1.2.4}Mamba}{36}{subsection.1.2.4}%
 \contentsline {subsection}{\numberline {1.2.5}Main Goal}{38}{subsection.1.2.5}%
-\contentsline {chapter}{\numberline {2}Results}{39}{chapter.2}%
-\contentsline {chapter}{\numberline {3}FIGURES AND TABLES}{41}{chapter.3}%
-\contentsline {section}{\numberline {3.1}Inserting tables}{41}{section.3.1}%
-\contentsline {section}{\numberline {3.2}Inserting figures}{42}{section.3.2}%
-\contentsline {chapter}{ABBREVIATIONS - ACRONYMS}{43}{chapter*.15}%
-\contentsline {chapter}{\numberline {A}FIRST APPENDIX}{45}{appendix.A}%
-\contentsline {chapter}{\numberline {B}SECOND APPENDIX}{47}{appendix.B}%
-\contentsline {chapter}{APPENDICES}{47}{section*.16}%
+\contentsline {chapter}{\numberline {2}Methods}{39}{chapter.2}%
+\contentsline {section}{\numberline {2.1}Data preprocessing}{39}{section.2.1}%
+\contentsline {chapter}{\numberline {3}Results}{41}{chapter.3}%
+\contentsline {section}{\numberline {3.1}Language Models}{41}{section.3.1}%
+\contentsline {section}{\numberline {3.2}Machine Learning}{41}{section.3.2}%
+\contentsline {chapter}{\numberline {4}FIGURES AND TABLES}{43}{chapter.4}%
+\contentsline {section}{\numberline {4.1}Inserting tables}{43}{section.4.1}%
+\contentsline {section}{\numberline {4.2}Inserting figures}{44}{section.4.2}%
+\contentsline {chapter}{ABBREVIATIONS - ACRONYMS}{45}{chapter*.15}%
+\contentsline {chapter}{\numberline {A}FIRST APPENDIX}{47}{appendix.A}%
+\contentsline {chapter}{\numberline {B}SECOND APPENDIX}{49}{appendix.B}%
+\contentsline {chapter}{APPENDICES}{49}{section*.16}%
