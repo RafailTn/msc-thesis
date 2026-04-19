@@ -1,4 +1,2 @@
 models/autogluon_final_model/
-transformer/
-siamese/
-AGENTS.md
+mamba/mamba_siamese.py
