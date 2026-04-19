@@ -20,13 +20,13 @@
 \contentsline {subsection}{\numberline {1.2.5}Main Goal}{38}{subsection.1.2.5}%
 \contentsline {chapter}{\numberline {2}Methods}{39}{chapter.2}%
 \contentsline {section}{\numberline {2.1}Data preprocessing}{39}{section.2.1}%
-\contentsline {chapter}{\numberline {3}Results}{41}{chapter.3}%
-\contentsline {section}{\numberline {3.1}Language Models}{41}{section.3.1}%
-\contentsline {section}{\numberline {3.2}Machine Learning}{41}{section.3.2}%
-\contentsline {chapter}{\numberline {4}FIGURES AND TABLES}{43}{chapter.4}%
-\contentsline {section}{\numberline {4.1}Inserting tables}{43}{section.4.1}%
-\contentsline {section}{\numberline {4.2}Inserting figures}{44}{section.4.2}%
-\contentsline {chapter}{ABBREVIATIONS - ACRONYMS}{45}{chapter*.15}%
-\contentsline {chapter}{\numberline {A}FIRST APPENDIX}{47}{appendix.A}%
-\contentsline {chapter}{\numberline {B}SECOND APPENDIX}{49}{appendix.B}%
-\contentsline {chapter}{APPENDICES}{49}{section*.16}%
+\contentsline {chapter}{\numberline {3}Results}{43}{chapter.3}%
+\contentsline {section}{\numberline {3.1}Language Models}{43}{section.3.1}%
+\contentsline {section}{\numberline {3.2}Machine Learning}{43}{section.3.2}%
+\contentsline {chapter}{\numberline {4}FIGURES AND TABLES}{45}{chapter.4}%
+\contentsline {section}{\numberline {4.1}Inserting tables}{45}{section.4.1}%
+\contentsline {section}{\numberline {4.2}Inserting figures}{46}{section.4.2}%
+\contentsline {chapter}{ABBREVIATIONS - ACRONYMS}{47}{chapter*.15}%
+\contentsline {chapter}{\numberline {A}FIRST APPENDIX}{49}{appendix.A}%
+\contentsline {chapter}{\numberline {B}SECOND APPENDIX}{51}{appendix.B}%
+\contentsline {chapter}{APPENDICES}{51}{section*.16}%

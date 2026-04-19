@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.141592653-2.6-0.999998 (TeX Live 2026/Arch Linux) (preloaded format=xelatex 2026.4.10)  18 APR 2026 15:49
+This is XeTeX, Version 3.141592653-2.6-0.999998 (TeX Live 2026/Arch Linux) (preloaded format=xelatex 2026.4.10)  19 APR 2026 20:29
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -1300,52 +1300,52 @@ Underfull \vbox (badness 10000) has occurred while \output is active []
 Chapter 2.
 [39
 
-] [40]
-Chapter 3.
-[41
+] [40] [41] [42
 
-] [42
+]
+Chapter 3.
+[43] [44
 
 ]
 Chapter 4.
 LaTeX Font Info:    Font shape `TU/CourierNew(0)/m/n' will be
-(Font)              scaled to size 11.39996pt on input line 474.
+(Font)              scaled to size 11.39996pt on input line 483.
 
 Underfull \vbox (badness 10000) has occurred while \output is active []
 
- [43] [44] [45
+ [45] [46] [47
 
-] [46
+] [48
 
 ]
 Appendix A.
-[47] [48
-
-]
-Appendix B.
 [49] [50
 
 ]
-Overfull \hbox (4.30894pt too wide) in paragraph at lines 568--568
+Appendix B.
+[51] [52
+
+]
+Overfull \hbox (4.30894pt too wide) in paragraph at lines 577--577
 []\TU/Arial(0)/m/n/12 Chiu, H.[]S. \TU/Arial(0)/m/it/12 et al. \TU/Arial(0)/m/n/12 Cupid: Simultaneous Reconstruction of microRNA-target and ceRNA
  []
 
 
-Overfull \hbox (3.10092pt too wide) in paragraph at lines 568--568
+Overfull \hbox (3.10092pt too wide) in paragraph at lines 577--577
 \TU/Arial(0)/m/n/12 opment and Function. \TU/Arial(0)/m/it/12 BMB reports \TU/Arial(0)/b/n/12 42, \TU/Arial(0)/m/n/12 131–135. ISSN: 1976-6696. PMID: [][]$[][][][][][][][]$[][].
  []
 
-[51] [52]
-Overfull \hbox (20.59865pt too wide) in paragraph at lines 568--568
+[53] [54]
+Overfull \hbox (20.59865pt too wide) in paragraph at lines 577--577
 \TU/Arial(0)/m/n/12 straints. \TU/Arial(0)/m/it/12 Algorithms for molecular biology: AMB \TU/Arial(0)/b/n/12 11, \TU/Arial(0)/m/n/12 8. ISSN: 1748-7188. PMID: [][]$[][][][][][][][]$[][]
  []
 
-[53]
-Overfull \hbox (8.11954pt too wide) in paragraph at lines 568--568
+[55]
+Overfull \hbox (8.11954pt too wide) in paragraph at lines 577--577
 \TU/Arial(0)/m/n/12 from Structure Probing into RNA–RNA Interaction Prediction. \TU/Arial(0)/m/it/12 Bioinformatics \TU/Arial(0)/b/n/12 35, \TU/Arial(0)/m/n/12 2862–
  []
 
-[54] [55] (./thesis_en.aux)
+[56] [57] (./thesis_en.aux)
  ***********
 LaTeX2e <2025-11-01>
 L3 programming layer <2026-01-19>
@@ -1365,4 +1365,4 @@ Here is how much of TeX's memory you used:
  14 hyphenation exceptions out of 8191
  75i,13n,130p,2923b,7075s stack positions out of 10000i,1000n,20000p,200000b,200000s
 
-Output written on thesis_en.xdv (55 pages, 666480 bytes).
+Output written on thesis_en.xdv (57 pages, 689552 bytes).
