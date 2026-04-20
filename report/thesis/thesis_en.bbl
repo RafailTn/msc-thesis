@@ -1126,6 +1126,203 @@
       \verb https://pmc.ncbi.nlm.nih.gov/articles/PMC5239839/
       \endverb
     \endentry
+    \entry{doCONTRAfoldRNASecondary}{article}{}{}
+      \name{author}{3}{}{%
+        {{un=0,uniquepart=base,hash=c9772dd40f0a52664dbe9c08852a1406}{%
+           family={Do},
+           familyi={D\bibinitperiod},
+           given={Chuong\bibnamedelima B.},
+           giveni={C\bibinitperiod\bibinitdelim B\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=d2ed35c574cfd597f259787b738851a3}{%
+           family={Woods},
+           familyi={W\bibinitperiod},
+           given={Daniel\bibnamedelima A.},
+           giveni={D\bibinitperiod\bibinitdelim A\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=880ea6551f1f22786b9841098b84ebed}{%
+           family={Batzoglou},
+           familyi={B\bibinitperiod},
+           given={Serafim},
+           giveni={S\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{4a63269b0a92a0e60e6e080ad490bcd5}
+      \strng{fullhash}{379db4a8b79925d2feeb2b48c372111e}
+      \strng{fullhashraw}{379db4a8b79925d2feeb2b48c372111e}
+      \strng{bibnamehash}{379db4a8b79925d2feeb2b48c372111e}
+      \strng{authorbibnamehash}{379db4a8b79925d2feeb2b48c372111e}
+      \strng{authornamehash}{4a63269b0a92a0e60e6e080ad490bcd5}
+      \strng{authorfullhash}{379db4a8b79925d2feeb2b48c372111e}
+      \strng{authorfullhashraw}{379db4a8b79925d2feeb2b48c372111e}
+      \field{sortinit}{D}
+      \field{sortinithash}{6f385f66841fb5e82009dc833c761848}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{url}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{abstract}{Abstract. Motivation: For several decades, free energy minimization methods have been the dominant strategy for single sequence RNA secondary structure pre}
+      \field{langid}{english}
+      \field{shorttitle}{{{CONTRAfold}}}
+      \field{title}{{{CONTRAfold}}: {{RNA}} Secondary Structure Prediction without Physics-Based Models}
+      \field{urlday}{20}
+      \field{urlmonth}{4}
+      \field{urlyear}{2026}
+      \field{urldateera}{ce}
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/348J5RWT/Do et al. - CONTRAfold RNA secondary structure prediction without physics-based models.pdf
+      \endverb
+      \verb{urlraw}
+      \verb https://dx.doi.org/10.1093/bioinformatics/btl246
+      \endverb
+      \verb{url}
+      \verb https://dx.doi.org/10.1093/bioinformatics/btl246
+      \endverb
+    \endentry
+    \entry{ericksonAutoGluonTabularRobustAccurate2020}{online}{}{}
+      \name{author}{7}{}{%
+        {{un=0,uniquepart=base,hash=01d1b497cd1ee8b330a3c93801a05585}{%
+           family={Erickson},
+           familyi={E\bibinitperiod},
+           given={Nick},
+           giveni={N\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=18bfb87c822518f97f37f8c7feab27a9}{%
+           family={Mueller},
+           familyi={M\bibinitperiod},
+           given={Jonas},
+           giveni={J\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=84203ebb02bb74eefca0b6f3f002800e}{%
+           family={Shirkov},
+           familyi={S\bibinitperiod},
+           given={Alexander},
+           giveni={A\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=df428416bb33b1ea50cc8131fd7dd043}{%
+           family={Zhang},
+           familyi={Z\bibinitperiod},
+           given={Hang},
+           giveni={H\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=5cd0df676825fac12deb6f6daff0bc40}{%
+           family={Larroy},
+           familyi={L\bibinitperiod},
+           given={Pedro},
+           giveni={P\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=c4a02f87e51fc72ab3f841de1a3982a7}{%
+           family={Li},
+           familyi={L\bibinitperiod},
+           given={Mu},
+           giveni={M\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=1817acab40d9caaac71e1597049b7f5e}{%
+           family={Smola},
+           familyi={S\bibinitperiod},
+           given={Alexander},
+           giveni={A\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{ce5f1345d467c3dd5ef1698e232a1084}
+      \strng{fullhash}{281d94d07450d40645483f39c2973326}
+      \strng{fullhashraw}{281d94d07450d40645483f39c2973326}
+      \strng{bibnamehash}{ce5f1345d467c3dd5ef1698e232a1084}
+      \strng{authorbibnamehash}{ce5f1345d467c3dd5ef1698e232a1084}
+      \strng{authornamehash}{ce5f1345d467c3dd5ef1698e232a1084}
+      \strng{authorfullhash}{281d94d07450d40645483f39c2973326}
+      \strng{authorfullhashraw}{281d94d07450d40645483f39c2973326}
+      \field{sortinit}{E}
+      \field{sortinithash}{8da8a182d344d5b9047633dfc0cc9131}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{abstract}{We introduce AutoGluon-Tabular, an open-source AutoML framework that requires only a single line of Python to train highly accurate machine learning models on an unprocessed tabular dataset such as a CSV file. Unlike existing AutoML frameworks that primarily focus on model/hyperparameter selection, AutoGluon-Tabular succeeds by ensembling multiple models and stacking them in multiple layers. Experiments reveal that our multi-layer combination of many models offers better use of allocated training time than seeking out the best. A second contribution is an extensive evaluation of public and commercial AutoML platforms including TPOT, H2O, AutoWEKA, auto-sklearn, AutoGluon, and Google AutoML Tables. Tests on a suite of 50 classification and regression tasks from Kaggle and the OpenML AutoML Benchmark reveal that AutoGluon is faster, more robust, and much more accurate. We find that AutoGluon often even outperforms the best-in-hindsight combination of all of its competitors. In two popular Kaggle competitions, AutoGluon beat 99\% of the participating data scientists after merely 4h of training on the raw data.}
+      \field{day}{13}
+      \field{eprintclass}{stat}
+      \field{eprinttype}{arXiv}
+      \field{month}{3}
+      \field{pubstate}{prepublished}
+      \field{shorttitle}{{{AutoGluon-Tabular}}}
+      \field{title}{{{AutoGluon-Tabular}}: {{Robust}} and {{Accurate AutoML}} for {{Structured Data}}}
+      \field{urlday}{26}
+      \field{urlmonth}{3}
+      \field{urlyear}{2026}
+      \field{year}{2020}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \verb{doi}
+      \verb 10.48550/arXiv.2003.06505
+      \endverb
+      \verb{eprint}
+      \verb 2003.06505
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/7VWITGHQ/Erickson et al. - 2020 - AutoGluon-Tabular Robust and Accurate AutoML for Structured Data.pdf;/home/rafail/Zotero/storage/5GQCDGAE/2003.html
+      \endverb
+      \verb{urlraw}
+      \verb http://arxiv.org/abs/2003.06505
+      \endverb
+      \verb{url}
+      \verb http://arxiv.org/abs/2003.06505
+      \endverb
+      \keyw{Computer Science - Machine Learning,Statistics - Machine Learning}
+    \endentry
+    \entry{felsensteinHiddenMarkovModel1996}{article}{}{}
+      \name{author}{2}{}{%
+        {{un=0,uniquepart=base,hash=730691dc48548fb3b49f75ef513f757d}{%
+           family={Felsenstein},
+           familyi={F\bibinitperiod},
+           given={J.},
+           giveni={J\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=74775f32dff1d34a245223253b99df40}{%
+           family={Churchill},
+           familyi={C\bibinitperiod},
+           given={G.\bibnamedelimi A.},
+           giveni={G\bibinitperiod\bibinitdelim A\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{abeb71bf76423b02292260a140ed9efb}
+      \strng{fullhash}{abeb71bf76423b02292260a140ed9efb}
+      \strng{fullhashraw}{abeb71bf76423b02292260a140ed9efb}
+      \strng{bibnamehash}{abeb71bf76423b02292260a140ed9efb}
+      \strng{authorbibnamehash}{abeb71bf76423b02292260a140ed9efb}
+      \strng{authornamehash}{abeb71bf76423b02292260a140ed9efb}
+      \strng{authorfullhash}{abeb71bf76423b02292260a140ed9efb}
+      \strng{authorfullhashraw}{abeb71bf76423b02292260a140ed9efb}
+      \field{sortinit}{F}
+      \field{sortinithash}{2638baaa20439f1b5a8f80c6c08a13b4}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{The method of Hidden Markov Models is used to allow for unequal and unknown evolutionary rates at different sites in molecular sequences. Rates of evolution at different sites are assumed to be drawn from a set of possible rates, with a finite number of possibilities. The overall likelihood of phylogeny is calculated as a sum of terms, each term being the probability of the data given a particular assignment of rates to sites, times the prior probability of that particular combination of rates. The probabilities of different rate combinations are specified by a stationary Markov chain that assigns rate categories to sites. While there will be a very large number of possible ways of assigning rates to sites, a simple recursive algorithm allows the contributions to the likelihood from all possible combinations of rates to be summed, in a time proportional to the number of different rates at a single site. Thus with three rates, the effort involved is no greater than three times that for a single rate. This "Hidden Markov Model" method allows for rates to differ between sites and for correlations between the rates of neighboring sites. By summing over all possibilities it does not require us to know the rates at individual sites. However, it does not allow for correlation of rates at nonadjacent sites, nor does it allow for a continuous distribution of rates over sites. It is shown how to use the Newton-Raphson method to estimate branch lengths of a phylogeny and to infer from a phylogeny what assignment of rates to sites has the largest posterior probability. An example is given using beta-hemoglobin DNA sequences in eight mammal species; the regions of high and low evolutionary rates are inferred and also the average length of patches of similar rates.}
+      \field{eprinttype}{pubmed}
+      \field{issn}{0737-4038}
+      \field{journaltitle}{Molecular Biology and Evolution}
+      \field{langid}{english}
+      \field{month}{1}
+      \field{number}{1}
+      \field{shortjournal}{Mol Biol Evol}
+      \field{title}{A {{Hidden Markov Model}} Approach to Variation among Sites in Rate of Evolution}
+      \field{volume}{13}
+      \field{year}{1996}
+      \field{dateera}{ce}
+      \field{pages}{93\bibrangedash 104}
+      \range{pages}{12}
+      \verb{doi}
+      \verb 10.1093/oxfordjournals.molbev.a025575
+      \endverb
+      \verb{eprint}
+      \verb 8583911
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/7R6IH32V/Felsenstein and Churchill - 1996 - A Hidden Markov Model approach to variation among sites in rate of evolution.pdf
+      \endverb
+      \keyw{Animals,Base Sequence,Computer Simulation,Evolution Molecular,Humans,Markov Chains,Molecular Sequence Data}
+    \endentry
     \entry{gelhausenIntaRNAhelixcomposingRNARNAInteractions2019}{article}{}{}
       \name{author}{5}{}{%
         {{un=0,uniquepart=base,hash=5514e004d9e36d6e6bdd8255ea762020}{%
@@ -2831,6 +3028,185 @@
       \endverb
       \keyw{Algorithms,Genome,Internet,RNA,Software}
     \endentry
+    \entry{marguliesIdentificationCharacterizationMultiSpecies2003}{article}{}{}
+      \name{author}{5}{}{%
+        {{un=0,uniquepart=base,hash=d1ff5d08dea5216932d0548dbfa0a4ab}{%
+           family={Margulies},
+           familyi={M\bibinitperiod},
+           given={Elliott\bibnamedelima H.},
+           giveni={E\bibinitperiod\bibinitdelim H\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=3f83f7c579ce569fb5544622dbcd6637}{%
+           family={Blanchette},
+           familyi={B\bibinitperiod},
+           given={Mathieu},
+           giveni={M\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=3663ecf66bee681fa89d2138855dd69d}{%
+           family={Program},
+           familyi={P\bibinitperiod},
+           given={NISC\bibnamedelimb Comparative\bibnamedelima Sequencing},
+           giveni={N\bibinitperiod\bibinitdelim C\bibinitperiod\bibinitdelim S\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=b2ab6c3825f7511e8096e515df23c7e7}{%
+           family={Haussler},
+           familyi={H\bibinitperiod},
+           given={David},
+           giveni={D\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=9b66e83432581be264ea0958b60e4e21}{%
+           family={Green},
+           familyi={G\bibinitperiod},
+           given={Eric\bibnamedelima D.},
+           giveni={E\bibinitperiod\bibinitdelim D\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {Cold Spring Harbor Lab}%
+      }
+      \strng{namehash}{6d0e5674c80784088835c9bcb0c32bdc}
+      \strng{fullhash}{0f4787ebcd400584276b9b62d6b4279d}
+      \strng{fullhashraw}{0f4787ebcd400584276b9b62d6b4279d}
+      \strng{bibnamehash}{0f4787ebcd400584276b9b62d6b4279d}
+      \strng{authorbibnamehash}{0f4787ebcd400584276b9b62d6b4279d}
+      \strng{authornamehash}{6d0e5674c80784088835c9bcb0c32bdc}
+      \strng{authorfullhash}{0f4787ebcd400584276b9b62d6b4279d}
+      \strng{authorfullhashraw}{0f4787ebcd400584276b9b62d6b4279d}
+      \field{sortinit}{M}
+      \field{sortinithash}{4625c616857f13d17ce56f7d4f97d451}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{Comparative sequence analysis has become an essential component of studies aiming to elucidate genome function. The increasing availability of genomic sequences from multiple vertebrates is creating the need for computational methods that can detect highly conserved regions in a robust fashion. Towards that end, we are developing approaches for identifying sequences that are conserved across multiple species; we call these “Multi-species Conserved Sequences” (or MCSs). Here we report two strategies for MCS identification, demonstrating their ability to detect virtually all known actively conserved sequences (specifically, coding sequences) but very little neutrally evolving sequence (specifically, ancestral repeats). Importantly, we find that a substantial fraction of the bases within MCSs (∼70\%) resides within non-coding regions; thus, the majority of sequences conserved across multiple vertebrate species has no known function. Initial characterization of these MCSs has revealed sequences that correspond to clusters of transcription factor-binding sites, non-coding RNA transcripts, and other candidate functional elements. Finally, the ability to detect MCSs represents a valuable metric for assessing the relative contribution of a species' sequence to identifying genomic regions of interest, and our results indicate that the currently available genome sequences are insufficient for the comprehensive identification of MCSs in the human genome.}
+      \field{day}{12}
+      \field{eprinttype}{pubmed}
+      \field{issn}{1088-9051, 1549-5469}
+      \field{journaltitle}{Genome Research}
+      \field{langid}{english}
+      \field{month}{1}
+      \field{number}{12}
+      \field{shortjournal}{Genome Res.}
+      \field{title}{Identification and {{Characterization}} of {{Multi-Species Conserved Sequences}}}
+      \field{urlday}{20}
+      \field{urlmonth}{4}
+      \field{urlyear}{2026}
+      \field{volume}{13}
+      \field{year}{2003}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \field{pages}{2507\bibrangedash 2518}
+      \range{pages}{12}
+      \verb{doi}
+      \verb 10.1101/gr.1602203
+      \endverb
+      \verb{eprint}
+      \verb 14656959
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/VHUH8MRX/Margulies et al. - 2003 - Identification and Characterization of Multi-Species Conserved Sequences.pdf
+      \endverb
+      \verb{urlraw}
+      \verb http://genome.cshlp.org/content/13/12/2507
+      \endverb
+      \verb{url}
+      \verb http://genome.cshlp.org/content/13/12/2507
+      \endverb
+    \endentry
+    \entry{mayorVISTAVisualizingGlobal2000}{article}{}{}
+      \name{author}{8}{}{%
+        {{un=0,uniquepart=base,hash=cda541ff81b8972331cd73cabc01b1ca}{%
+           family={Mayor},
+           familyi={M\bibinitperiod},
+           given={C.},
+           giveni={C\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=efb38858c7ce2cefb4adbcc8c8e0aa85}{%
+           family={Brudno},
+           familyi={B\bibinitperiod},
+           given={M.},
+           giveni={M\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=b694e60d9fc1cc4c62f2a8ae29ffc29d}{%
+           family={Schwartz},
+           familyi={S\bibinitperiod},
+           given={J.\bibnamedelimi R.},
+           giveni={J\bibinitperiod\bibinitdelim R\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=fbd25a914518a579c4ca350901aa5461}{%
+           family={Poliakov},
+           familyi={P\bibinitperiod},
+           given={A.},
+           giveni={A\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=811433510f555fda2b3732c581d1db24}{%
+           family={Rubin},
+           familyi={R\bibinitperiod},
+           given={E.\bibnamedelimi M.},
+           giveni={E\bibinitperiod\bibinitdelim M\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=3817093387d476e96284d50776259f51}{%
+           family={Frazer},
+           familyi={F\bibinitperiod},
+           given={K.\bibnamedelimi A.},
+           giveni={K\bibinitperiod\bibinitdelim A\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=9bdb027bc218d329a09ffd31ab47bd1b}{%
+           family={Pachter},
+           familyi={P\bibinitperiod},
+           given={L.\bibnamedelimi S.},
+           giveni={L\bibinitperiod\bibinitdelim S\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=6c7564f5aefdbeb2bab4f27dbaaa286e}{%
+           family={Dubchak},
+           familyi={D\bibinitperiod},
+           given={I.},
+           giveni={I\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{location}{1}{%
+        {Oxford, England}%
+      }
+      \strng{namehash}{777e962a32799d5c08542968563e0f86}
+      \strng{fullhash}{9e3b5858a93a8ca68f640b5985c42522}
+      \strng{fullhashraw}{9e3b5858a93a8ca68f640b5985c42522}
+      \strng{bibnamehash}{777e962a32799d5c08542968563e0f86}
+      \strng{authorbibnamehash}{777e962a32799d5c08542968563e0f86}
+      \strng{authornamehash}{777e962a32799d5c08542968563e0f86}
+      \strng{authorfullhash}{9e3b5858a93a8ca68f640b5985c42522}
+      \strng{authorfullhashraw}{9e3b5858a93a8ca68f640b5985c42522}
+      \field{sortinit}{M}
+      \field{sortinithash}{4625c616857f13d17ce56f7d4f97d451}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{abstract}{SUMMARY: VISTA is a program for visualizing global DNA sequence alignments of arbitrary length. It has a clean output, allowing for easy identification of similarity, and is easily configurable, enabling the visualization of alignments of various lengths at different levels of resolution. It is currently available on the web, thus allowing for easy access by all researchers. AVAILABILITY: VISTA server is available on the web at http://www-gsd.lbl.gov/vista. The source code is available upon request. CONTACT: vista@lbl.gov}
+      \field{eprinttype}{pubmed}
+      \field{issn}{1367-4803}
+      \field{journaltitle}{Bioinformatics}
+      \field{langid}{english}
+      \field{month}{11}
+      \field{number}{11}
+      \field{shortjournal}{Bioinformatics}
+      \field{shorttitle}{{{VISTA}}}
+      \field{title}{{{VISTA}} : Visualizing Global {{DNA}} Sequence Alignments of Arbitrary Length}
+      \field{volume}{16}
+      \field{year}{2000}
+      \field{dateera}{ce}
+      \field{pages}{1046\bibrangedash 1047}
+      \range{pages}{2}
+      \verb{doi}
+      \verb 10.1093/bioinformatics/16.11.1046
+      \endverb
+      \verb{eprint}
+      \verb 11159318
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/QD9EEFH5/Mayor et al. - 2000 - VISTA visualizing global DNA sequence alignments of arbitrary length.pdf
+      \endverb
+      \keyw{Animals,Computational Biology,DNA,Humans,Internet,Mice,Rabbits,Sequence Alignment,Software}
+    \endentry
     \entry{miladiIntegrationAccessibilityData2019}{article}{}{}
       \name{author}{4}{}{%
         {{un=0,uniquepart=base,hash=b069af5ed2a7e64d657a4ae37c1066ea}{%
@@ -2974,6 +3350,80 @@
       \endverb
       \verb{url}
       \verb https://pmc.ncbi.nlm.nih.gov/articles/PMC6085463/
+      \endverb
+    \endentry
+    \entry{pollardDetectionNonneutralSubstitution2010}{article}{}{}
+      \name{author}{4}{}{%
+        {{un=0,uniquepart=base,hash=573db53178a22a988a72b86ddd344886}{%
+           family={Pollard},
+           familyi={P\bibinitperiod},
+           given={Katherine\bibnamedelima S.},
+           giveni={K\bibinitperiod\bibinitdelim S\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=c99bc45d2198114553b6082a62dc322f}{%
+           family={Hubisz},
+           familyi={H\bibinitperiod},
+           given={Melissa\bibnamedelima J.},
+           giveni={M\bibinitperiod\bibinitdelim J\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=077c776bf35005e01f126225a82012a0}{%
+           family={Rosenbloom},
+           familyi={R\bibinitperiod},
+           given={Kate\bibnamedelima R.},
+           giveni={K\bibinitperiod\bibinitdelim R\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=94bdd274d79bb7bb52993176cf868181}{%
+           family={Siepel},
+           familyi={S\bibinitperiod},
+           given={Adam},
+           giveni={A\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{735af68d8481753c0330b1588f2f982c}
+      \strng{fullhash}{a3efc910043235f48a6618a6d71f813f}
+      \strng{fullhashraw}{a3efc910043235f48a6618a6d71f813f}
+      \strng{bibnamehash}{a3efc910043235f48a6618a6d71f813f}
+      \strng{authorbibnamehash}{a3efc910043235f48a6618a6d71f813f}
+      \strng{authornamehash}{735af68d8481753c0330b1588f2f982c}
+      \strng{authorfullhash}{a3efc910043235f48a6618a6d71f813f}
+      \strng{authorfullhashraw}{a3efc910043235f48a6618a6d71f813f}
+      \field{sortinit}{P}
+      \field{sortinithash}{ff3bcf24f47321b42cb156c2cc8a8422}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{Methods for detecting nucleotide substitution rates that are faster or slower than expected under neutral drift are widely used to identify candidate functional elements in genomic sequences. However, most existing methods consider either reductions (conservation) or increases (acceleration) in rate but not both, or assume that selection acts uniformly across the branches of a phylogeny. Here we examine the more general problem of detecting departures from the neutral rate of substitution in either direction, possibly in a clade-specific manner. We consider four statistical, phylogenetic tests for addressing this problem: a likelihood ratio test, a score test, a test based on exact distributions of numbers of substitutions, and the genomic evolutionary rate profiling (GERP) test. All four tests have been implemented in a freely available program called phyloP. Based on extensive simulation experiments, these tests are remarkably similar in statistical power. With 36 mammalian species, they all appear to be capable of fairly good sensitivity with low false-positive rates in detecting strong selection at individual nucleotides, moderate selection in 3-bp elements, and weaker or clade-specific selection in longer elements. By applying phyloP to mammalian multiple alignments from the ENCODE project, we shed light on patterns of conservation/acceleration in known and predicted functional elements, approximate fractions of sites subject to constraint, and differences in clade-specific selection in the primate and glires clades. We also describe new “Conservation” tracks in the UCSC Genome Browser that display both phyloP and phastCons scores for genome-wide alignments of 44 vertebrate species.}
+      \field{eprinttype}{pubmed}
+      \field{issn}{1088-9051}
+      \field{journaltitle}{Genome Research}
+      \field{month}{1}
+      \field{number}{1}
+      \field{shortjournal}{Genome Res}
+      \field{title}{Detection of Nonneutral Substitution Rates on Mammalian Phylogenies}
+      \field{urlday}{20}
+      \field{urlmonth}{4}
+      \field{urlyear}{2026}
+      \field{volume}{20}
+      \field{year}{2010}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \field{pages}{110\bibrangedash 121}
+      \range{pages}{12}
+      \verb{doi}
+      \verb 10.1101/gr.097857.109
+      \endverb
+      \verb{eprint}
+      \verb 19858363
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/F2XGF97P/Pollard et al. - 2010 - Detection of nonneutral substitution rates on mammalian phylogenies.pdf
+      \endverb
+      \verb{urlraw}
+      \verb https://pmc.ncbi.nlm.nih.gov/articles/PMC2798823/
+      \endverb
+      \verb{url}
+      \verb https://pmc.ncbi.nlm.nih.gov/articles/PMC2798823/
       \endverb
     \endentry
     \entry{radenImpactVariousSeed2020}{article}{}{}
@@ -3318,6 +3768,229 @@
       \verb{url}
       \verb https://pmc.ncbi.nlm.nih.gov/articles/PMC1370898/
       \endverb
+    \endentry
+    \entry{siepelEvolutionarilyConservedElements2005}{article}{}{}
+      \name{author}{16}{ul=2}{%
+        {{un=0,uniquepart=base,hash=94bdd274d79bb7bb52993176cf868181}{%
+           family={Siepel},
+           familyi={S\bibinitperiod},
+           given={Adam},
+           giveni={A\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=95072d0a83c470fb64696097c2cbeb93}{%
+           family={Bejerano},
+           familyi={B\bibinitperiod},
+           given={Gill},
+           giveni={G\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=bd8e5f7825cfe10d27568ad0bce854cc}{%
+           family={Pedersen},
+           familyi={P\bibinitperiod},
+           given={Jakob\bibnamedelima S.},
+           giveni={J\bibinitperiod\bibinitdelim S\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=44cce183427f711f4e3fa101ae9a0819}{%
+           family={Hinrichs},
+           familyi={H\bibinitperiod},
+           given={Angie\bibnamedelima S.},
+           giveni={A\bibinitperiod\bibinitdelim S\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=dd9bbb3788064089badd79cb128b3038}{%
+           family={Hou},
+           familyi={H\bibinitperiod},
+           given={Minmei},
+           giveni={M\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=e0371100f1a5b39af2c1e2d1fc237995}{%
+           family={Rosenbloom},
+           familyi={R\bibinitperiod},
+           given={Kate},
+           giveni={K\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=2ce9a6deddb85756a3c7a8bdc8985c47}{%
+           family={Clawson},
+           familyi={C\bibinitperiod},
+           given={Hiram},
+           giveni={H\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=5b8a8083f8a8b3be1f351220d52282aa}{%
+           family={Spieth},
+           familyi={S\bibinitperiod},
+           given={John},
+           giveni={J\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=3ca09cc2efe0fb56d5598e8f5e267e6f}{%
+           family={Hillier},
+           familyi={H\bibinitperiod},
+           given={LaDeana\bibnamedelima W.},
+           giveni={L\bibinitperiod\bibinitdelim W\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=c2cfcd6f7da7c8522b9921053913fa42}{%
+           family={Richards},
+           familyi={R\bibinitperiod},
+           given={Stephen},
+           giveni={S\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=3971af918286dab60a066b8b00e3cd38}{%
+           family={Weinstock},
+           familyi={W\bibinitperiod},
+           given={George\bibnamedelima M.},
+           giveni={G\bibinitperiod\bibinitdelim M\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=b836ffaf865349f07aa8dbfe67313405}{%
+           family={Wilson},
+           familyi={W\bibinitperiod},
+           given={Richard\bibnamedelima K.},
+           giveni={R\bibinitperiod\bibinitdelim K\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=21e4e17f2f464a02f96dd4024181c7fd}{%
+           family={Gibbs},
+           familyi={G\bibinitperiod},
+           given={Richard\bibnamedelima A.},
+           giveni={R\bibinitperiod\bibinitdelim A\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=c30d0f129cfe2adb6f6ee1476d64467b}{%
+           family={Kent},
+           familyi={K\bibinitperiod},
+           given={W.\bibnamedelimi James},
+           giveni={W\bibinitperiod\bibinitdelim J\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=c13772644daf4bc5872dadebc400007c}{%
+           family={Miller},
+           familyi={M\bibinitperiod},
+           given={Webb},
+           giveni={W\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=b2ab6c3825f7511e8096e515df23c7e7}{%
+           family={Haussler},
+           familyi={H\bibinitperiod},
+           given={David},
+           giveni={D\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {Cold Spring Harbor Lab}%
+      }
+      \strng{namehash}{b81b1e0cf4431ce27aca29672046148f}
+      \strng{fullhash}{ce49f5faa8b4a466d498709eb4f19d9f}
+      \strng{fullhashraw}{ce49f5faa8b4a466d498709eb4f19d9f}
+      \strng{bibnamehash}{b81b1e0cf4431ce27aca29672046148f}
+      \strng{authorbibnamehash}{b81b1e0cf4431ce27aca29672046148f}
+      \strng{authornamehash}{b81b1e0cf4431ce27aca29672046148f}
+      \strng{authorfullhash}{ce49f5faa8b4a466d498709eb4f19d9f}
+      \strng{authorfullhashraw}{ce49f5faa8b4a466d498709eb4f19d9f}
+      \field{sortinit}{S}
+      \field{sortinithash}{b164b07b29984b41daf1e85279fbc5ab}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{We have conducted a comprehensive search for conserved elements in vertebrate genomes, using genome-wide multiple alignments of five vertebrate species (human, mouse, rat, chicken, and Fugu rubripes). Parallel searches have been performed with multiple alignments of four insect species (three species of Drosophila and Anopheles gambiae), two species of Caenorhabditis, and seven species of Saccharomyces. Conserved elements were identified with a computer program called phastCons, which is based on a two-state phylogenetic hidden Markov model (phylo-HMM). PhastCons works by fitting a phylo-HMM to the data by maximum likelihood, subject to constraints designed to calibrate the model across species groups, and then predicting conserved elements based on this model. The predicted elements cover roughly 3\%–8\% of the human genome (depending on the details of the calibration procedure) and substantially higher fractions of the more compact Drosophila melanogaster (37\%–53\%), Caenorhabditis elegans (18\%–37\%), and Saccharaomyces cerevisiae (47\%–68\%) genomes. From yeasts to vertebrates, in order of increasing genome size and general biological complexity, increasing fractions of conserved bases are found to lie outside of the exons of known protein-coding genes. In all groups, the most highly conserved elements (HCEs), by log-odds score, are hundreds or thousands of bases long. These elements share certain properties with ultraconserved elements, but they tend to be longer and less perfectly conserved, and they overlap genes of somewhat different functional categories. In vertebrates, HCEs are associated with the 3′ UTRs of regulatory genes, stable gene deserts, and megabase-sized regions rich in moderately conserved noncoding sequences. Noncoding HCEs also show strong statistical evidence of an enrichment for RNA secondary structure.}
+      \field{day}{8}
+      \field{eprinttype}{pubmed}
+      \field{issn}{1088-9051, 1549-5469}
+      \field{journaltitle}{Genome Research}
+      \field{langid}{english}
+      \field{month}{1}
+      \field{number}{8}
+      \field{shortjournal}{Genome Res.}
+      \field{title}{Evolutionarily Conserved Elements in Vertebrate, Insect, Worm, and Yeast Genomes}
+      \field{urlday}{20}
+      \field{urlmonth}{4}
+      \field{urlyear}{2026}
+      \field{volume}{15}
+      \field{year}{2005}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \field{pages}{1034\bibrangedash 1050}
+      \range{pages}{17}
+      \verb{doi}
+      \verb 10.1101/gr.3715005
+      \endverb
+      \verb{eprint}
+      \verb 16024819
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/N8PRUXSF/Siepel et al. - 2005 - Evolutionarily conserved elements in vertebrate, insect, worm, and yeast genomes.pdf
+      \endverb
+      \verb{urlraw}
+      \verb http://genome.cshlp.org/content/15/8/1034
+      \endverb
+      \verb{url}
+      \verb http://genome.cshlp.org/content/15/8/1034
+      \endverb
+    \endentry
+    \entry{siepelPhylogeneticHiddenMarkov2005}{incollection}{}{}
+      \name{author}{2}{}{%
+        {{un=0,uniquepart=base,hash=94bdd274d79bb7bb52993176cf868181}{%
+           family={Siepel},
+           familyi={S\bibinitperiod},
+           given={Adam},
+           giveni={A\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=b2ab6c3825f7511e8096e515df23c7e7}{%
+           family={Haussler},
+           familyi={H\bibinitperiod},
+           given={David},
+           giveni={D\bibinitperiod},
+           givenun=0}}%
+      }
+      \name{editor}{1}{}{%
+        {{hash=5645ae252263a070818e54fc1f241c23}{%
+           family={Nielsen},
+           familyi={N\bibinitperiod},
+           given={Rasmus},
+           giveni={R\bibinitperiod}}}%
+      }
+      \list{location}{1}{%
+        {New York, NY}%
+      }
+      \list{publisher}{1}{%
+        {Springer}%
+      }
+      \strng{namehash}{6eaad50a8edeb5dcb56f9dc8a14cfdcb}
+      \strng{fullhash}{6eaad50a8edeb5dcb56f9dc8a14cfdcb}
+      \strng{fullhashraw}{6eaad50a8edeb5dcb56f9dc8a14cfdcb}
+      \strng{bibnamehash}{6eaad50a8edeb5dcb56f9dc8a14cfdcb}
+      \strng{authorbibnamehash}{6eaad50a8edeb5dcb56f9dc8a14cfdcb}
+      \strng{authornamehash}{6eaad50a8edeb5dcb56f9dc8a14cfdcb}
+      \strng{authorfullhash}{6eaad50a8edeb5dcb56f9dc8a14cfdcb}
+      \strng{authorfullhashraw}{6eaad50a8edeb5dcb56f9dc8a14cfdcb}
+      \strng{editorbibnamehash}{5645ae252263a070818e54fc1f241c23}
+      \strng{editornamehash}{5645ae252263a070818e54fc1f241c23}
+      \strng{editorfullhash}{5645ae252263a070818e54fc1f241c23}
+      \strng{editorfullhashraw}{5645ae252263a070818e54fc1f241c23}
+      \field{sortinit}{S}
+      \field{sortinithash}{b164b07b29984b41daf1e85279fbc5ab}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{Statistical {{Methods}} in {{Molecular Evolution}}}
+      \field{isbn}{978-0-387-27733-2}
+      \field{langid}{english}
+      \field{title}{Phylogenetic {{Hidden Markov Models}}}
+      \field{urlday}{20}
+      \field{urlmonth}{4}
+      \field{urlyear}{2026}
+      \field{year}{2005}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \field{pages}{325\bibrangedash 351}
+      \range{pages}{27}
+      \verb{doi}
+      \verb 10.1007/0-387-27733-1_12
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/F2MBLX79/Siepel and Haussler - 2005 - Phylogenetic Hidden Markov Models.pdf
+      \endverb
+      \verb{urlraw}
+      \verb https://doi.org/10.1007/0-387-27733-1_12
+      \endverb
+      \verb{url}
+      \verb https://doi.org/10.1007/0-387-27733-1_12
+      \endverb
+      \keyw{Conservation Score,Elimination Algorithm,Graphical Model,Hide Markov Model,Marginal Probability}
     \endentry
     \entry{tomaselloMicroRNAFamilyGets2021}{article}{}{}
       \name{author}{4}{}{%
@@ -3874,6 +4547,62 @@
       \verb https://doi.org/10.1080/15476286.2015.1112487
       \endverb
       \keyw{Chromatin modification,enhancer,microRNA,miR-24,nucleus,transcriptional activation}
+    \endentry
+    \entry{yangSpaceTimeProcessModel1995}{article}{}{}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=116c6708c3bcef167f2151bf1ddd8380}{%
+           family={Yang},
+           familyi={Y\bibinitperiod},
+           given={Z.},
+           giveni={Z\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{116c6708c3bcef167f2151bf1ddd8380}
+      \strng{fullhash}{116c6708c3bcef167f2151bf1ddd8380}
+      \strng{fullhashraw}{116c6708c3bcef167f2151bf1ddd8380}
+      \strng{bibnamehash}{116c6708c3bcef167f2151bf1ddd8380}
+      \strng{authorbibnamehash}{116c6708c3bcef167f2151bf1ddd8380}
+      \strng{authornamehash}{116c6708c3bcef167f2151bf1ddd8380}
+      \strng{authorfullhash}{116c6708c3bcef167f2151bf1ddd8380}
+      \strng{authorfullhashraw}{116c6708c3bcef167f2151bf1ddd8380}
+      \field{sortinit}{Y}
+      \field{sortinithash}{fd67ad5a9ef0f7456bdd9aab10fe1495}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{We describe a model for the evolution of DNA sequences by nucleotide substitution, whereby nucleotide sites in the sequence evolve over time, whereas the rates of substitution are variable and correlated over sites. The temporal process used to describe substitutions between nucleotides is a continuous-time Markov process, with the four nucleotides as the states. The spatial process used to describe variation and dependence of substitution rates over sites is based on a serially correlated gamma distribution, i.e., an auto-gamma model assuming Markov-dependence of rates at adjacent sites. To achieve computational efficiency, we use several equal-probability categories to approximate the gamma distribution, and the result is an auto-discrete-gamma model for rates over sites. Correlation of rates at sites then is modeled by the Markov chain transition of rates at adjacent sites from one rate category to another, the states of the chain being the rate categories. Two versions of nonparametric models, which place no restrictions on the distributional forms of rates for sites, also are considered, assuming either independence or Markov dependence. The models are applied to data of a segment of mitochondrial genome from nine primate species. Model parameters are estimated by the maximum likelihood method, and models are compared by the likelihood ratio test. Tremendous variation of rates among sites in the sequence is revealed by the analyses, and when rate differences for different codon positions are appropriately accounted for in the models, substitution rates at adjacent sites are found to be strongly (positively) correlated. Robustness of the results to uncertainty of the phylogenetic tree linking the species is examined.}
+      \field{eprinttype}{pubmed}
+      \field{issn}{0016-6731}
+      \field{journaltitle}{Genetics}
+      \field{month}{2}
+      \field{number}{2}
+      \field{shortjournal}{Genetics}
+      \field{title}{A {{Space-Time Process Model}} for the {{Evolution}} of {{DNA Sequences}}}
+      \field{urlday}{20}
+      \field{urlmonth}{4}
+      \field{urlyear}{2026}
+      \field{volume}{139}
+      \field{year}{1995}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \field{pages}{993\bibrangedash 1005}
+      \range{pages}{13}
+      \verb{doi}
+      \verb 10.1093/genetics/139.2.993
+      \endverb
+      \verb{eprint}
+      \verb 7713447
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/NJ5FNAGD/Yang - 1995 - A Space-Time Process Model for the Evolution of DNA Sequences.pdf
+      \endverb
+      \verb{urlraw}
+      \verb https://pmc.ncbi.nlm.nih.gov/articles/PMC1206396/
+      \endverb
+      \verb{url}
+      \verb https://pmc.ncbi.nlm.nih.gov/articles/PMC1206396/
+      \endverb
     \endentry
     \entry{zacharopoulouMicroTCNNAvantgardeDeep2024}{article}{}{}
       \name{author}{10}{}{%

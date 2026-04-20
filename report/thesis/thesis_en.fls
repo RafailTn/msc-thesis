@@ -328,6 +328,8 @@ INPUT ./figures/agoclash.jpg
 INPUT ./figures/agoclash.jpg
 INPUT ./figures/agoeclip.png
 INPUT ./figures/agoeclip.png
+INPUT ./figures/autogluon-stacked-ensembling.png
+INPUT ./figures/autogluon-stacked-ensembling.png
 INPUT thesis_en.aux
 INPUT ./thesis_en.out
 INPUT ./thesis_en.out
