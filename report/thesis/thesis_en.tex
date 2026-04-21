@@ -371,6 +371,7 @@ Types of experiments that capture and quantify miRNA:MRE complexes are used to s
 \par The main goal of this thesis is to explore the use of architectures and algorithms that aim to surpass Transformers in terms of either performance or explainability. Thus,the Mamba architecture was employed and its results were compared to those of a vanilla Transformer deep neural network. Additionally, simpler machine learning models and their ensembles were employed in order to further examine the tradeoff between their higher degree of explainability and (potentially) speed and their performance on the \cite{manakovScalableDeepProfiling2022} dataset.
 
 \chapter{Methods}
+\label{Methods}
 \section{Data preprocessing}
 \par The dataset used for training and testing was taken from \cite{sammutMiRBenchNovelBenchmark2025} and contains preprocessed files from experimental results produced by \cite{manakovScalableDeepProfiling2022,hejretAnalysisChimericReads2023}. These include, apart from the DNA sequences of the miRNA and the MREs, information about the miRNA family, the isomiR that the molecule is identified as, the hg38 genomic coordinates of the MRE, two types of conservation vector scores (genePhastCons100way and genePhyloP) in lists, what region of the MRE is targeted (exon, intron, 3'UTR, 5'UTR and boundaries between them), gene cluster ID (which is used for negative sample generation) and labels (1 for positives, 0 for negatives). The dataset is balanced in terms of positives and negatives not only in its totality but also within miRNA families. This is crucial, as different families may bind in different manners and with different criteria and thus it is important that any potential model learns all such patterns.
 
@@ -669,7 +670,24 @@ The defining theoretical advantage of SHAP is local accuracy (additivity): the s
 \newpage
 
 \section{Autogluon}
-\par Starting with 
+Given that Mamba models were overfitting even with few parameters and regularization, a logical option would be to attempt using simpler machine learning algorithms, which is why Autogluon was employed. The initial feature set contained everything mentioned in the \nameref{Methods} chapter but the only energy related feature was the Molecular Free Energy value output by RNADuplex, while any duplex related feature come from its prediction for the duplex. Additionally this is the only feature set where Contrafold related features appear as it was discovered that removing them had no effect on the performance of the model. 
+
+\begin{table}[H]
+    % this is before the table
+    \caption{RNADuplex Feature Set Performance}
+    % this is to label and include it in our list of tables
+    \label{tbl:RNADuplex Performance}
+    \begin{center} % center the table
+        \begin{tabular}{c|c|c|c|c}
+            \textbf{RNADuplex} & \textbf{Training} & \textbf{Validation}& \textbf{Test}& \textbf{Holdout} \\
+            \hline
+			ROC-AUC & 76.8 & 76.3 & 75.6 & 75.6 \\
+			APS & 79.5 & 78.6 & 79.6 & 79.8 \\
+            \hline
+        \end{tabular}
+    \end{center}
+\end{table}
+
 
 \chapter{FIGURES AND TABLES} \label{figures_and_tables}
 
@@ -678,36 +696,6 @@ The defining theoretical advantage of SHAP is local accuracy (additivity): the s
 Below is a sample table with its caption.
 Make sure you put the caption \textbf{over} the table.
 For instance, this code in \LaTeX{}:
-
-\begin{verbatim}
-\begin{table}
-    % this is before the table
-    \caption{A sample event log, sorted by timestamp}
-    % this is to label and include it in our list of tables
-    \label{tbl:event_log_sample}
-    \begin{center} % center the table
-    \begin{tabular}{c|c|c}
-        \textbf{Case Id} & \textbf{Activity} & \textbf{Timestamp} \\
-        \hline
-        1 & Activity A & 2021-05-24T12:30:00Z \\
-        1 & Activity B & 2021-05-24T12:30:26Z \\
-        1 & Activity C & 2021-05-24T12:31:04Z \\
-        2 & Activity A & 2021-05-24T13:19:39Z \\
-        2 & Activity B & 2021-05-24T13:19:50Z \\
-        3 & Activity A & 2021-05-24T13:19:59Z \\
-        2 & Activity C & 2021-05-24T13:22:14Z \\
-        3 & Activity B & 2021-05-24T13:24:24Z \\
-        4 & Activity A & 2021-05-24T13:25:06Z \\
-        3 & Activity C & 2021-05-24T13:25:27Z \\
-        4 & Activity B & 2021-05-24T13:25:53Z \\
-        4 & Activity C & 2021-05-24T13:27:48Z \\
-        \hline
-    \end{tabular}
-    \end{center}
-\end{table}
-\end{verbatim}
-
-renders table \ref{tbl:event_log_sample}:
 
 \begin{table}
     % this is before the table
