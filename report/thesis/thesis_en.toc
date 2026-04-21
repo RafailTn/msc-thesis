@@ -14,21 +14,29 @@
 \contentsline {subsection}{\numberline {1.1.5}High-throughput sequencing methods for miRNA research}{29}{subsection.1.1.5}%
 \contentsline {section}{\numberline {1.2}miRNA Target Prediction Algorithms}{33}{section.1.2}%
 \contentsline {subsection}{\numberline {1.2.1}Site Level predictors}{33}{subsection.1.2.1}%
-\contentsline {subsection}{\numberline {1.2.2}Functional and Pathway Level predictors}{34}{subsection.1.2.2}%
-\contentsline {subsection}{\numberline {1.2.3}Main Goal}{35}{subsection.1.2.3}%
-\contentsline {chapter}{\numberline {2}Methods}{37}{chapter.2}%
-\contentsline {section}{\numberline {2.1}Data preprocessing}{37}{section.2.1}%
-\contentsline {subsection}{\numberline {2.1.1}Predictive Models}{39}{subsection.2.1.1}%
-\contentsline {subsection}{\numberline {2.1.2}Feature Engineering}{42}{subsection.2.1.2}%
-\contentsline {paragraph}{RNADuplex}{44}{section*.19}%
-\contentsline {paragraph}{IntaRNA}{44}{section*.20}%
-\contentsline {chapter}{\numberline {3}Results}{47}{chapter.3}%
-\contentsline {section}{\numberline {3.1}Language Models}{47}{section.3.1}%
-\contentsline {section}{\numberline {3.2}Machine Learning}{47}{section.3.2}%
-\contentsline {chapter}{\numberline {4}FIGURES AND TABLES}{49}{chapter.4}%
-\contentsline {section}{\numberline {4.1}Inserting tables}{49}{section.4.1}%
-\contentsline {section}{\numberline {4.2}Inserting figures}{50}{section.4.2}%
-\contentsline {chapter}{ABBREVIATIONS - ACRONYMS}{51}{chapter*.25}%
-\contentsline {chapter}{\numberline {A}FIRST APPENDIX}{53}{appendix.A}%
-\contentsline {chapter}{\numberline {B}SECOND APPENDIX}{55}{appendix.B}%
-\contentsline {chapter}{APPENDICES}{55}{section*.26}%
+\contentsline {subsection}{\numberline {1.2.2}Functional and Pathway Level predictors}{33}{subsection.1.2.2}%
+\contentsline {subsection}{\numberline {1.2.3}Main Goal}{34}{subsection.1.2.3}%
+\contentsline {chapter}{\numberline {2}Methods}{35}{chapter.2}%
+\contentsline {section}{\numberline {2.1}Data preprocessing}{35}{section.2.1}%
+\contentsline {section}{\numberline {2.2}Predictive Models}{37}{section.2.2}%
+\contentsline {subsection}{\numberline {2.2.1}Autogluon}{37}{subsection.2.2.1}%
+\contentsline {subsection}{\numberline {2.2.2}Transformers}{38}{subsection.2.2.2}%
+\contentsline {subsection}{\numberline {2.2.3}Mamba}{39}{subsection.2.2.3}%
+\contentsline {section}{\numberline {2.3}Feature Engineering}{40}{section.2.3}%
+\contentsline {subsection}{\numberline {2.3.1}Autogluon}{40}{subsection.2.3.1}%
+\contentsline {paragraph}{RNADuplex}{42}{section*.15}%
+\contentsline {paragraph}{IntaRNA}{42}{section*.16}%
+\contentsline {subsection}{\numberline {2.3.2}Language Models}{45}{subsection.2.3.2}%
+\contentsline {section}{\numberline {2.4}Feature Importance}{46}{section.2.4}%
+\contentsline {subsection}{\numberline {2.4.1}Global Interpretability: Permutation Feature Importance in AutoGluon}{46}{subsection.2.4.1}%
+\contentsline {subsection}{\numberline {2.4.2}Local Interpretability: SHapley Additive exPlanations (SHAP)}{46}{subsection.2.4.2}%
+\contentsline {chapter}{\numberline {3}Results}{49}{chapter.3}%
+\contentsline {section}{\numberline {3.1}Language Models}{49}{section.3.1}%
+\contentsline {section}{\numberline {3.2}Autogluon}{50}{section.3.2}%
+\contentsline {chapter}{\numberline {4}FIGURES AND TABLES}{51}{chapter.4}%
+\contentsline {section}{\numberline {4.1}Inserting tables}{51}{section.4.1}%
+\contentsline {section}{\numberline {4.2}Inserting figures}{52}{section.4.2}%
+\contentsline {chapter}{ABBREVIATIONS - ACRONYMS}{53}{chapter*.23}%
+\contentsline {chapter}{\numberline {A}FIRST APPENDIX}{55}{appendix.A}%
+\contentsline {chapter}{\numberline {B}SECOND APPENDIX}{57}{appendix.B}%
+\contentsline {chapter}{APPENDICES}{57}{section*.24}%

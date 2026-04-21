@@ -5,13 +5,14 @@
 \babel@toc {english}{}\relax 
 \addvspace {10\p@ }
 \contentsline {figure}{\numberline {1.1}{\ignorespaces The steps of miRNA biogenesis. \blx@tocontentsinit {0}\parencite {obrienOverviewMicroRNABiogenesis2018}}}{26}{figure.caption.8}%
-\contentsline {figure}{\numberline {1.2}{\ignorespaces MiRNAs regulating muscle differentiation. \blx@tocontentsinit {0}\parencite {gullerMicroRNAsSkeletalMuscle2010}}}{29}{figure.caption.9}%
-\contentsline {figure}{\numberline {1.3}{\ignorespaces Double ligation small RNA-seq. \blx@tocontentsinit {0}\parencite {benesovaSmallRNASequencingApproaches2021}}}{30}{figure.caption.10}%
-\contentsline {figure}{\numberline {1.4}{\ignorespaces AGO-CLASH. \blx@tocontentsinit {0}\parencite {aMappingHumanMiRNA2013}}}{30}{figure.caption.11}%
-\contentsline {figure}{\numberline {1.5}{\ignorespaces AGO-eCLIP. \blx@tocontentsinit {0}\parencite {manakovScalableDeepProfiling2022}}}{31}{figure.caption.12}%
+\contentsline {figure}{\numberline {1.2}{\ignorespaces Double ligation small RNA-seq. \blx@tocontentsinit {0}\parencite {benesovaSmallRNASequencingApproaches2021}}}{29}{figure.caption.9}%
+\contentsline {figure}{\numberline {1.3}{\ignorespaces AGO-CLASH. \blx@tocontentsinit {0}\parencite {aMappingHumanMiRNA2013}}}{30}{figure.caption.10}%
+\contentsline {figure}{\numberline {1.4}{\ignorespaces AGO-eCLIP. \blx@tocontentsinit {0}\parencite {manakovScalableDeepProfiling2022}}}{31}{figure.caption.11}%
 \addvspace {10\p@ }
-\contentsline {figure}{\numberline {2.1}{\ignorespaces Autogluon Stacked Ensembling. \blx@tocontentsinit {0}\parencite {ericksonAutoGluonTabularRobustAccurate2020}}}{40}{figure.caption.14}%
+\contentsline {figure}{\numberline {2.1}{\ignorespaces Autogluon Stacked Ensembling. \blx@tocontentsinit {0}\parencite {ericksonAutoGluonTabularRobustAccurate2020}}}{38}{figure.caption.12}%
+\contentsline {figure}{\numberline {2.2}{\ignorespaces MRMR vs Boruta. \blx@tocontentsinit {0}\parencite {seshadriAutoViMLFeaturewizUse2020}}}{45}{figure.caption.20}%
 \addvspace {10\p@ }
+\contentsline {figure}{\numberline {3.1}{\ignorespaces Comprehensive grid of results showing Mamba Performance}}{49}{figure.caption.21}%
 \addvspace {10\p@ }
 \addvspace {10\p@ }
 \addvspace {10\p@ }

@@ -1705,70 +1705,6 @@
       \endverb
       \keyw{Computer Science - Artificial Intelligence,Computer Science - Machine Learning}
     \endentry
-    \entry{gullerMicroRNAsSkeletalMuscle2010}{article}{}{}
-      \name{author}{2}{}{%
-        {{un=0,uniquepart=base,hash=a4e9ef3dc1f36d597cb0466ea671b126}{%
-           family={Güller},
-           familyi={G\bibinitperiod},
-           given={Isabelle},
-           giveni={I\bibinitperiod},
-           givenun=0}}%
-        {{un=0,uniquepart=base,hash=ea1b6a87742a0ed892cf795a9d121c45}{%
-           family={Russell},
-           familyi={R\bibinitperiod},
-           given={Aaron\bibnamedelima P},
-           giveni={A\bibinitperiod\bibinitdelim P\bibinitperiod},
-           givenun=0}}%
-      }
-      \strng{namehash}{0f60a6c0a119a0a823c6eb1e19ebe431}
-      \strng{fullhash}{0f60a6c0a119a0a823c6eb1e19ebe431}
-      \strng{fullhashraw}{0f60a6c0a119a0a823c6eb1e19ebe431}
-      \strng{bibnamehash}{0f60a6c0a119a0a823c6eb1e19ebe431}
-      \strng{authorbibnamehash}{0f60a6c0a119a0a823c6eb1e19ebe431}
-      \strng{authornamehash}{0f60a6c0a119a0a823c6eb1e19ebe431}
-      \strng{authorfullhash}{0f60a6c0a119a0a823c6eb1e19ebe431}
-      \strng{authorfullhashraw}{0f60a6c0a119a0a823c6eb1e19ebe431}
-      \field{sortinit}{G}
-      \field{sortinithash}{32d67eca0634bf53703493fb1090a2e8}
-      \field{extradatescope}{labelyear}
-      \field{labeldatesource}{}
-      \field{labelnamesource}{author}
-      \field{labeltitlesource}{shorttitle}
-      \field{abstract}{Maintaining skeletal muscle function throughout the lifespan is a prerequisite for good health and independent living. For skeletal muscle to consistently function at optimal levels, the efficient activation of processes that regulate muscle development, growth, regeneration and metabolism is required. Numerous conditions including neuromuscular disorders, physical inactivity, chronic disease and ageing are associated with perturbations in skeletal muscle function. A loss or reduction in skeletal muscle function often leads to increased morbidity and mortality either directly, or indirectly, via the development of secondary diseases such as diabetes, obesity, cardiovascular and respiratory disease. Identifying mechanisms which influence the processes regulating skeletal muscle function is a key priority. The discovery of microRNAs (miRNAs) provides a new avenue that will extend our knowledge of factors controlling skeletal muscle function. miRNAs may also improve our understanding and application of current therapeutic approaches as well as enable the identification of new therapeutic strategies and targets aimed at maintaining and/or improving skeletal muscle health. This review brings together the latest developments in skeletal muscle miRNA biology and focuses on their role and regulation under physiological and patho-physiological conditions with an emphasis on: myogenesis, hypertrophy, atrophy and regeneration; exercise and nutrition; muscle disease, ageing, diabetes and obesity.}
-      \field{day}{1}
-      \field{eprinttype}{pubmed}
-      \field{issn}{0022-3751}
-      \field{issue}{Pt 21}
-      \field{journaltitle}{The Journal of Physiology}
-      \field{month}{11}
-      \field{shortjournal}{J Physiol}
-      \field{shorttitle}{{{MicroRNAs}} in Skeletal Muscle}
-      \field{title}{{{MicroRNAs}} in Skeletal Muscle: Their Role and Regulation in Development, Disease and Function}
-      \field{urlday}{11}
-      \field{urlmonth}{4}
-      \field{urlyear}{2026}
-      \field{volume}{588}
-      \field{year}{2010}
-      \field{dateera}{ce}
-      \field{urldateera}{ce}
-      \field{pages}{4075\bibrangedash 4087}
-      \range{pages}{13}
-      \verb{doi}
-      \verb 10.1113/jphysiol.2010.194175
-      \endverb
-      \verb{eprint}
-      \verb 20724363
-      \endverb
-      \verb{file}
-      \verb /home/rafail/Zotero/storage/5F4DJPPH/Güller and Russell - 2010 - MicroRNAs in skeletal muscle their role and regulation in development, disease and function.pdf
-      \endverb
-      \verb{urlraw}
-      \verb https://pmc.ncbi.nlm.nih.gov/articles/PMC3002442/
-      \endverb
-      \verb{url}
-      \verb https://pmc.ncbi.nlm.nih.gov/articles/PMC3002442/
-      \endverb
-    \endentry
     \entry{guoNuclearMiR30b5pSuppresses2021}{article}{}{}
       \name{author}{12}{}{%
         {{un=0,uniquepart=base,hash=6be516c326545855a6076ad1d33764fc}{%
@@ -2573,12 +2509,12 @@
     \endentry
     \entry{liAligningSequenceReads2013}{online}{}{}
       \name{author}{1}{}{%
-        {{un=0,uniquepart=base,hash=466d90849ccf7e74e32d338b7c35491d}{%
+        {{un=1,uniquepart=given,hash=466d90849ccf7e74e32d338b7c35491d}{%
            family={Li},
            familyi={L\bibinitperiod},
            given={Heng},
            giveni={H\bibinitperiod},
-           givenun=0}}%
+           givenun=1}}%
       }
       \strng{namehash}{466d90849ccf7e74e32d338b7c35491d}
       \strng{fullhash}{466d90849ccf7e74e32d338b7c35491d}
@@ -2623,6 +2559,80 @@
       \verb http://arxiv.org/abs/1303.3997
       \endverb
       \keyw{Quantitative Biology - Genomics}
+    \endentry
+    \entry{liShapleyValueCooperative2024}{article}{}{}
+      \name{author}{4}{}{%
+        {{un=1,uniquepart=given,hash=122748fbd1766f07a1685dde181113ca}{%
+           family={Li},
+           familyi={L\bibinitperiod},
+           given={Meng},
+           giveni={M\bibinitperiod},
+           givenun=1}}%
+        {{un=0,uniquepart=base,hash=9ad9b747bcd20483d0ca19c540deee1d}{%
+           family={Sun},
+           familyi={S\bibinitperiod},
+           given={Hengyang},
+           giveni={H\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=a42ce45266054232ca4b59868f583b04}{%
+           family={Huang},
+           familyi={H\bibinitperiod},
+           given={Yanjun},
+           giveni={Y\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=b2dcceb92d2313a3f299f0bec1d21c7c}{%
+           family={Chen},
+           familyi={C\bibinitperiod},
+           given={Hong},
+           giveni={H\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{fcd45aa93b07a06122d442ee22d03cd0}
+      \strng{fullhash}{d4edf6775c1f3e21d3a426649c568f17}
+      \strng{fullhashraw}{d4edf6775c1f3e21d3a426649c568f17}
+      \strng{bibnamehash}{d4edf6775c1f3e21d3a426649c568f17}
+      \strng{authorbibnamehash}{d4edf6775c1f3e21d3a426649c568f17}
+      \strng{authornamehash}{fcd45aa93b07a06122d442ee22d03cd0}
+      \strng{authorfullhash}{d4edf6775c1f3e21d3a426649c568f17}
+      \strng{authorfullhashraw}{d4edf6775c1f3e21d3a426649c568f17}
+      \field{sortinit}{L}
+      \field{sortinithash}{7c47d417cecb1f4bd38d1825c427a61a}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{abstract}{With the tremendous success of machine learning (ML), concerns about their black-box nature have grown. The issue of interpretability affects trust in ML systems and raises ethical concerns such as algorithmic bias. In recent years, the feature attribution explanation method based on Shapley value has become the mainstream explainable artificial intelligence approach for explaining ML models. This paper provides a comprehensive overview of Shapley value-based attribution methods. We begin by outlining the foundational theory of Shapley value rooted in cooperative game theory and discussing its desirable properties. To enhance comprehension and aid in identifying relevant algorithms, we propose a comprehensive classification framework for existing Shapley value-based feature attribution methods from three dimensions: Shapley value type, feature replacement method, and approximation method. Furthermore, we emphasize the practical application of the Shapley value at different stages of ML model development, encompassing pre-modeling, modeling, and post-modeling phases. Finally, this work summarizes the limitations associated with the Shapley value and discusses potential directions for future research.}
+      \field{day}{9}
+      \field{issn}{2730-616X}
+      \field{journaltitle}{Autonomous Intelligent Systems}
+      \field{langid}{english}
+      \field{month}{2}
+      \field{number}{1}
+      \field{shortjournal}{Auton. Intell. Syst.}
+      \field{shorttitle}{Shapley Value}
+      \field{title}{Shapley Value: From Cooperative Game to Explainable Artificial Intelligence}
+      \field{urlday}{21}
+      \field{urlmonth}{4}
+      \field{urlyear}{2026}
+      \field{volume}{4}
+      \field{year}{2024}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \field{pages}{2}
+      \range{pages}{1}
+      \verb{doi}
+      \verb 10.1007/s43684-023-00060-8
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/WGIVVI8A/Li et al. - 2024 - Shapley value from cooperative game to explainable artificial intelligence.pdf
+      \endverb
+      \verb{urlraw}
+      \verb https://doi.org/10.1007/s43684-023-00060-8
+      \endverb
+      \verb{url}
+      \verb https://doi.org/10.1007/s43684-023-00060-8
+      \endverb
+      \keyw{Cooperative game,Explainable artificial intelligence,Machine learning,Shapley value}
     \endentry
     \entry{linBladderCancerCellsecreted2019}{article}{}{}
       \name{author}{6}{}{%
@@ -3699,6 +3709,43 @@
       \verb https://www.nature.com/articles/bjc2015472
       \endverb
       \keyw{Bladder cancer,miRNAs,Tumour biomarkers}
+    \endentry
+    \entry{seshadriAutoViMLFeaturewizUse2020}{software}{}{}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=79aa45e469a4f6299e8020180a6c1275}{%
+           family={Seshadri},
+           familyi={S\bibinitperiod},
+           given={Ram},
+           giveni={R\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{organization}{1}{%
+        {GitHub}%
+      }
+      \strng{namehash}{79aa45e469a4f6299e8020180a6c1275}
+      \strng{fullhash}{79aa45e469a4f6299e8020180a6c1275}
+      \strng{fullhashraw}{79aa45e469a4f6299e8020180a6c1275}
+      \strng{bibnamehash}{79aa45e469a4f6299e8020180a6c1275}
+      \strng{authorbibnamehash}{79aa45e469a4f6299e8020180a6c1275}
+      \strng{authornamehash}{79aa45e469a4f6299e8020180a6c1275}
+      \strng{authorfullhash}{79aa45e469a4f6299e8020180a6c1275}
+      \strng{authorfullhashraw}{79aa45e469a4f6299e8020180a6c1275}
+      \field{sortinit}{S}
+      \field{sortinithash}{b164b07b29984b41daf1e85279fbc5ab}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{GitHub repository}
+      \field{title}{{{AutoViML}}/Featurewiz: {{Use}} Advanced Feature Engineering Strategies and Select the Best Features from Your Data Set Fast with a Single Line of Code.}
+      \field{year}{2020}
+      \field{dateera}{ce}
+      \verb{urlraw}
+      \verb https://github.com/AutoViML/featurewiz
+      \endverb
+      \verb{url}
+      \verb https://github.com/AutoViML/featurewiz
+      \endverb
     \endentry
     \entry{sethupathyTarBaseComprehensiveDatabase2006}{article}{}{}
       \name{author}{3}{}{%

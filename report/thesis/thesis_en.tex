@@ -260,18 +260,18 @@ Most of the miRNA:MRE complexes in the cell are not perfectly complementary and 
 \par Given their diversity regarding both sequence and mechanisms of action, miRNAs partake in many physiological and pathological states. Due to their capability of regulating multiple genes in a variety of different manners, they are important components in developmental processes that require the fine-tuning of gene expression at precise time intervals, with a prominent example being that of miR-196. Anterioposterior polarity is mediated by the SHH protein in forelimb and hindlimb buds and its expression requires Retinoic Acid (RA) signalling induced Hoxb8 expression. Hoxb8 is a transcription factor protein that is upregulated as an immediate-early response to ectopic RA administration to forelimb but not to hindlimb buds due to a specific miRNA, miR-196, that inhibits the translation of Hoxb8 in a tissue specific manner \parencite{hornsteinMicroRNAMiR196Acts2005}. MicroRNAs are also able to regulate protein synthesis spatiotemporally within the cell, localizing to specific subcellular compartments before exerting their effects \parencite{corbinRoleMicroRNAsSynaptic2009}. 
 \par Deregulation of miRNA expression can lead to or deteriorate a big number of disease states ranging from congenital defects to autoimmune diseases, neurological disorders and many types of cancer. For instance, \cite{adamMiR200ExpressionRegulates2009} showed that miR-200 family expression in UMUC3 cells lead to increase in E-Cadherin expression and elevated sensitivity to EGFR inhibitors. MiRNAs can also be excreted from one cell to be taken in by a target via exosomes. \cite{linBladderCancerCellsecreted2019} demonstrated that miR-21 is excreted from bladder cancer cells via exosomes that are taken in by macrophages in order to activate the PI3K/AKT pathway and promote cancer progression by polarizing them towards the M2 phenotype. In addition, miRNAs can be detected in fluid samples from patients and can thus be used as biomarkers for specific diseases. For instance, \cite{sapreUrinaryMicroRNASignature2016} showed that a combination of 6 miRNAs from urine are able to predict Urothelial Carcinoma of the Bladder (UCB) patients with a high AUC score (0.85). Finally, miRNAs can be used as targets for therapeutics that either induce or reduce their expression. An example is miR-222 which has elevated expression levels in cardiomyocytes after specific types of exercise as well as following exercise rehabilitation after heart failure. This elevated expression leads to targeting of p27, HIPK-1, HIPK-2, and HMBOX1 which promotes cardiomyocyte hypertrophy, proliferation, and survival \parencite{dingMiR222CardiovascularDiseases2017}. 
 
-\begin{figure}[H]
-	\centering
-    % Define the figure file in the \includegraphics command
-    % Must be relative to one of the paths
-    % in the \graphicspath command at the top
-    \includegraphics[width=0.7\linewidth, height=8cm]{mirmuscle}
-    % Place caption under the figure
-    \caption{MiRNAs regulating muscle differentiation.
-        \parencite{gullerMicroRNAsSkeletalMuscle2010}}
-    % Label the caption to include in the list of figures
-    \label{fig: MiRNAs regulating muscle differentiation.}
-\end{figure}
+% \begin{figure}[H]
+% 	\centering
+%     % Define the figure file in the \includegraphics command
+%     % Must be relative to one of the paths
+%     % in the \graphicspath command at the top
+%     \includegraphics[width=0.7\linewidth, height=8cm]{mirmuscle}
+%     % Place caption under the figure
+%     \caption{MiRNAs regulating muscle differentiation.
+%         \parencite{gullerMicroRNAsSkeletalMuscle2010}}
+%     % Label the caption to include in the list of figures
+%     \label{fig: MiRNAs regulating muscle differentiation.}
+% \end{figure}
 
 \subsection{High-throughput sequencing methods for miRNA research}
 In the era of multiomics studies, it has become prevalent to study the totality of the miRNA part of the transcriptome as well as their targets via the use of high-throughput sequencing techniques. Such techniques allow for the detection and quantification of all the miRNA molecules in a tissue as well as of the complexes that these form with MREs. The most widely used one is small RNA-seq which includes isolation of RNA, cDNA library construction and sequencing. During RNA isolation, the total RNA might be extracted from a tissue, optionally followed by enrichment methods such as length separation or binding of small RNAs to to specific proteins. Library construction involves a reverse transcription step followed by ligation of adapters and/or polyadenylation \parencite{benesovaSmallRNASequencingApproaches2021}. The following image depicts the double ligation small RNA-seq protocol:
@@ -292,12 +292,12 @@ Types of experiments that capture and quantify miRNA:MRE complexes are used to s
 
 \begin{figure}[H]
 	\centering
-	\begin{minipage}{0.8\textwidth}
+	\begin{minipage}{\textwidth}
 		\centering
 		% Define the figure file in the \includegraphics command
 		% Must be relative to one of the paths
 		% in the \graphicspath command at the top
-		\includegraphics[width=0.8\linewidth, height=10cm]{agoclash}
+		\includegraphics[width=0.8\linewidth, height=14cm]{agoclash}
 		% Place caption under the figure
 		\caption{AGO-CLASH.
 			\parencite{aMappingHumanMiRNA2013}}
@@ -412,10 +412,10 @@ Since the goal of the model is to be able to generalize its predictions for unse
 
 Every model is tested on both of these test sets in the end of its training in order to evaluate its performance. The main metric that is used for this purpose is the Average Precision score: $\text{APS} = \sum_n(R_n - R_{n-1})P_n$ where $R_n$ and $P_n$  are the Recall and the Precision at the nth threshold. APS is used because it is threshold invariant and allows for the evaluation of the model's capability to find the positive class. This is important as validation is costly and thus False Positive samples and False Negative ones must be penalized, while True Negative samples are not equally meaningful. APS in the final model was adjusted based on the weights of the samples mentioned above in order to portray a better image of the model's capability to generalize to unseen miRNA families and a non-adjusted APS is also reported for reference and potential comparison with other models.
 
-\subsection{Predictive Models}
+\section{Predictive Models}
 The types of algorithms that were used fall into either the classic Machine Learning category, where the library Autogluon was used \parencite{ericksonAutoGluonTabularRobustAccurate2020}, or more recent architectures of Deep Learning models for Language Processing (i.e Transformers and Mamba).
 
-\subsubsection*{Autogluon}
+\subsection{Autogluon}
 Autogluon is an AutoML python library that aims to automate training Machine Learning models on various types of tasks that are based on tabular input or even language and images. Its logic is based on initially training many models of the same instance separately (e.g many Random Forest models) on different folds of the dataset following either the default or a user defined kfold cross validation scheme and creates an ensemble of these models as a representative of that model instance. After training all model instances, it creates a weighted ensemble model which is meant to weight the predictions of each model and find an optimal weighted sum for any future prediction. Depending on whether the number of stacks parameter has been set over 0, Autogluon performs Stacked Ensembling which is depicted in the following image:
 \newpage
 
@@ -434,7 +434,7 @@ Autogluon is an AutoML python library that aims to automate training Machine Lea
 
 After the first layer of models is trained in the original featrues as described in the previous paragraph, the second layer of models (of the same instances as the first) is trained in the same manner but using as features predictions from the first layer, ultimately leading up to a second weighted ensemble. The number of layers is also a parameter that can be tuned by the user as well as the hyperparameters of each model instance. Autogluon also contains specific foundational models that are expected to have State Of The Art performance on virtually any tabular dataset. In order to avoid data leakage, Autogluon uses out of fold predictions on the stacked layers as well.
 
-\subsubsection*{Transformers}
+\subsection{Transformers}
 \par Transformers were introduced in the landmark paper "Attention is All You Need" \parencite{vaswaniAttentionAllYou2023}. First, the input sequence is tokenized and mapped to dense vector embeddings. To inject information about the relative or absolute position of the tokens in the sequence, positional encodings, which are either learned or based on sinusoidal functions, are added to these embeddings. Through learned linear projections, the input is mapped into three distinct matrices: Queries ($Q$), Keys ($K$), and Values ($V$). The scaled dot-product attention mechanism, which is vital to the architecture's success, is defined by the following formula:
 
 \begin{equation}
@@ -450,7 +450,7 @@ The masking in the first sub-layer is an essential modification; it mathematical
 
 In the subsequent Encoder-Decoder Attention sub-layer, the queries ($Q$) are derived from the output of the previous decoder layer, while the keys ($K$) and values ($V$) are sourced directly from the final output of the Encoder. This cross-attention mechanism allows every position in the decoder to attend over the entire input sequence, effectively grounding the generated output in the original provided context. Finally, the output of the decoder stack is passed through a linear transformation and a softmax function to produce a probability distribution over the vocabulary for the next predicted token.
 
-\subsubsection*{Mamba}
+\subsection{Mamba}
 An alternative and highly successful paradigm has emerged in the form of Structured State Space Sequence Models (SSMs), most notably the Mamba architecture \parencite{guMambaLinearTimeSequence2024}. Mamba completely discards the attention mechanism, offering a fundamental architectural shift that scales linearly in time ($\mathcal{O}(N)$) with respect to sequence length, while maintaining a constant memory footprint during autoregressive generation.
 
 At its core, Mamba is inspired by continuous-time control theory. It maps a 1-dimensional input sequence $x(t) \in \mathbb{R}$ to an output $y(t) \in \mathbb{R}$ through an implicit latent state $h(t) \in \mathbb{R}^N$.
@@ -475,17 +475,18 @@ By allowing $\Delta_t$ to vary based on the input, the model dynamically dictate
 
 \par Because Mamba's parameters are time-varying, the model cannot be computed using efficient Fast Fourier Transforms (FFTs) like its LTI predecessors. To overcome this, Mamba relies on a hardware-aware parallel scan algorithm. By fusing the scan operations and materializing the expanded hidden states ($h_t$) exclusively in the faster, on-chip SRAM of the GPU (bypassing the slower High Bandwidth Memory (HBM) IO bottleneck) Mamba achieves training speeds competitive with highly optimized Transformers while preserving the inference efficiency of a recurrent neural network.
 
-\subsection{Feature Engineering}
+\section{Feature Engineering}
+\subsection{Autogluon}
 Although Autogluon provides models and workflows for language related data, nucleotide sequences can not be grouped in such a category without specific considerations. Firstly, nucleotide sequences do not have strictly defined words, sentences or punctuation, meaning that methods that are normally used in language processing can not be employed the same way. As such, feature engineering has to be taken care of based on domain knowledge and previous work. Due to the inspiration from MicroT-CNN and the nature of the data from miRBench, the features that were initially considered are derived from:
 \newpage
 
-\begin{enumerate}
+\begin{itemize}
 	\item MRE Conservation Scores
 	\item Nucleotide Sequences
 	\item Energy related scores
 	\item miRNA:MRE Duplex Structure
 	\item MRE secondary structure
-\end{enumerate}
+\end{itemize}
 
 \subsubsection*{MRE secondary structure}
 The tool used for MRE secondary structure prediction is Contrafold \parencite{doCONTRAfoldRNASecondary}, which is based on Stochastic Context-Free Grammars instead of classical physics based approaches that are typically employed for such tasks. The output of this tool is the secondary structure of the MRE in dot bracket notation which can not be used immediately as input for machine learning models and Multi-Layer perceptrons. In general, features of sequential nature which include nucleotide sequences, secondary structure and duplex structure have to be processed manually in order for them to be useful for the aforementioned models. In this case, the secondary structure was parsed and some basic features were created that include: 
@@ -554,14 +555,120 @@ The nucleotide sequence itself is arguably the hardest one to draw tabular featu
 
 \subsubsection*{Feature Selection}
 \label{subsec:Feature Selection}
+After training and evaluating autogluon on a total of 190 features, the featurewiz library was utilized for feature selection \parencite{seshadriAutoViMLFeaturewizUse2020}. Featurewiz employs an advanced feature selection algorithm that is based on the Minimum Redundancy Maximum Relevance (MRMR) scheme, which ensures that the features with the maximum defined relevance score to the desired variable are selected while at the same time, ones that are correlated with each other are excluded. To achieve this, it uses the SULOV method (Searching for Uncorrelated List of Variables), and a recursive XGBoost model that selects the best subset of features after SULOV. All of the steps are described below: 
+\newpage
+\begin{enumerate}
+	\item Find all variables that are correlated with Pearson Correlation Coefficient > 0.7
+	\item Find the Mutual Information score of each one with the target variable
+	\item From the correlated pairs eliminate the features with lower MI with the target
+	\item Split the data for kfold cross validation before passing them to the XGBoost model
+	\item For each fold, find the top features on train using validation for early stopping
+	\item Combine all sets of features from each fold and deduplicate them
+\end{enumerate}
+
+\begin{figure}[H]
+	\centering
+	\begin{minipage}{\textwidth}
+		\centering
+		% Define the figure file in the \includegraphics command
+		% Must be relative to one of the paths
+		% in the \graphicspath command at the top
+		\includegraphics[width=0.8\linewidth, height=10cm]{MRMR}
+		% Place caption under the figure
+		\caption{MRMR vs Boruta.
+			\parencite{seshadriAutoViMLFeaturewizUse2020}}
+		% Label the caption to include in the list of figures
+		\label{fig:MRMR vs Boruta}
+	\end{minipage}
+\end{figure}
+
+\subsection{Language Models}
+When it comes to Language Models, the need for feature engineering is minimal as the only input to be processed is typically the nucleotide sequence after some sort of encoding (e.g One Hot Encoding or Kmer Encoding). The most intensive part of developing such models is finding the appropriate architecture that, at least in some aspect, fits the structure of the problem to be solved and performing hyperparameter tuning afterwards. The caveat that comes due to the nature and complexity of these models however, is the reduced interpretability in terms of results. Interpreting the decisions of such models is still an active area of research and although specific methods have been developed (such as Shapley values \cite{liShapleyValueCooperative2024}), a lot of involvement is still necessary for comprehending their meaning depending on the task at hand.  
+
+\section{Feature Importance}
+Finally, the output of the pipeline contains two ways to interpret the model's predictions:
+\begin{itemize}
+	\item Global Permutation based score for each feature
+	\item Per Sample Shapley Value for each feature
+\end{itemize}
+
+\subsection{Global Interpretability: Permutation Feature Importance in AutoGluon}
+
+While highly predictive, the stacked, multi-layer ensemble models generated by AutoGluon are inherently opaque. To extract global interpretability without relying on a specific underlying model architecture, AutoGluon natively implements Permutation Feature Importance (PFI).
+
+Originally introduced in the context of Random Forests, PFI measures the structural reliance of a trained model on a specific feature by observing the degradation in predictive performance when that feature's information is systematically destroyed. 
+
+Mathematically, let $M$ be the trained AutoGluon predictor, $D = \{(X_i, y_i)\}_{i=1}^N$ be the validation dataset, and $s(M, D)$ be the baseline evaluation score (e.g., Accuracy, F1, or negative RMSE). To calculate the importance of a specific feature $j$, its values are randomly shuffled across all $N$ instances to create a corrupted dataset, $\tilde{D}_j$. This breaks any true relationship between feature $j$ and the target $y$ without altering the feature's marginal distribution. The permutation feature importance, $I_j$, is defined as the resulting drop in performance:
+
+\begin{equation}
+	I_j = s(M, D) - s(M, \tilde{D}_j)
+\end{equation}
+
+A high $I_j$ indicates that the model relies heavily on feature $j$, as disrupting its distribution severely penalizes the score. Conversely, an $I_j$ near zero suggests the feature is either irrelevant or highly correlated with other features in the ensemble that compensate for its absence.
+
+\subsection{Local Interpretability: SHapley Additive exPlanations (SHAP)}
+
+While permutation importance provides a macroscopic view of feature relevance, it fails to explain individual predictions. To achieve local interpretability, modern machine learning relies on SHapley Additive exPlanations (SHAP), a framework grounded in cooperative game theory.
+
+SHAP frames the prediction of a single instance as a cooperative game where the "payout" is the model's output, and the "players" are the input features. The goal is to distribute the difference between the actual prediction and the base expected value fairly among all features.
+
+For a given model $f$ and a specific data instance $x$, let $F$ be the set of all features. The Shapley value $\phi_i$ for feature $i$ is calculated by computing its marginal contribution across every possible permutation of feature subsets. Mathematically, it is formulated as:
+
+\begin{equation}
+	\phi_i(f, x) = \sum_{S \subseteq F \setminus \{i\}} \frac{|S|! \left( |F| - |S| - 1 \right)!}{|F|!} \left[ f_x(S \cup \{i\}) - f_x(S) \right]
+\end{equation}
+
+where $S$ is a subset of features not containing $i$, and $f_x(S)$ represents the model's expected prediction when only the features in subset $S$ are known. 
+
+The term in the brackets isolates the exact marginal impact of adding feature $i$ to the existing coalition $S$. Because the order in which features are added changes their marginal contribution (due to feature interactions), the combinatorial fraction acts as a weighting factor. It ensures that the contribution is averaged over all possible sequences in which the coalition could be formed.
+
+The defining theoretical advantage of SHAP is local accuracy (additivity): the sum of all feature contributions $\phi_i$ exactly equals the difference between the model's output for instance $x$ and the global expected prediction. This provides a mathematically rigorous guarantee of fair attribution that heuristic explanation methods lack.
 
 \chapter{Results}
 \section{Language Models}
 \par Inspired by microT-CNN \parencite{zacharopoulouMicroTCNNAvantgardeDeep2024}, two approaches were followed with the final goal of making an enhanced algorithm for achieving site-level miRNA target site prediction. Language model architectrures were developed based on Mamba in order to test their capabilities of learning miRNA binding rules based only on nucleotide sequences. The initial experiment involved using the kmer encoded (k=4) chimeric sequences, that are the result of merging the miRNA and MRE sequences as input to a Transformer model. Unfortunately, this led to a model that seemed to be underfitting despite subsequent trials to fine tune its hyperparameters. The same held true even with the attempt of making a siamese neural network that processed the miRNA and the MRE sequences separately and tried to minimize the distance between them in the embedded space. The Mamba architecture seemed to yield similar results and thus a change in terms of encoding was needed.
 
-\par The kmer encoding was swapped with One Hot encoding and  
+\par Kmer encoding was swapped with One Hot encoding which contains a fifth position with a label for whether the sequence belongs to the MRE or the miRNA and the Mamba architecture was evaluated. Although training performance and validation performance increased dramatically, there is a significant amount of overfitting which could not be mitigated despite the attempts to reduce the number of parameters and use multiple regularization techniques. A grid of Mamba's performance across epochs can be seen below:
 
-\section{Machine Learning}
+\begin{figure}[htbp]
+    \centering
+    \begin{subfigure}[b]{0.3\textwidth}
+        \includegraphics[width=\textwidth]{train_loss}
+        \caption{Train Loss}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.3\textwidth}
+        \includegraphics[width=\textwidth]{train_aps}
+        \caption{Train APS}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.3\textwidth}
+        \includegraphics[width=\textwidth]{train_auroc}
+        \caption{Train AUROC}
+    \end{subfigure}
+    
+    \vspace{10pt} % Space between rows
+    
+    \begin{subfigure}[b]{0.3\textwidth}
+        \includegraphics[width=\textwidth]{val_loss}
+        \caption{Validation Loss}
+    \end{subfigure}
+	\hfill
+    \begin{subfigure}[b]{0.3\textwidth}
+        \includegraphics[width=\textwidth]{val_aps}
+        \caption{Validation APS}
+    \end{subfigure}
+	\hfill
+    \begin{subfigure}[b]{0.3\textwidth}
+        \includegraphics[width=\textwidth]{val_auroc}
+        \caption{Validation AUROC}
+    \end{subfigure}
+    \caption{Comprehensive grid of results showing Mamba Performance}
+    \label{fig:results_grid}
+\end{figure}
+\newpage
+
+\section{Autogluon}
 \par Starting with 
 
 \chapter{FIGURES AND TABLES} \label{figures_and_tables}
