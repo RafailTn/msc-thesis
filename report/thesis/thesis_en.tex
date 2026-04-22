@@ -552,7 +552,7 @@ In the scope of this thesis, Phastcons100way and PhastCons470way were used and t
 \end{itemize}
 
 \subsubsection*{Sequence}
-The nucleotide sequence itself is arguably the hardest one to draw tabular features from. One could start in a rudimentary way by calculating local AU and GC percentages, however this only works in for specific regions and on specific types of interactions (e.g AU percent flanking upstream of the seed region). For that reason, the approach that was followed aimed to use the nucleotides as a proxy for creating a more detailed energy profile of the sequences. By mapping dinucleotides to their stacking energy values according to \cite{turnerNNDBNearestNeighbor2010}, it became feasible to create a numerical vector of energy scores that are based on experimental data and that can be used to extract features describing their distributions in specific subregions of each sequence. In total, over 100 such features were extracted from both the MRE and the miRNA by splitting them to 6 regions each before calculating the features. Only a portion of them made it to the final model, using an advanced feature selection method (see \nameref{subsec:Feature Selection})
+The nucleotide sequence itself is arguably the hardest one to draw tabular features from. One could start in a rudimentary way by calculating local AU and GC percentages, however this only works in for specific regions and on specific types of interactions (e.g AU percent flanking upstream of the seed region). For that reason, the approach that was followed aimed to use the nucleotides as a proxy for creating a more detailed energy profile of the sequences. By mapping dinucleotides to their stacking energy values according to \cite{turnerNNDBNearestNeighbor2010}, it became feasible to create a numerical vector of energy scores that are based on experimental data and that can be used to extract features describing their distributions in specific subregions of each sequence. In total, over 100 such features were extracted from both the MRE and the miRNA by splitting them to 6 regions each before calculating the features. Only a portion of them made it to the final model, using an advanced feature selection method (see \nameref{subsec:Feature Selection}). Trimer frequencies and related statistical features were also extracted but by grouping the nucleotides to Purines and Pyrimidines beforehand in order to reduce the dimensionality of the resulting table.
 
 \subsubsection*{Feature Selection}
 \label{subsec:Feature Selection}
@@ -670,11 +670,11 @@ The defining theoretical advantage of SHAP is local accuracy (additivity): the s
 \newpage
 
 \section{Autogluon}
-Given that Mamba models were overfitting even with few parameters and regularization, a logical option would be to attempt using simpler machine learning algorithms, which is why Autogluon was employed. The initial feature set contained everything mentioned in the \nameref{Methods} chapter but the only energy related feature was the Molecular Free Energy value output by RNADuplex, while any duplex related feature come from its prediction for the duplex. Additionally this is the only feature set where Contrafold related features appear as it was discovered that removing them had no effect on the performance of the model. 
+Given that Mamba models were overfitting even with few parameters and regularization, a logical option would be to attempt using simpler machine learning algorithms, which is why Autogluon was employed. The initial feature set contained everything mentioned in the \nameref{Methods} chapter but the only energy related feature was the Molecular Free Energy value output by RNADuplex, while any duplex related feature comes from its prediction for the duplex and sequence related features are limited to local AU/GC percentages. Additionally this is the only feature set where Contrafold related features appear as it was discovered that removing them had no effect on the performance of the model. 
 
 \begin{table}[H]
     % this is before the table
-    \caption{RNADuplex Feature Set Performance}
+    \caption{RNADuplex Performance}
     % this is to label and include it in our list of tables
     \label{tbl:RNADuplex Performance}
     \begin{center} % center the table
@@ -688,78 +688,136 @@ Given that Mamba models were overfitting even with few parameters and regulariza
     \end{center}
 \end{table}
 
+The first improvement arose after the decision to use IntaRNA instead of RNADuplex. Due to the fact that IntaRNA takes into consideration intramolecular pairing and provides multiple Energy features instead of just an MFE value like RNADuplex, it is a great candidate for improving model performance. Iniitally, the Exact mode of it was used and indeed lead to a significant performance boost.
 
-\chapter{FIGURES AND TABLES} \label{figures_and_tables}
-
-\section{Inserting tables} \label{inserting_tables}
-
-Below is a sample table with its caption.
-Make sure you put the caption \textbf{over} the table.
-For instance, this code in \LaTeX{}:
-
-\begin{table}
+\begin{table}[H]
     % this is before the table
-    \caption{A sample event log, sorted by timestamp}
+    \caption{IntaRNA Performance}
     % this is to label and include it in our list of tables
-    \label{tbl:event_log_sample}
+    \label{tbl:IntaRNA Performance}
     \begin{center} % center the table
-        \begin{tabular}{c|c|c}
-            \textbf{Case Id} & \textbf{Activity} & \textbf{Timestamp} \\
+        \begin{tabular}{c|c|c|c|c}
+            \textbf{IntaRNA} & \textbf{Training} & \textbf{Validation}& \textbf{Test}& \textbf{Holdout} \\
             \hline
-            1 & Activity A & 2021-05-24T12:30:00Z \\
-            1 & Activity B & 2021-05-24T12:30:26Z \\
-            1 & Activity C & 2021-05-24T12:31:04Z \\
-            2 & Activity A & 2021-05-24T13:19:39Z \\
-            2 & Activity B & 2021-05-24T13:19:50Z \\
-            3 & Activity A & 2021-05-24T13:19:59Z \\
-            2 & Activity C & 2021-05-24T13:22:14Z \\
-            3 & Activity B & 2021-05-24T13:24:24Z \\
-            4 & Activity A & 2021-05-24T13:25:06Z \\
-            3 & Activity C & 2021-05-24T13:25:27Z \\
-            4 & Activity B & 2021-05-24T13:25:53Z \\
-            4 & Activity C & 2021-05-24T13:27:48Z \\
+			ROC-AUC & 79.1 & 78.8 & 78.4 & 79 \\
+			APS & 82.1 & 81.5 & 82.3 & 83.3 \\
             \hline
         \end{tabular}
     \end{center}
 \end{table}
 
-\pagebreak
+Given the increase in performance, an attempt was made to incorporate the ensemble mode of IntaRNA. The issue with this mode is the absence of a clear duplex structure which occurs due to its algorithm. Therefore, both modes were used and only sites of interaction predicted by both were kept. This allows for retaining the ensemble mode calculated energy features and a duplex structure for extraction of binding type information. The results of this feaature set are shown below:
 
-\section{Inserting figures} \label{inserting_figures}
+\begin{table}[H]
+    % this is before the table
+    \caption{IntaRNA Ensemble Performance}
+    % this is to label and include it in our list of tables
+    \label{tbl:IntaRNA Ensemble Performance}
+    \begin{center} % center the table
+        \begin{tabular}{c|c|c|c|c}
+            \textbf{IntaRNA Ensemble} & \textbf{Training} & \textbf{Validation}& \textbf{Test}& \textbf{Holdout} \\
+            \hline
+			ROC-AUC & 79.8 & 79.2 & 78.7 & 79.4 \\
+			APS & 82.6 & 81.9 & 82.6 & 83.6 \\
+            \hline
+        \end{tabular}
+    \end{center}
+\end{table}
 
-Below is an example of inserting a figure with its caption.
-Make sure you put the caption \textbf{under} the figure.
-For example, this \LaTeX{} code:
+Maintaining the features provided by the combined output of Exact and Ensemble modes, extra features were added that were based on the nucleotide sequence, not restricted to the seed or binding site predictions of IntaRNA. The sequence was read in dinucleotides, each one was mapped to an energy value as described in \nameref{Methods} and statistical features were extracted. Additionally, expression values for each miRNA sequence were extracted from \cite{manakovScalableDeepProfiling2022} and used as a feature with the hypothesis that they would help the model learn the dependency between expression levels and interactions. Unfortunately, expression levels did not increase the performance of the model.
 
-\backmatter
+\begin{table}[H]
+    % this is before the table
+    \caption{IntaRNA Ensemble with expression and sequence features Performance}
+    % this is to label and include it in our list of tables
+    \label{tbl:IntaRNA Ensemble with expression and sequence features Performance}
+    \begin{center} % center the table
+        \begin{tabular}{c|c|c|c|c}
+            \textbf{IntaRNA Ensemble with expression and sequence} & \textbf{Training} & \textbf{Validation}& \textbf{Test}& \textbf{Holdout} \\
+            \hline
+			ROC-AUC & 82 & 80.4 & 80.4 & 80.5 \\
+			APS & 84.4 & 82.7 & 83.8 & 84.4 \\
+            \hline
+        \end{tabular}
+    \end{center}
+\end{table}
 
-% abbreviations table
-\abbreviations
-\begin{center}
-    \renewcommand{\arraystretch}{1.5}
-    \begin{longtable}{ l @{\qquad} l }
-        \toprule
-        AI    & Artificial Intelligence         \\
-        SPARQL & SPARQL Protocol and RDF Query Language \\
-        OWL    & Web Ontology Language                  \\
-        OGC    & Open Geospatial Consortium             \\
-        \bottomrule
-    \end{longtable}
-\end{center}
+Since expression alone did not account for experimental and tissue specific biases, correction of the dataset to account for false negatives was performed utilizing TarBase was performed and weights were added to each samples following the aforementioned formula. Metrics were reported taking into account these weights so as to express the model's generalization to new families more reliably, and a non-weighted APS value is also reported for direct comparison with previous feature sets.
 
-% appendix
-\begin{appendix}
-    % mark the beginning of the appendix
-    \appendixstartedtrue
+\begin{table}[H]
+    % this is before the table
+    \caption{IntaRNA Ensemble Corrected Performance}
+    % this is to label and include it in our list of tables
+    \label{tbl:IntaRNA Ensemble Corrected Performance}
+    \begin{center} % center the table
+        \begin{tabular}{c|c|c|c|c}
+            \textbf{IntaRNA Ensemble Corrected} & \textbf{Training} & \textbf{Validation}& \textbf{Test}& \textbf{Holdout} \\
+            \hline
+			APS & 84 & 83.7 & 83.4 & 84 \\
+			ROC-AUC (weighted) & 88.1 & 81.6 & 81.9 & 77.6 \\
+			APS (weighted) & 89.5 & 84.1 & 85.2 & 81.6 \\
+            \hline
+        \end{tabular}
+    \end{center}
+\end{table}
+\newpage
 
-    \chapter{FIRST APPENDIX}
+In order to perform a proper comparison for the goal of miRNA target prediction, PhastCons100way vectors were used instead of PhastCons470way while keeping the rest of the feature set the same. The results show negligible changes in performance and thus the features from PhastCons470way were kept since they are mammal specific.
 
-    \chapter{SECOND APPENDIX}
+\begin{table}[H]
+    % this is before the table
+    \caption{IntaRNA Ensemble PhastCons100way}
+    % this is to label and include it in our list of tables
+    \label{tbl:IntaRNA Ensemble PhastCons100way}
+    \begin{center} % center the table
+        \begin{tabular}{c|c|c|c|c}
+            \textbf{IntaRNA Ensemble PhastCons100way} & \textbf{Training} & \textbf{Validation}& \textbf{Test}& \textbf{Holdout} \\
+            \hline
+			APS & 84.1 & 83.7 & 84.1 & 84.1 \\
+			ROC-AUC (weighted) & 89.3 & 81.6 & 82.2 & 77.9 \\
+			APS (weighted) & 90.5 & 84.1 & 85.6 & 81.8 \\
+            \hline
+        \end{tabular}
+    \end{center}
+\end{table}
 
-    % add appendix line to ToC
-    \phantomsection
-    \addcontentsline{toc}{chapter}{APPENDICES}
-\end{appendix}
+Additional conservation features were added describing more aspects of the distribution of these scores locally across the sequence of the MRE and feature selection was performed via Featurewiz which led to a reduction of 190 features in total to 60 with minimal losses in performance.
+
+\begin{table}[H]
+    % this is before the table
+    \caption{IntaRNA Ensemble Featurewiz}
+    % this is to label and include it in our list of tables
+    \label{tbl:IntaRNA Ensemble Featurewiz}
+    \begin{center} % center the table
+        \begin{tabular}{c|c|c|c|c}
+            \textbf{IntaRNA Ensemble Featurewiz} & \textbf{Training} & \textbf{Validation}& \textbf{Test}& \textbf{Holdout} \\
+            \hline
+			APS & 83.3 & 83.3 & 83.6 & 83.8 \\
+			ROC-AUC (weighted) & 86.5 & 81 & 81.7 & 77.1 \\
+			APS (weighted) & 88.1 & 83.7 & 85.1 & 81.4 \\
+            \hline
+        \end{tabular}
+    \end{center}
+\end{table}
+
+Finally, the model was trained on the entirety of the training dataset and tested once again on the two test sets. These results show that the model is able to learn to distunguish Binding from non Binding with metrics close to SOTA models for the same task. Furthermore, evaluating it on metrics weighted on miRNA families shows something that other SOTA models have not examined thus far which is a more detailed description of the model to generalize to new miRNA families not only via testing on unseen data but by also reflecting the task within model training and metrics.
+
+ \begin{table}[H]
+    % this is before the table
+    \caption{Final Model}
+    % this is to label and include it in our list of tables
+    \label{tbl:Final Model}
+    \begin{center} % center the table
+        \begin{tabular}{c|c|c|c|c}
+            \textbf{Final Model} & \textbf{Training} & \textbf{Validation}& \textbf{Test}& \textbf{Holdout} \\
+            \hline
+			APS & 84.7 & 82.8 & 84.1 & 83.8 \\
+			ROC-AUC (weighted) & 89.7 & 81.6 & 82.2 & 77.2 \\
+			APS (weighted) & 90.7 & 84.5 & 85.6 & 81.5 \\
+            \hline
+        \end{tabular}
+    \end{center}
+\end{table}
 
 \printbibliography[title=REFERENCES]
 

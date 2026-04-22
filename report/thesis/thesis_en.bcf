@@ -2456,6 +2456,7 @@
     <bcf:citekey order="60" intorder="1">seshadriAutoViMLFeaturewizUse2020</bcf:citekey>
     <bcf:citekey order="61" intorder="1">liShapleyValueCooperative2024</bcf:citekey>
     <bcf:citekey order="62" intorder="1">zacharopoulouMicroTCNNAvantgardeDeep2024</bcf:citekey>
+    <bcf:citekey order="63" intorder="1">manakovScalableDeepProfiling2022</bcf:citekey>
   </bcf:section>
   <!-- SORTING TEMPLATES -->
   <bcf:sortingtemplate name="nty">
