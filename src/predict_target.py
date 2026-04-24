@@ -309,10 +309,37 @@ def main() -> int:
         description="Run the miRNA target prediction pipeline end-to-end."
     )
     # -- Input / output --------------------------------------------------------
-    parser.add_argument("-target_fasta", required=True,
-                        help="FASTA file containing target/mRNA sequences")
-    parser.add_argument("-query_fasta", required=True,
-                        help="FASTA file containing query/miRNA sequences")
+    parser.add_argument("-target_fasta",
+                        help="FASTA file containing target/mRNA sequences. "
+                             "Required unless -pairs is given (in which case "
+                             "it is generated automatically).")
+    parser.add_argument("-query_fasta",
+                        help="FASTA file containing query/miRNA sequences. "
+                             "Required unless -pairs is given (in which case "
+                             "it is generated automatically).")
+    parser.add_argument("-pairs",
+                        help="TSV/CSV file with (miRNA isoform, gene) pairs for "
+                             "Homo sapiens. When provided, build_inputs.py is "
+                             "called to fetch miRBase + Ensembl GRCh38 sequences "
+                             "and produce the two FASTAs plus a conservation "
+                             "TSV. Incompatible FASTA flags are ignored.")
+    parser.add_argument("-pairs_sep", default="\t",
+                        help="Column separator in the -pairs file (default: TAB; "
+                             "use ',' for CSV).")
+    parser.add_argument("-pairs_mirna_col", default="mirna_id",
+                        help="Column holding miRNA isoform names in the -pairs "
+                             "file (default: mirna_id).")
+    parser.add_argument("-pairs_gene_col", default="gene_name",
+                        help="Column holding gene symbols/Ensembl ids in the "
+                             "-pairs file (default: gene_name).")
+    parser.add_argument("-pairs_window_size", type=int, default=50,
+                        help="Window length for sliding MRE generation "
+                             "(default: 50 — downstream features assume this).")
+    parser.add_argument("-pairs_step", type=int, default=25,
+                        help="Sliding-window step (default: 25).")
+    parser.add_argument("-mirbase_fa",
+                        help="Cached miRBase mature.fa[.gz] for -pairs lookups. "
+                             "Auto-downloaded if missing.")
     parser.add_argument("-conservation_tsv",
                         help="TSV with conservation vectors (--conservation). "
                              "Mutually exclusive with -bigwig.")
@@ -363,6 +390,14 @@ def main() -> int:
         print("Error: -threads must be >= 1.", file=sys.stderr)
         return 1
 
+    if not args.pairs and not (args.target_fasta and args.query_fasta):
+        print("Error: provide either -pairs, or both -target_fasta and "
+              "-query_fasta.", file=sys.stderr)
+        return 1
+    if args.pairs and (args.target_fasta or args.query_fasta):
+        print("Note: -pairs was provided; -target_fasta / -query_fasta "
+              "arguments will be ignored and regenerated.", file=sys.stderr)
+
     cpu_count = os.cpu_count() or 4
     if args.threads > cpu_count * 2:
         print(
@@ -396,6 +431,28 @@ def main() -> int:
     print(f"Temp directory: {tmp_dir}\n")
 
     try:
+        # -- Step 0: Build inputs from a miRNA/gene pairs file -----------------
+        if args.pairs:
+            build_dir = tmp_dir / "build_inputs"
+            build_cmd = [
+                "python3", str(_HERE / "build_inputs.py"),
+                "-i", args.pairs,
+                "-o", str(build_dir),
+                "--sep", args.pairs_sep,
+                "--mirna-col", args.pairs_mirna_col,
+                "--gene-col", args.pairs_gene_col,
+                "--window-size", str(args.pairs_window_size),
+                "--step", str(args.pairs_step),
+            ]
+            if args.mirbase_fa:
+                build_cmd += ["--mirbase-fa", args.mirbase_fa]
+            _run(build_cmd, step="build-inputs", timeout=3600)
+
+            args.target_fasta = str(build_dir / "mre.fa")
+            args.query_fasta  = str(build_dir / "mirna.fa")
+            if not args.conservation_tsv:
+                args.conservation_tsv = str(build_dir / "conservation.tsv")
+
         # -- Step 1: IntaRNA standard ------------------------------------------
         intarna_out = tmp_dir / "intarna_results.tsv"
         intarna_ens_out = tmp_dir / "intarna_results_ensemble.tsv"
