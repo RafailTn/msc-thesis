@@ -1,0 +1,310 @@
+% features_table.tex — \input this file where you want the table.
+% Requires: booktabs, longtable, amsmath, array
+
+\begingroup
+\small
+\setlength{\LTpre}{6pt}
+\setlength{\LTpost}{6pt}
+
+% \feat{name} — monospaced feature name that can line-break at underscores
+\newcommand{\feat}[1]{%
+  \begingroup
+  \def\_{\textunderscore\discretionary{}{}{}}%
+  \texttt{#1}%
+  \endgroup
+}
+
+\begin{longtable}{
+  >{\raggedright\arraybackslash}p{5.2cm}
+  >{\raggedright\arraybackslash}p{9.2cm}
+}
+\caption{Features extracted by the unified feature-extraction pipeline.
+         Notation: $\mathbf{E} = (E_1,\dots,E_n)$ denotes the vector of
+         Turner nearest-neighbour stacking energies (kcal\,mol$^{-1}$,
+         37\,$^{\circ}$C) for consecutive dinucleotides of a given
+         sequence region; $\Delta E_i = E_{i+1} - E_i$.
+         The duplex vector $\mathbf{v}$ encodes per-position alignment
+         codes (\texttt{1}\,=\,match, \texttt{2}\,=\,mismatch,
+         \texttt{3}\,=\,MRE bulge, \texttt{4}\,=\,miRNA bulge).}
+\label{tab:features} \\
+
+\toprule
+\textbf{Feature} & \textbf{Definition / Formula} \\
+\midrule
+\endfirsthead
+
+\multicolumn{2}{l}{\small\itshape Table~\ref{tab:features} continued} \\[4pt]
+\toprule
+\textbf{Feature} & \textbf{Definition / Formula} \\
+\midrule
+\endhead
+
+\midrule
+\multicolumn{2}{r}{\small\itshape continued on next page} \\
+\endfoot
+
+\bottomrule
+\endlastfoot
+
+% =====================================================================
+\multicolumn{2}{l}{\textbf{IntaRNA thermodynamic energies}} \\
+\midrule
+
+\feat{Eall}
+  & Ensemble energy of all considered interactions (-RT*log(Zall).
+    Computed by IntaRNA. \\[3pt]
+
+\feat{Eall2}
+  & Ensemble energy of all considered intra-molecular structures of seq2 (given its accessibility constraints) returned by IntaRNA.
+     \\[3pt]
+
+\feat{ED\_query}
+  & Accessibility energy penalty of the miRNA (query) sequence;
+    free-energy cost of making the binding region single-stranded. \\[3pt]
+
+\feat{Energy\_hybrid\_norm}
+  & Hybridisation energy normalised by interaction length:
+    $E_{\text{hyb}} / \lvert\text{interaction}\rvert$. \\[6pt]
+
+% =====================================================================
+\multicolumn{2}{l}{\textbf{Duplex-structure statistics}} \\
+\midrule
+
+\feat{total\_matches}
+  & $\displaystyle\sum_{i} \mathbf{1}[v_i = \texttt{1}]$
+    \quad (number of Watson--Crick + GU matched positions). \\[3pt]
+
+\feat{total\_mre\_bulges}
+  & $\displaystyle\sum_{i} \mathbf{1}[v_i = \texttt{3}]$
+    \quad (unpaired MRE nucleotides opposite a miRNA match). \\[3pt]
+
+\feat{total\_gu\_wobbles}
+  & Total G\,:\,U wobble pairs across the full duplex. \\[3pt]
+
+\feat{match\_fraction}
+  & $\texttt{total\_matches}\;/\;\lvert\mathbf{v}\rvert$. \\[6pt]
+
+% =====================================================================
+\multicolumn{2}{l}{\textbf{Seed region (miRNA positions 2--8)}} \\
+\midrule
+
+\feat{seed\_matches\_2\_8}
+  & Number of matches (\texttt{1}) in the duplex vector
+    at miRNA positions 2--8. \\[3pt]
+
+\feat{gu\_wobbles\_in\_seed\_2\_8\_pos}
+  & Number of G\,:\,U wobble pairs among seed-region
+    matched positions. \\[3pt]
+
+\feat{seed\_au\_content}
+  & Fraction of seed matched pairs that are A\,:\,U:
+    $n_{\text{AU}} / n_{\text{seed pairs}}$. \\[6pt]
+
+% =====================================================================
+\multicolumn{2}{l}{\textbf{Non-seed / 3\textsuperscript{\ensuremath{\prime}} supplementary region (miRNA pos.\,$\geq$\,9)}} \\
+\midrule
+
+\feat{consecutive\_matches\_minus\_seed}
+  & Longest run of consecutive matches (\texttt{1}) in the
+    non-seed portion of the duplex vector. \\[3pt]
+
+\feat{nonseed\_au\_content}
+  & $n_{\text{AU}}^{\text{(nonseed)}} / n_{\text{nonseed pairs}}$. \\[3pt]
+
+\feat{effective\_3prime\_matches}
+  & Non-seed matched pairs minus G\,:\,U wobble pairs in the non-seed
+    region: $n_{\text{nonseed pairs}} - n_{\text{GU}}^{\text{(nonseed)}}$. \\[6pt]
+
+% =====================================================================
+\multicolumn{2}{l}{\textbf{Conservation features (phastCons)}} \\
+\midrule
+
+\feat{seed\_conservation\_median}
+  & Median phastCons score over MRE positions aligned to
+    miRNA seed (positions 1--7). \\[3pt]
+
+\feat{seed\_conservation\_max}
+  & Maximum phastCons score over the same seed-aligned MRE positions. \\[3pt]
+
+\feat{seed\_conservation\_min}
+  & Minimum phastCons score over the same seed-aligned MRE positions. \\[3pt]
+
+\feat{five\_prime\_flank\_conservation\_mean}
+  & Mean phastCons of the $k$ nucleotides immediately
+    5\textsuperscript{\ensuremath{\prime}} of the seed MRE region ($k = \texttt{flank\_size}$). \\[3pt]
+
+\feat{three\_prime\_flank\_conservation\_mean}
+  & Mean phastCons of the $k$ nucleotides immediately
+    3\textsuperscript{\ensuremath{\prime}} of the seed MRE region. \\[3pt]
+
+\feat{conservation\_range}
+  & $\max(\mathbf{c}) - \min(\mathbf{c})$, where $\mathbf{c}$ is the
+    full 50-nt conservation vector. \\[3pt]
+
+\feat{downstream\_gini}
+  & Gini coefficient of the downstream third of $\mathbf{c}$:
+    $\displaystyle G = \frac{2\sum_{i} i\, c_{(i)}}{n\sum c_{(i)}}
+     - \frac{n+1}{n}$,
+    with $c_{(i)}$ sorted. \\[6pt]
+
+% =====================================================================
+\multicolumn{2}{l}{\textbf{Thermodynamic / sequence features --- miRNA
+  3\textsuperscript{\ensuremath{\prime}} region (positions $>$ 8)}} \\
+\midrule
+
+\feat{mirna\_3p\_energy\_mean}
+  & $\bar{E} = \frac{1}{n}\sum_{i=1}^{n} E_i$. \\[3pt]
+
+\feat{mirna\_3p\_energy\_std}
+  & $\displaystyle\sigma = \sqrt{\frac{1}{n}\sum(E_i - \bar{E})^2}$. \\[3pt]
+
+\feat{mirna\_3p\_energy\_min}
+  & $\min(E_i)$. \\[3pt]
+
+\feat{mirna\_3p\_energy\_max}
+  & $\max(E_i)$. \\[3pt]
+
+\feat{mirna\_3p\_energy\_range}
+  & $\max(E_i) - \min(E_i)$. \\[3pt]
+
+\feat{mirna\_3p\_energy\_asymmetry}
+  & $\bar{E}_{5'\text{-half}} - \bar{E}_{3'\text{-half}}$, where
+    the energy vector is split at the midpoint. \\[3pt]
+
+\feat{mirna\_3p\_energy\_gradient}
+  & Pearson correlation $r$ between position index and energy:
+    $r(\mathbf{x},\mathbf{E})$, $x_i = i$. \\[3pt]
+
+\feat{mirna\_3p\_5p\_terminal\_energy}
+  & $E_1$ (energy of the first dinucleotide). \\[3pt]
+
+\feat{mirna\_3p\_3p\_terminal\_energy}
+  & $E_n$ (energy of the last dinucleotide). \\[3pt]
+
+\feat{mirna\_3p\_energy\_volatility}
+  & Mean absolute step change:
+    $\frac{1}{n-1}\sum\lvert\Delta E_i\rvert$. \\[3pt]
+
+\feat{mirna\_3p\_energy\_max\_jump}
+  & $\max\lvert\Delta E_i\rvert$. \\[3pt]
+
+\feat{mirna\_3p\_stability\_run\_frac}
+  & Fraction of steps with
+    $\lvert\Delta E_i\rvert < 0.3$\,kcal\,mol$^{-1}$. \\[3pt]
+
+\feat{mirna\_3p\_energy\_oscillation}
+  & Fraction of sign changes in the non-zero elements of
+    $\operatorname{sgn}(\Delta \mathbf{E})$. \\[3pt]
+
+\feat{mirna\_3p\_energy\_drift}
+  & $E_n - E_1$. \\[3pt]
+
+\feat{mirna\_3p\_YYY\_freq}
+  & Frequency of pyrimidine triplets (Y\,=\,C\,$\vert$\,U):
+    $n_{\text{YYY}} / n_{\text{trinuc}}$. \\[3pt]
+
+\feat{mirna\_3p\_YYR\_freq}
+  & Frequency of YYR trinucleotide pattern
+    (R\,=\,A\,$\vert$\,G). \\[3pt]
+
+\feat{mirna\_3p\_YRY\_freq}
+  & Frequency of YRY trinucleotide pattern. \\[3pt]
+
+\feat{mirna\_3p\_ggg\_count}
+  & Count of \texttt{GGG} occurrences in the 3\textsuperscript{\ensuremath{\prime}} region
+    subsequence. \\[6pt]
+
+% =====================================================================
+\multicolumn{2}{l}{\textbf{Thermodynamic / sequence features --- miRNA
+  seed region (positions 2--8)}} \\
+\midrule
+
+\feat{mirna\_seed\_energy\_mean}
+  & $\bar{E}$ of the seed dinucleotides. \\[3pt]
+
+\feat{mirna\_seed\_energy\_min}
+  & $\min(E_i)$ over the seed. \\[3pt]
+
+\feat{mirna\_seed\_energy\_range}
+  & $\max(E_i) - \min(E_i)$ over the seed. \\[3pt]
+
+\feat{mirna\_seed\_energy\_asymmetry}
+  & $\bar{E}_{5'\text{-half}} - \bar{E}_{3'\text{-half}}$
+    within the seed. \\[3pt]
+
+\feat{mirna\_seed\_5p\_terminal\_energy}
+  & $E_1$ of the seed. \\[3pt]
+
+\feat{mirna\_seed\_3p\_terminal\_energy}
+  & $E_n$ of the seed. \\[3pt]
+
+\feat{mirna\_seed\_energy\_drift}
+  & $E_n - E_1$ within the seed. \\[3pt]
+
+\feat{mirna\_seed\_RRR\_freq}
+  & Frequency of purine triplets (R\,=\,A\,$\vert$\,G):
+    $n_{\text{RRR}} / n_{\text{trinuc}}$. \\[6pt]
+
+% =====================================================================
+\multicolumn{2}{l}{\textbf{Thermodynamic / sequence features --- MRE
+  3\textsuperscript{\ensuremath{\prime}} half}} \\
+\midrule
+
+\feat{mre\_3p\_energy\_mean}
+  & $\bar{E}$ of the 3\textsuperscript{\ensuremath{\prime}} half of the MRE
+    dinucleotides. \\[3pt]
+
+\feat{mre\_3p\_energy\_range}
+  & $\max(E_i) - \min(E_i)$. \\[3pt]
+
+\feat{mre\_3p\_energy\_volatility}
+  & $\frac{1}{n-1}\sum\lvert\Delta E_i\rvert$. \\[3pt]
+
+\feat{mre\_3p\_energy\_max\_jump}
+  & $\max\lvert\Delta E_i\rvert$. \\[3pt]
+
+\feat{mre\_3p\_unique\_trinuc\_ratio}
+  & $\lvert\{\text{unique trinucleotides}\}\rvert
+     \;/\; \min(n_{\text{trinuc}},\, 64)$. \\[6pt]
+
+% =====================================================================
+\multicolumn{2}{l}{\textbf{Thermodynamic features --- MRE
+  5\textsuperscript{\ensuremath{\prime}} half}} \\
+\midrule
+
+\feat{mre\_5p\_energy\_mean}
+  & $\bar{E}$ of the 5\textsuperscript{\ensuremath{\prime}} half of the MRE
+    dinucleotides. \\[3pt]
+
+\feat{mre\_5p\_energy\_range}
+  & $\max(E_i) - \min(E_i)$. \\[3pt]
+
+\feat{mre\_5p\_energy\_max\_jump}
+  & $\max\lvert\Delta E_i\rvert$. \\[6pt]
+
+% =====================================================================
+\multicolumn{2}{l}{\textbf{Binding-type indicator variables (one-hot)}} \\
+\midrule
+
+\feat{binding\_type\_5mer.mismatch.3prime}
+  & $\mathbf{1}[\text{type} = \text{5mer with mismatch and
+    3\textsuperscript{\ensuremath{\prime}} supplementary pairing}]$. \\[3pt]
+
+\feat{binding\_type\_6mer.mirna.bulge.3prime}
+  & $\mathbf{1}[\text{type} = \text{6mer with miRNA-side bulge
+    and 3\textsuperscript{\ensuremath{\prime}} pairing}]$. \\[3pt]
+
+\feat{binding\_type\_3prime.compensatory}
+  & $\mathbf{1}[\text{type} = \text{3\textsuperscript{\ensuremath{\prime}}
+    compensatory (}{\geq}\text{8 effective 3\textsuperscript{\ensuremath{\prime}} matches)}]$. \\[3pt]
+
+\feat{binding\_type\_6mer.mismatch.3prime}
+  & $\mathbf{1}[\text{type} = \text{6mer with mismatch and
+    3\textsuperscript{\ensuremath{\prime}} supplementary pairing}]$. \\[3pt]
+
+\feat{binding\_type\_seedless}
+  & $\mathbf{1}[\text{type} = \text{seedless
+    (no canonical seed match)}]$. \\[2pt]
+
+\end{longtable}
+\endgroup
