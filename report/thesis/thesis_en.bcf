@@ -2439,24 +2439,25 @@
     <bcf:citekey order="51" intorder="1">guMambaLinearTimeSequence2024</bcf:citekey>
     <bcf:citekey order="52" intorder="1">doCONTRAfoldRNASecondary</bcf:citekey>
     <bcf:citekey order="53" intorder="1">zacharopoulouMicroTCNNAvantgardeDeep2024</bcf:citekey>
-    <bcf:citekey order="54" intorder="1">lorenzViennaRNAPackage202011</bcf:citekey>
-    <bcf:citekey order="54" intorder="2">hofackerFastFoldingComparison1994</bcf:citekey>
-    <bcf:citekey order="54" intorder="3">lorenzRNAFoldingHard2016</bcf:citekey>
-    <bcf:citekey order="54" intorder="4">turnerNNDBNearestNeighbor2010</bcf:citekey>
-    <bcf:citekey order="55" intorder="1">yangSpaceTimeProcessModel1995</bcf:citekey>
-    <bcf:citekey order="55" intorder="2">felsensteinHiddenMarkovModel1996</bcf:citekey>
-    <bcf:citekey order="55" intorder="3">mayorVISTAVisualizingGlobal2000</bcf:citekey>
-    <bcf:citekey order="55" intorder="4">marguliesIdentificationCharacterizationMultiSpecies2003</bcf:citekey>
-    <bcf:citekey order="55" intorder="5">siepelEvolutionarilyConservedElements2005</bcf:citekey>
-    <bcf:citekey order="55" intorder="6">siepelPhylogeneticHiddenMarkov2005</bcf:citekey>
-    <bcf:citekey order="56" intorder="1">pollardDetectionNonneutralSubstitution2010</bcf:citekey>
-    <bcf:citekey order="57" intorder="1">turnerNNDBNearestNeighbor2010</bcf:citekey>
-    <bcf:citekey order="58" intorder="1">seshadriAutoViMLFeaturewizUse2020</bcf:citekey>
+    <bcf:citekey order="54" intorder="1">zacharopoulouMicroTCNNAvantgardeDeep2024</bcf:citekey>
+    <bcf:citekey order="55" intorder="1">lorenzViennaRNAPackage202011</bcf:citekey>
+    <bcf:citekey order="55" intorder="2">hofackerFastFoldingComparison1994</bcf:citekey>
+    <bcf:citekey order="55" intorder="3">lorenzRNAFoldingHard2016</bcf:citekey>
+    <bcf:citekey order="55" intorder="4">turnerNNDBNearestNeighbor2010</bcf:citekey>
+    <bcf:citekey order="56" intorder="1">yangSpaceTimeProcessModel1995</bcf:citekey>
+    <bcf:citekey order="56" intorder="2">felsensteinHiddenMarkovModel1996</bcf:citekey>
+    <bcf:citekey order="56" intorder="3">mayorVISTAVisualizingGlobal2000</bcf:citekey>
+    <bcf:citekey order="56" intorder="4">marguliesIdentificationCharacterizationMultiSpecies2003</bcf:citekey>
+    <bcf:citekey order="56" intorder="5">siepelEvolutionarilyConservedElements2005</bcf:citekey>
+    <bcf:citekey order="56" intorder="6">siepelPhylogeneticHiddenMarkov2005</bcf:citekey>
+    <bcf:citekey order="57" intorder="1">pollardDetectionNonneutralSubstitution2010</bcf:citekey>
+    <bcf:citekey order="58" intorder="1">turnerNNDBNearestNeighbor2010</bcf:citekey>
     <bcf:citekey order="59" intorder="1">seshadriAutoViMLFeaturewizUse2020</bcf:citekey>
     <bcf:citekey order="60" intorder="1">seshadriAutoViMLFeaturewizUse2020</bcf:citekey>
-    <bcf:citekey order="61" intorder="1">liShapleyValueCooperative2024</bcf:citekey>
-    <bcf:citekey order="62" intorder="1">zacharopoulouMicroTCNNAvantgardeDeep2024</bcf:citekey>
-    <bcf:citekey order="63" intorder="1">manakovScalableDeepProfiling2022</bcf:citekey>
+    <bcf:citekey order="61" intorder="1">seshadriAutoViMLFeaturewizUse2020</bcf:citekey>
+    <bcf:citekey order="62" intorder="1">liShapleyValueCooperative2024</bcf:citekey>
+    <bcf:citekey order="63" intorder="1">zacharopoulouMicroTCNNAvantgardeDeep2024</bcf:citekey>
+    <bcf:citekey order="64" intorder="1">manakovScalableDeepProfiling2022</bcf:citekey>
   </bcf:section>
   <!-- SORTING TEMPLATES -->
   <bcf:sortingtemplate name="nty">

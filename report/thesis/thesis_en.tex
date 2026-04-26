@@ -526,7 +526,7 @@ Because RNA strands hybridize in an anti-parallel orientation, the algorithm eva
 
 where $\Delta G(i', j' \to i, j)$ represents the nearest-neighbor thermodynamic energy penalty (or reward) of forming an internal loop, bulge, or base-pair stack between the preceding anti-parallel pair $(i', j')$ and the new pair $(i, j)$. To prevent the algorithm from evaluating biologically implausible, excessively long gaps, the search limits the maximum allowed distance between interacting pairs, typically restricting asymmetric loop sizes to a predefined constant (e.g., 30 nucleotides).
 
-The final output of RNAduplex is the optimal local interaction site and its associated hybridization energy. While extremely fast, the core limitation of the algorithm stems directly from its mathematical simplification: because it cannot model intramolecular folding, it may predict highly stable intermolecular interactions in regions of the RNA that are, in reality, biologically inaccessible due to strong competing internal secondary structures.
+The final output of RNAduplex is the optimal local interaction site and its associated hybridization energy. While extremely fast, the core limitation of the algorithm stems directly from its mathematical simplification: because it cannot model intramolecular folding, it may predict highly stable intermolecular interactions in regions of the RNA that are, in reality, biologically inaccessible due to strong competing internal secondary structures. The parameters used where the same as \cite{zacharopoulouMicroTCNNAvantgardeDeep2024}.
 
 \paragraph{IntaRNA}
 IntaRNA in its simplest mode can be used to scan genomes for target sites of specific small RNAs using a heuristics based approach that can be modified via a different number of command line arguments. The next mode in terms of simplicity is called IntaRNA exact and it aims to minimize the following sum:
@@ -541,6 +541,12 @@ IntaRNA in its simplest mode can be used to scan genomes for target sites of spe
 \end{equation}
 
 \par The site-specific partition function, $Z(S)$, is calculated by multiplying the Boltzmann weights of the accessibility penalties ($E_{D1}$ and $E_{D2}$) by the sum of the Boltzmann weights for all hybridization interactions ($I$) at that site. Here, $R$ represents the universal gas constant and $T$ is the temperature (with $RT \approx 0.616$ at 37°C). This partition function is used to determine the ensemble energy of all interactions at a given site using the equation $E(S) = -RT \ln(Z(S))$. By calculating ensemble energy rather than relying on a single, static base-pairing model, this approach accounts for the inherent flexibility and dynamic nature of the interacting regions. Furthermore, summing the partition functions across all potential sites yields the global partition function, $Z_{all} = \sum Z(S)$. This allows for the calculation of the probability that a specific interaction $I$ will form, defined as $P_E(I) = \exp(-E(I)/RT) / Z_{all}$. IntaRNA provides additional options that function like other widely used software for the same task like RNADuplex, TargetScan and RNAup \parencite{lorenzViennaRNAPackage202011,hofackerFastFoldingComparison1994,lorenzRNAFoldingHard2016,turnerNNDBNearestNeighbor2010}.
+
+\par The command that was used to run IntaRNA is the following, where these options allow for rather relaxed parameters in terms of feasible duplex energy values, in order to permit feature extraction for negative samples as well (outDeltaE and outMaxE), the acc parameters force the model to calculate global accessibility for intramolecular interactions that are one of its benefits from RNADuplex. The other parameters are necessary based on documentation in order to get the appropriate model (P or X) to function as intended.
+
+\begin{lstlisting}[language=bash, frame=single, breaklines=true]
+	$ IntaRNA --mode=M --accW=0 --accL=0 --outDeltaE=100 --outOverlap=B --model=P(Ensemble) or X(Exact) --noseed --outMaxE=100 --outNoLP 
+\end{lstlisting}
 
 \subsubsection*{Conservation}
 An important aspect that can many times determine if a sequence is functional is how well conserved it is evolutionarily. In essence, it is expected that many MREs will be more conserved across species compared to other non regulatory sequences, with the exception of species-specific ones. The two most widely used ways to measure conservation of nucleotide sequences are via Phastcons \parencite{yangSpaceTimeProcessModel1995,felsensteinHiddenMarkovModel1996,mayorVISTAVisualizingGlobal2000,marguliesIdentificationCharacterizationMultiSpecies2003,siepelEvolutionarilyConservedElements2005,siepelPhylogeneticHiddenMarkov2005} and PhyloP \parencite{pollardDetectionNonneutralSubstitution2010}. Phastcons employs a two-state phylogenetic hidden Markov model (phylo-HMM) to calculate a conservation score for each nucleotide, which represents the posterior probability that the base belongs to a conserved element rather than a non-conserved one. There are two files one can download and use that have genome-wide conservation scores inside, genePhastCons100way and genePhastCons470way. The former was constructed taking into account 100 vertebrate species, while the latter 470 mammalian species. PhyloP scores measure evolutionary conservation at individual alignment sites, indicating whether a site is evolving slower (positive scores) or faster (negative scores) than expected under a neutral model of evolution.
@@ -562,7 +568,6 @@ The nucleotide sequence itself is arguably the hardest one to draw tabular featu
 \subsubsection*{Feature Selection}
 \label{subsec:Feature Selection}
 After training and evaluating autogluon on a total of 190 features, the featurewiz library was utilized for feature selection \parencite{seshadriAutoViMLFeaturewizUse2020}. Featurewiz employs an advanced feature selection algorithm that is based on the Minimum Redundancy Maximum Relevance (MRMR) scheme, which ensures that the features with the maximum defined relevance score to the desired variable are selected while at the same time, ones that are correlated with each other are excluded. To achieve this, it uses the SULOV method (Searching for Uncorrelated List of Variables), and a recursive XGBoost model that selects the best subset of features after SULOV. All of the steps are described below: 
-\newpage
 \begin{enumerate}
 	\item Find all variables that are correlated with Pearson Correlation Coefficient > 0.7
 	\item Find the Mutual Information score of each one with the target variable
@@ -612,7 +617,7 @@ Mathematically, let $M$ be the trained AutoGluon predictor, $D = \{(X_i, y_i)\}_
 
 A high $I_j$ indicates that the model relies heavily on feature $j$, as disrupting its distribution severely penalizes the score. Conversely, an $I_j$ near zero suggests the feature is either irrelevant or highly correlated with other features in the ensemble that compensate for its absence.
 
-\subsection{Local Interpretability: SHapley Additive exPlanations (SHAP)}
+\subsection{Local Interpretability: SHapley Additive explanations (SHAP)}
 
 While permutation importance provides a macroscopic view of feature relevance, it fails to explain individual predictions. To achieve local interpretability, modern machine learning relies on SHapley Additive exPlanations (SHAP), a framework grounded in cooperative game theory.
 
