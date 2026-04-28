@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.141592653-2.6-0.999998 (TeX Live 2026/Arch Linux) (preloaded format=xelatex 2026.4.10)  28 APR 2026 19:59
+This is XeTeX, Version 3.141592653-2.6-0.999998 (TeX Live 2026/Arch Linux) (preloaded format=xelatex 2026.4.10)  28 APR 2026 20:10
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -1339,16 +1339,18 @@ Overfull \hbox (49.319pt too wide) in paragraph at lines 736--743
  [] 
  []
 
-[51] (./features_table.tex
+[51]
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+ [52] (./features_table.tex
 LaTeX Font Info:    Font shape `TU/CourierNew(0)/b/n' will be
 (Font)              scaled to size 9.49997pt on input line 29.
 LaTeX Font Info:    Font shape `TU/CourierNew(0)/m/n' will be
 (Font)              scaled to size 10.40245pt on input line 54.
- [52]
-ignored: Infinite glue shrinkage found in box being split [53]
-ignored: Infinite glue shrinkage found in box being split [54]) [55] [56
 
-]
+ignored: Infinite glue shrinkage found in box being split [53]
+ignored: Infinite glue shrinkage found in box being split [54]
+ignored: Infinite glue shrinkage found in box being split [55]) [56]
 Overfull \hbox (4.30894pt too wide) in paragraph at lines 825--825
 []\TU/Arial(0)/m/n/12 Chiu, H.[]S. \TU/Arial(0)/m/it/12 et al. \TU/Arial(0)/m/n/12 Cupid: Simultaneous Reconstruction of microRNA-target and ceRNA
  []
@@ -1358,7 +1360,9 @@ Overfull \hbox (3.10092pt too wide) in paragraph at lines 825--825
 \TU/Arial(0)/m/n/12 opment and Function. \TU/Arial(0)/m/it/12 BMB reports \TU/Arial(0)/b/n/12 42, \TU/Arial(0)/m/n/12 131–135. ISSN: 1976-6696. PMID: [][]$[][][][][][][][]$[][].
  []
 
-[57] [58]
+[57
+
+] [58]
 Overfull \hbox (20.59865pt too wide) in paragraph at lines 825--825
 \TU/Arial(0)/m/n/12 straints. \TU/Arial(0)/m/it/12 Algorithms for molecular biology: AMB \TU/Arial(0)/b/n/12 11, \TU/Arial(0)/m/n/12 8. ISSN: 1748-7188. PMID: [][]$[][][][][][][][]$[][]
  []
@@ -1382,10 +1386,10 @@ Package logreq Info: Writing requests to 'thesis_en.run.xml'.
 Here is how much of TeX's memory you used:
  31081 strings out of 470159
  594839 string characters out of 5478400
- 1655909 words of memory out of 5000000
+ 1656909 words of memory out of 5000000
  59269 multiletter control sequences out of 15000+600000
  636397 words of font info for 126 fonts, out of 8000000 for 9000
  14 hyphenation exceptions out of 8191
  75i,15n,130p,2923b,7076s stack positions out of 10000i,1000n,20000p,200000b,200000s
 
-Output written on thesis_en.xdv (62 pages, 1036176 bytes).
+Output written on thesis_en.xdv (62 pages, 1040596 bytes).

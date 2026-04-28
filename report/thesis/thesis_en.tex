@@ -782,7 +782,7 @@ In order to perform a proper comparison for the goal of miRNA target prediction,
     \end{center}
 \end{table}
 
-Additional conservation features were added describing more aspects of the distribution of these scores locally across the sequence of the MRE and feature selection was performed via Featurewiz which led to a reduction of 190 features in total to 58 with minimal losses in performance.
+Energy and duplex related features were extracted from scratch with the addition of a parameter in IntaRNA that disables the accessibility computation for miRNA sequences, given that they are bound by AGO proteins and are therefore not folded while additional conservation features were added describing more aspects of the distribution of these scores locally across the sequence of the MRE. Feature selection was performed via Featurewiz which led to a reduction of 190 features in total to 58 with minimal losses in performance. 
 
 \begin{table}[H]
     % this is before the table
