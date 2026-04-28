@@ -551,16 +551,7 @@ IntaRNA in its simplest mode can be used to scan genomes for target sites of spe
 \subsubsection*{Conservation}
 An important aspect that can many times determine if a sequence is functional is how well conserved it is evolutionarily. In essence, it is expected that many MREs will be more conserved across species compared to other non regulatory sequences, with the exception of species-specific ones. The two most widely used ways to measure conservation of nucleotide sequences are via Phastcons \parencite{yangSpaceTimeProcessModel1995,felsensteinHiddenMarkovModel1996,mayorVISTAVisualizingGlobal2000,marguliesIdentificationCharacterizationMultiSpecies2003,siepelEvolutionarilyConservedElements2005,siepelPhylogeneticHiddenMarkov2005} and PhyloP \parencite{pollardDetectionNonneutralSubstitution2010}. Phastcons employs a two-state phylogenetic hidden Markov model (phylo-HMM) to calculate a conservation score for each nucleotide, which represents the posterior probability that the base belongs to a conserved element rather than a non-conserved one. There are two files one can download and use that have genome-wide conservation scores inside, genePhastCons100way and genePhastCons470way. The former was constructed taking into account 100 vertebrate species, while the latter 470 mammalian species. PhyloP scores measure evolutionary conservation at individual alignment sites, indicating whether a site is evolving slower (positive scores) or faster (negative scores) than expected under a neutral model of evolution.
 
-In the scope of this thesis, Phastcons100way and PhastCons470way were used and the results were compared. Since these scores are sequential in nature, features have to be engineered by constructing metrics that measure local properties of the distribution of these scores. On that end, the MRE sequences were split in three segments (3', central and 5' and seed) and a number of statistical features were calculated for each region. For reference, the features that made it to the final model include:
-\begin{itemize}
-	\item 3' Flank Conservation Mean
-	\item 5' Flank Conservation Mean
-	\item Seed Conservation median
-	\item Seed Conservation min
-	\item Seed Conservation max
-	\item Conservation Range
-	\item Downstream Gini
-\end{itemize}
+In the scope of this thesis, Phastcons100way and PhastCons470way were used and the results were compared. Since these scores are sequential in nature, features have to be engineered by constructing metrics that measure local properties of the distribution of these scores. On that end, the MRE sequences were split in three segments (3', central and 5' and seed) and a number of statistical features were calculated for each region.
 
 \subsubsection*{Sequence}
 The nucleotide sequence itself is arguably the hardest one to draw tabular features from. One could start in a rudimentary way by calculating local AU and GC percentages, however this only works in for specific regions and on specific types of interactions (e.g AU percent flanking upstream of the seed region). For that reason, the approach that was followed aimed to use the nucleotides as a proxy for creating a more detailed energy profile of the sequences. By mapping dinucleotides to their stacking energy values according to \cite{turnerNNDBNearestNeighbor2010}, it became feasible to create a numerical vector of energy scores that are based on experimental data and that can be used to extract features describing their distributions in specific subregions of each sequence. In total, over 100 such features were extracted from both the MRE and the miRNA by splitting them to 6 regions each before calculating the features. Only a portion of them made it to the final model, using an advanced feature selection method (see \nameref{subsec:Feature Selection}). Trimer frequencies and related statistical features were also extracted but by grouping the nucleotides to Purines and Pyrimidines beforehand in order to reduce the dimensionality of the resulting table.
@@ -698,7 +689,7 @@ Given that Mamba models were overfitting even with few parameters and regulariza
     \end{center}
 \end{table}
 
-The first improvement arose after the decision to use IntaRNA instead of RNADuplex. Due to the fact that IntaRNA takes into consideration intramolecular pairing and provides multiple Energy features instead of just an MFE value like RNADuplex, it is a great candidate for improving model performance. Iniitally, the Exact mode of it was used and indeed lead to a significant performance boost.
+The first improvement arose after the decision to use IntaRNA instead of RNADuplex. Due to the fact that IntaRNA takes into consideration intramolecular pairing and provides multiple Energy features instead of just an MFE value like RNADuplex, it is a great candidate for improving model performance. Initially, the Exact mode of it was used and indeed lead to a significant performance boost.
 
 \begin{table}[H]
     % this is before the table
@@ -716,7 +707,7 @@ The first improvement arose after the decision to use IntaRNA instead of RNADupl
     \end{center}
 \end{table}
 
-Given the increase in performance, an attempt was made to incorporate the ensemble mode of IntaRNA. The issue with this mode is the absence of a clear duplex structure which occurs due to its algorithm. Therefore, both modes were used and only sites of interaction predicted by both were kept. This allows for retaining the ensemble mode calculated energy features and a duplex structure for extraction of binding type information. The results of this feaature set are shown below:
+Given the increase in performance, an attempt was made to incorporate the ensemble mode of IntaRNA. The issue with this mode is the absence of a clear duplex structure which occurs due to its algorithm. Therefore, both modes were used and only sites of interaction predicted by both were kept. This allows for retaining the ensemble mode calculated energy features and a duplex structure for extraction of binding type information. The results of this feature set are shown below:
 
 \begin{table}[H]
     % this is before the table
@@ -791,7 +782,7 @@ In order to perform a proper comparison for the goal of miRNA target prediction,
     \end{center}
 \end{table}
 
-Additional conservation features were added describing more aspects of the distribution of these scores locally across the sequence of the MRE and feature selection was performed via Featurewiz which led to a reduction of 190 features in total to 60 with minimal losses in performance.
+Additional conservation features were added describing more aspects of the distribution of these scores locally across the sequence of the MRE and feature selection was performed via Featurewiz which led to a reduction of 190 features in total to 58 with minimal losses in performance.
 
 \begin{table}[H]
     % this is before the table
