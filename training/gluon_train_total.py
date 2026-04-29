@@ -38,12 +38,12 @@ def preprocess_dataframe(
     # Drop columns that exist in the dataframe
     cols_to_drop = [c for c in cols2drop if c in df.columns]
     df = df.drop(columns=cols_to_drop)
-    family_counts = df['noncodingRNA_fam'].value_counts().clip(lower=100)
+    family_counts = df['mir_fam'].value_counts().clip(lower=100)
     total_samples = len(df) 
     # Weight = Total / (n_families * count_of_this_family)
     # This scales weights so they sum up to roughly len(df)
     n_families = len(family_counts)
-    df['weights'] = df['noncodingRNA_fam'].map(lambda x: total_samples / (n_families * family_counts[x])) 
+    df['weights'] = df['mir_fam'].map(lambda x: total_samples / (n_families * family_counts[x])) 
     df['label'] = df['label'].astype(int)
     return df, df_with_sequences
 
@@ -140,53 +140,53 @@ def main(
     print("Starting Training...")
    
     cols2drop = [
-        'target_id', 'query_id', 
+        'target_id', 'query_id', 'noncodingRNA_fam',
         'contrafold_struct', 'hybrid_dp', 'subseq_dp', 
         'mre_sequence', 'mirna_sequence', 'chimeric_sequence', 
         'gene' , 'noncodingRNA' , 'noncodingRNA_name', 
-        'feature', 'label_right', 'chr', 
+        'feature', 'label_right', 'chr', 'binding_type', 
         'start', 'end', 'strand', 'gene_cluster_ID', 'gene_phyloP', 'gene_phastCons'
     ]
     
     sequence_cols = [
         'chimeric_sequence', 'mre_sequence', 'mirna_sequence', 
-        'target_id', 'query_id', 'noncodingRNA_fam'
+        'target_id', 'query_id', 'mir_fam'
     ]
     
     # Load and preprocess training data
     df_raw = pd.read_csv(train_df_path)
     df, df_with_sequences = preprocess_dataframe(df_raw, cols2drop, sequence_cols)
 
-    # GroupShuffleSplit: 10% tuning set, groups by noncodingRNA_fam
+    # GroupShuffleSplit: 10% tuning set, groups by mir_fam
     gss = GroupShuffleSplit(n_splits=1, test_size=0.1, random_state=42)
-    groups = df['noncodingRNA_fam'].to_numpy()
+    groups = df['mir_fam'].to_numpy()
     y = df['label'].to_numpy()
 
     train_idx, tune_idx = next(gss.split(df, y, groups=groups))
 
-    # Drop noncodingRNA_fam before passing to AutoGluon
-    train_fold = df.iloc[train_idx].drop(columns=['noncodingRNA_fam']).reset_index(drop=True)
-    tune_fold  = df.iloc[tune_idx].drop(columns=['noncodingRNA_fam']).reset_index(drop=True)
+    # Drop mir_fam before passing to AutoGluon
+    train_fold = df.iloc[train_idx].drop(columns=['mir_fam']).reset_index(drop=True)
+    tune_fold  = df.iloc[tune_idx].drop(columns=['mir_fam']).reset_index(drop=True)
 
     train_with_seq = df_with_sequences.iloc[train_idx].reset_index(drop=True)
     tune_with_seq  = df_with_sequences.iloc[tune_idx].reset_index(drop=True)
 
     print(f"Train size: {len(train_fold)} | Tune size: {len(tune_fold)}")
-    print(f"Tune group overlap check — unique noncodingRNA_fam in tune not in train: "
-          f"{set(df.iloc[tune_idx]['noncodingRNA_fam']) - set(df.iloc[train_idx]['noncodingRNA_fam'])}")
+    print(f"Tune group overlap check — unique mir_fam in tune not in train: "
+          f"{set(df.iloc[tune_idx]['mir_fam']) - set(df.iloc[train_idx]['mir_fam'])}")
 
     # Load and preprocess test data
     final_test_raw = pd.read_csv('/home/adam/adam/Final_fs_featurewiz_test_withids.csv')
     final_test_data, final_test_with_seq = preprocess_dataframe(
         final_test_raw, cols2drop, sequence_cols
     )
-    final_test_data = final_test_data.drop(columns=['noncodingRNA_fam'], errors='ignore')
+    final_test_data = final_test_data.drop(columns=['mir_fam'], errors='ignore')
 
     final_final_test_raw = pd.read_csv('/home/adam/adam/Final_fs_featurewiz_leftout_withids.csv')
     final_final_test_data, final_final_test_with_seq = preprocess_dataframe(
         final_final_test_raw, cols2drop, sequence_cols
     )
-    final_final_test_data = final_final_test_data.drop(columns=['noncodingRNA_fam'], errors='ignore')
+    final_final_test_data = final_final_test_data.drop(columns=['mir_fam'], errors='ignore')
 
     os.makedirs(misclassified_output_dir, exist_ok=True)
 
