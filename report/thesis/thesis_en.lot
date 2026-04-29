@@ -6,12 +6,12 @@
 \addvspace {10\p@ }
 \addvspace {10\p@ }
 \addvspace {10\p@ }
-\contentsline {table}{\numberline {3.1}{\ignorespaces RNADuplex Performance}}{50}{table.caption.22}%
-\contentsline {table}{\numberline {3.2}{\ignorespaces IntaRNA Performance}}{50}{table.caption.23}%
-\contentsline {table}{\numberline {3.3}{\ignorespaces IntaRNA Ensemble Performance}}{51}{table.caption.24}%
-\contentsline {table}{\numberline {3.4}{\ignorespaces IntaRNA Ensemble with expression and sequence features Performance}}{51}{table.caption.25}%
-\contentsline {table}{\numberline {3.5}{\ignorespaces IntaRNA Ensemble Corrected Performance}}{51}{table.caption.26}%
-\contentsline {table}{\numberline {3.6}{\ignorespaces IntaRNA Ensemble PhastCons100way}}{52}{table.caption.27}%
-\contentsline {table}{\numberline {3.7}{\ignorespaces IntaRNA Ensemble Featurewiz}}{52}{table.caption.28}%
-\contentsline {table}{\numberline {3.8}{\ignorespaces Final Model}}{53}{table.caption.29}%
-\contentsline {table}{\numberline {3.9}{\ignorespaces Features extracted by the unified feature-extraction pipeline. Notation: $\mathbf {E} = (E_1,\dots ,E_n)$ denotes the vector of Turner nearest-neighbour stacking energies (kcal\,mol$^{-1}$, 37\,$^{\circ }$C) for consecutive dinucleotides of a given sequence region; $\Delta E_i = E_{i+1} - E_i$. The duplex vector $\mathbf {v}$ encodes per-position alignment codes (\texttt {1}\,=\,match, \texttt {2}\,=\,mismatch, \texttt {3}\,=\,MRE bulge, \texttt {4}\,=\,miRNA bulge).}}{53}{table.3.9}%
+\contentsline {table}{\numberline {3.1}{\ignorespaces RNADuplex Performance}}{46}{table.caption.21}%
+\contentsline {table}{\numberline {3.2}{\ignorespaces IntaRNA Performance}}{46}{table.caption.22}%
+\contentsline {table}{\numberline {3.3}{\ignorespaces IntaRNA Ensemble Performance}}{47}{table.caption.23}%
+\contentsline {table}{\numberline {3.4}{\ignorespaces IntaRNA Ensemble with expression and sequence features Performance}}{47}{table.caption.24}%
+\contentsline {table}{\numberline {3.5}{\ignorespaces IntaRNA Ensemble Corrected Performance}}{47}{table.caption.25}%
+\contentsline {table}{\numberline {3.6}{\ignorespaces IntaRNA Ensemble PhastCons100way}}{48}{table.caption.26}%
+\contentsline {table}{\numberline {3.7}{\ignorespaces IntaRNA Ensemble Featurewiz}}{48}{table.caption.27}%
+\contentsline {table}{\numberline {3.8}{\ignorespaces Final Model}}{49}{table.caption.28}%
+\contentsline {table}{\numberline {3.9}{\ignorespaces Features extracted by the unified feature-extraction pipeline. Notation: $\mathbf {E} = (E_1,\dots ,E_n)$ denotes the vector of Turner nearest-neighbour stacking energies (kcal\,mol$^{-1}$, 37\,$^{\circ }$C) for consecutive dinucleotides of a given sequence region; $\Delta E_i = E_{i+1} - E_i$. The duplex vector $\mathbf {v}$ encodes per-position alignment codes (\texttt {1}\,=\,match, \texttt {2}\,=\,mismatch, \texttt {3}\,=\,MRE bulge, \texttt {4}\,=\,miRNA bulge).}}{49}{table.3.9}%

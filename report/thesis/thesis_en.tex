@@ -37,7 +37,7 @@
 %		only one side of each page, the other side being left blank.
 %		Default is "twoside", which is used when this option is omitted.
 %
-\documentclass[en,inscr,ack,preface]{dimscthesis}
+\documentclass[en,ack]{dimscthesis}
 
 % Scans for figures relative to this file
 \graphicspath{ {./figures/} }
@@ -90,7 +90,7 @@
 \authorFirstAbrEn{R.}
 \authorMiddleEn{N.}
 \authorLastEn{Adam}
-\authorSN{DSXXXXXXX}
+\authorSN{7115152400009}
 
 %
 % Program (greek and english)
@@ -133,13 +133,13 @@
 \boardTwoRankEn{Professor}
 \boardTwoOrgEn{NKUA}
 
-\boardThreeGr{Panagiotis Alexiou}
+\boardThreeGr{Αλέξανδρος Δημόπουλος}
 \boardThreeRankGr{Καθηγητής}
-\boardThreeOrgGr{Πανεπιστήμιο της Μάλτας}
+\boardThreeOrgGr{Χαροκόπειο Πανεπιστήμιο}
 
-\boardThreeEn{Panagiotis Alexiou}
+\boardThreeEn{Alexandros Dimopoulos}
 \boardThreeRankEn{Professor}
-\boardThreeOrgEn{University of Malta}
+\boardThreeOrgEn{Harokopio University}
 
 %
 % The examination date of the thesis
@@ -151,11 +151,11 @@
 % Supervisors[heading(optional, defaluts to ΕΠΙΒΛΕΠΩΝ/SUPERVISOR)]{people} (greek and english)
 %
 \supervisorsGr[Επιβλέποντες]{
-    {\bfseries Martin Reczko}, Καθηγητής ΕΚΠΑ {\bfseries Artemis Hatzigeorgiou}, Καθηγήτρια Πανεπιστήμιο Θεσσαλίας
+    {\bfseries Martin Reczko}, Καθηγητής BSRC-Alexander Flemming 
 }
 
 \supervisorsEn[Supervisors]{
-    {\bfseries Martin Reczko}, Professor NKUA {\bfseries Artemis Hatzigeorgiou}, Professor University of Thessaly
+    {\bfseries Martin Reczko}, Professor BSRC-Alexander Flemming 
 }
 
 %
@@ -192,7 +192,7 @@
 % To have bilingual acknowledgements, manually add Greek text to your acknowledgement content.
 %
 \acks{%
-    Acknowledgment page. This page is optional. Included when passing the \textit{ack} option in the \textbackslash{}documentclass.
+   This thesis was conducted in the IT department of the National and Kapodistrian University of Athens. I sincerely thank Professor of BSRC-Alexander Flemming, Dr. Martin Reczko who has been the main supervisor of this thesis, for his trust and interest. Furthermore, I would like to thank Professor of University of Thessaly, Dr. Hatzigeorgiou Artemis and Professor of University of Malta, Dr. Panagiotis Alexiou for their interest in the progression of my thesis and their inspiring advice and Professor of Harokopio University, Dr. Dimopoulos Alexandros for his technical support within the server where the thesis was executed. Special thanks are also adressed to PhD students Miliotis Marios and Tzimotoudis Dimosthenis as well as Sammut Stephanie for their help and partaking in discussions on how to improve several aspects of my analyses. Finally, I have to thank my friends and family greatly for their support which helped me reach the completion of this thesis.
 }
 
 %
@@ -793,9 +793,9 @@ Energy and duplex related features were extracted from scratch with the addition
         \begin{tabular}{c|c|c|c|c}
             \textbf{IntaRNA Ensemble Featurewiz} & \textbf{Training} & \textbf{Validation}& \textbf{Test}& \textbf{Holdout} \\
             \hline
-			APS & 83.3 & 83.3 & 83.6 & 83.8 \\
-			ROC-AUC (weighted) & 86.5 & 81 & 81.7 & 77.1 \\
-			APS (weighted) & 88.1 & 83.7 & 85.1 & 81.4 \\
+			APS & 83.5 & 83.4 & 83.7 & 83.6 \\
+			ROC-AUC (weighted) & 88.2 & 81.3 & 81.9 & 77.1 \\
+			APS (weighted) & 89.4 & 83.8 & 85.2 & 81.3 \\
             \hline
         \end{tabular}
     \end{center}
@@ -812,9 +812,9 @@ Finally, the model was trained on the entirety of the training dataset and teste
         \begin{tabular}{c|c|c|c|c}
             \textbf{Final Model} & \textbf{Training} & \textbf{Validation}& \textbf{Test}& \textbf{Holdout} \\
             \hline
-			APS & 84.7 & 82.8 & 84.1 & 83.8 \\
-			ROC-AUC (weighted) & 89.7 & 81.6 & 82.2 & 77.2 \\
-			APS (weighted) & 90.7 & 84.5 & 85.6 & 81.5 \\
+			APS & 86.4 & 83.2 & 84.2 & 83.8 \\
+			ROC-AUC (weighted) & 95.3 & 81.5 & 82.4 & 77.1 \\
+			APS (weighted) & 95.9 & 84.5 & 85.7 & 81.4 \\
             \hline
         \end{tabular}
     \end{center}
