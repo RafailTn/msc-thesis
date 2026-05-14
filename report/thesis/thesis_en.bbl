@@ -293,6 +293,78 @@
       \endverb
       \keyw{PLANT,RNA}
     \endentry
+    \entry{akibaOptunaNextgenerationHyperparameter2019}{online}{}{}
+      \name{author}{5}{}{%
+        {{un=0,uniquepart=base,hash=2939d0d5b491018f7cc7812609071a79}{%
+           family={Akiba},
+           familyi={A\bibinitperiod},
+           given={Takuya},
+           giveni={T\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=92311081bb41fd01eb1ce06f61805909}{%
+           family={Sano},
+           familyi={S\bibinitperiod},
+           given={Shotaro},
+           giveni={S\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=a841fb8471f00b147fdd8954fb01c03f}{%
+           family={Yanase},
+           familyi={Y\bibinitperiod},
+           given={Toshihiko},
+           giveni={T\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=db73c7d77457602e9a75d75bbe181aba}{%
+           family={Ohta},
+           familyi={O\bibinitperiod},
+           given={Takeru},
+           giveni={T\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=d18b784f7f35111bc05bcbd245a34ce7}{%
+           family={Koyama},
+           familyi={K\bibinitperiod},
+           given={Masanori},
+           giveni={M\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{organization}{1}{%
+        {arXiv.org}%
+      }
+      \strng{namehash}{0da4c5b8107cb83a6bd4ba0c9b294621}
+      \strng{fullhash}{6a8f61fd5680dbd348b2b27b4a54d0d8}
+      \strng{fullhashraw}{6a8f61fd5680dbd348b2b27b4a54d0d8}
+      \strng{bibnamehash}{6a8f61fd5680dbd348b2b27b4a54d0d8}
+      \strng{authorbibnamehash}{6a8f61fd5680dbd348b2b27b4a54d0d8}
+      \strng{authornamehash}{0da4c5b8107cb83a6bd4ba0c9b294621}
+      \strng{authorfullhash}{6a8f61fd5680dbd348b2b27b4a54d0d8}
+      \strng{authorfullhashraw}{6a8f61fd5680dbd348b2b27b4a54d0d8}
+      \field{sortinit}{A}
+      \field{sortinithash}{2f401846e2029bad6b3ecc16d50031e2}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{abstract}{The purpose of this study is to introduce new design-criteria for next-generation hyperparameter optimization software. The criteria we propose include (1) define-by-run API that allows users to construct the parameter search space dynamically, (2) efficient implementation of both searching and pruning strategies, and (3) easy-to-setup, versatile architecture that can be deployed for various purposes, ranging from scalable distributed computing to light-weight experiment conducted via interactive interface. In order to prove our point, we will introduce Optuna, an optimization software which is a culmination of our effort in the development of a next generation optimization software. As an optimization software designed with define-by-run principle, Optuna is particularly the first of its kind. We will present the design-techniques that became necessary in the development of the software that meets the above criteria, and demonstrate the power of our new design through experimental results and real world applications. Our software is available under the MIT license (https://github.com/pfnet/optuna/).}
+      \field{day}{25}
+      \field{langid}{english}
+      \field{month}{7}
+      \field{shorttitle}{Optuna}
+      \field{title}{Optuna: {{A Next-generation Hyperparameter Optimization Framework}}}
+      \field{urlday}{14}
+      \field{urlmonth}{5}
+      \field{urlyear}{2026}
+      \field{year}{2019}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/S295ZRRY/Akiba et al. - 2019 - Optuna A Next-generation Hyperparameter Optimization Framework.pdf
+      \endverb
+      \verb{urlraw}
+      \verb https://arxiv.org/abs/1907.10902v1
+      \endverb
+      \verb{url}
+      \verb https://arxiv.org/abs/1907.10902v1
+      \endverb
+    \endentry
     \entry{ambrosUniformSystemMicroRNA2003}{article}{}{}
       \name{author}{13}{}{%
         {{un=0,uniquepart=base,hash=f5aef46443efdfe6d970da5e9181fedf}{%
@@ -2229,6 +2301,94 @@
       \verb 18852463
       \endverb
       \keyw{Animals,Base Sequence,Cell Line,Gene Silencing,Humans,MicroRNAs,Promoter Regions Genetic,Transcription Genetic}
+    \endentry
+    \entry{klimentovaMiRBindDeepLearning2022}{article}{}{}
+      \name{author}{6}{}{%
+        {{un=0,uniquepart=base,hash=e2f936179a6a0bebd932ccf13dd3eff6}{%
+           family={Klimentová},
+           familyi={K\bibinitperiod},
+           given={Eva},
+           giveni={E\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=725c5415a55fa50fc2084940567c1829}{%
+           family={Hejret},
+           familyi={H\bibinitperiod},
+           given={Václav},
+           giveni={V\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=0d2a54719e23759277cb7a5f58718d94}{%
+           family={Krčmář},
+           familyi={K\bibinitperiod},
+           given={Ján},
+           giveni={J\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=cb1af2e46648f770633fad4d352f445b}{%
+           family={Grešová},
+           familyi={G\bibinitperiod},
+           given={Katarína},
+           giveni={K\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=9e9128dda4813e2b6c1f4a9bdbab9828}{%
+           family={Giassa},
+           familyi={G\bibinitperiod},
+           given={Ilektra-Chara},
+           giveni={I\bibinithyphendelim C\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=decba2be05b5a28a9b00e78278411316}{%
+           family={Alexiou},
+           familyi={A\bibinitperiod},
+           given={Panagiotis},
+           giveni={P\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{4ac1ea1be846c1508fc2f52924d1b291}
+      \strng{fullhash}{e743ade1eb4b7e24fbd557635fb099f7}
+      \strng{fullhashraw}{e743ade1eb4b7e24fbd557635fb099f7}
+      \strng{bibnamehash}{4ac1ea1be846c1508fc2f52924d1b291}
+      \strng{authorbibnamehash}{4ac1ea1be846c1508fc2f52924d1b291}
+      \strng{authornamehash}{4ac1ea1be846c1508fc2f52924d1b291}
+      \strng{authorfullhash}{e743ade1eb4b7e24fbd557635fb099f7}
+      \strng{authorfullhashraw}{e743ade1eb4b7e24fbd557635fb099f7}
+      \field{sortinit}{K}
+      \field{sortinithash}{c02bf6bff1c488450c352b40f5d853ab}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{abstract}{The binding of microRNAs (miRNAs) to their target sites is a complex process, mediated by the Argonaute (Ago) family of proteins. The prediction of miRNA:target site binding is an important first step for any miRNA target prediction algorithm. To date, the potential for miRNA:target site binding is evaluated using either co-folding free energy measures or heuristic approaches, based on the identification of binding ‘seeds’, i.e., continuous stretches of binding corresponding to specific parts of the miRNA. The limitations of both these families of methods have produced generations of miRNA target prediction algorithms that are primarily focused on ‘canonical’ seed targets, even though unbiased experimental methods have shown that only approximately half of in vivo miRNA targets are ‘canonical’. Herein, we present miRBind, a deep learning method and web server that can be used to accurately predict the potential of miRNA:target site binding. We trained our method using seed-agnostic experimental data and show that our method outperforms both seed-based approaches and co-fold free energy approaches. The full code for the development of miRBind and a freely accessible web server are freely available.}
+      \field{day}{9}
+      \field{eprinttype}{pubmed}
+      \field{issn}{2073-4425}
+      \field{journaltitle}{Genes}
+      \field{month}{12}
+      \field{number}{12}
+      \field{shortjournal}{Genes (Basel)}
+      \field{shorttitle}{{{miRBind}}}
+      \field{title}{{{miRBind}}: {{A Deep Learning Method}} for {{miRNA Binding Classification}}}
+      \field{urlday}{26}
+      \field{urlmonth}{3}
+      \field{urlyear}{2026}
+      \field{volume}{13}
+      \field{year}{2022}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \field{pages}{2323}
+      \range{pages}{1}
+      \verb{doi}
+      \verb 10.3390/genes13122323
+      \endverb
+      \verb{eprint}
+      \verb 36553590
+      \endverb
+      \verb{file}
+      \verb /home/rafail/Zotero/storage/4D8A6MVA/Klimentová et al. - 2022 - miRBind A Deep Learning Method for miRNA Binding Classification.pdf
+      \endverb
+      \verb{urlraw}
+      \verb https://pmc.ncbi.nlm.nih.gov/articles/PMC9777820/
+      \endverb
+      \verb{url}
+      \verb https://pmc.ncbi.nlm.nih.gov/articles/PMC9777820/
+      \endverb
     \endentry
     \entry{kozomaraMiRBaseIntegratingMicroRNA2011}{article}{}{}
       \name{author}{2}{}{%
