@@ -71,6 +71,7 @@
 \usepackage{float}
 \usepackage{amsmath}
 \usepackage{siunitx}
+\usepackage{hyperref}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%% User-specific configuration %%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -630,6 +631,7 @@ The term in the brackets isolates the exact marginal impact of adding feature $i
 The defining theoretical advantage of SHAP is local accuracy (additivity): the sum of all feature contributions $\phi_i$ exactly equals the difference between the model's output for instance $x$ and the global expected prediction. This provides a mathematically rigorous guarantee of fair attribution that heuristic explanation methods lack.
 
 \chapter{Results}
+\label{sec:Results}
 \section{Language Models}
 \par Inspired by microT-CNN \parencite{zacharopoulouMicroTCNNAvantgardeDeep2024}, two approaches were followed with the final goal of making an enhanced algorithm for achieving site-level miRNA target site prediction. Language model architectrures were developed based on Mamba in order to test their capabilities of learning miRNA binding rules based only on nucleotide sequences. The initial experiment involved using the kmer encoded (k=4) chimeric sequences, that are the result of merging the miRNA and MRE sequences as input to a Transformer model. Unfortunately, this led to a model that seemed to be underfitting despite subsequent trials to fine tune its hyperparameters. The same held true even with the attempt of making a siamese neural network that processed the miRNA and the MRE sequences separately and tried to minimize the distance between them in the embedded space. The Mamba architecture seemed to yield similar results and thus a change in terms of encoding was needed.
 
@@ -852,6 +854,8 @@ Finally, the model was trained on the entirety of the training dataset and teste
 
 
 \input{features_table}
+
+The Github repository containing the code and the instructions to build the environment necessary to reproduce the \nameref{sec:Results} of this thesis exist at \href{https://github.com/RafailTn/msc-thesis/tree/report}{Msc-Thesis Github}
 
 \printbibliography[title=REFERENCES]
 
