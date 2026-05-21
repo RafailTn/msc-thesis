@@ -388,6 +388,7 @@ def main() -> int:
         print(f"\nLoading predictor from: {args.model}")
         predictor  = TabularPredictor.load(args.model)
         input4pred = pl.read_csv(features_out).to_pandas()
+        input4pred = input4pred.drop(columns=["label"], errors="ignore")
 
         proba = predictor.predict_proba(input4pred)
         pos_col = 1 if 1 in proba.columns else True
