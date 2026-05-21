@@ -1,2 +1,4 @@
 models/
 mamba/mamba_siamese.py
+data/
+results/
