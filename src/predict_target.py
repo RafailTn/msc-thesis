@@ -58,47 +58,8 @@ def _download_bigwig(dest: Path) -> None:
 # =============================================================================
 
 def _drop_non_numeric(df: pd.DataFrame) -> pd.DataFrame:
-    """Keep only numeric columns - SHAP and permutation importance need floats."""
+    """Keep only numeric columns - SHAP needs floats."""
     return df.select_dtypes(include=[np.number])
-
-
-def compute_global_importance(
-    predictor: TabularPredictor,
-    X: pd.DataFrame,
-    num_shuffle_sets: int = 5,
-) -> pd.DataFrame:
-    """
-    Global feature importance via AutoGluon's built-in permutation method.
-
-    AutoGluon shuffles each feature `num_shuffle_sets` times and measures the
-    mean drop in the model's scoring metric.  Returns a DataFrame sorted by
-    importance descending, with columns:
-        feature | permutation_importance | permutation_stddev | p_value
-
-    The higher the importance, the more the model relies on that feature.
-    """
-    print(f"  Computing permutation importance ({num_shuffle_sets} shuffle sets) ...")
-    fi = predictor.feature_importance(
-        data=X,
-        num_shuffle_sets=num_shuffle_sets,
-        subsample_size=min(len(X), 2000),
-    )
-    # AutoGluon returns: index=feature, columns=[importance, stddev, ...]
-    # Column names and presence of 'p_value' vary across AG versions.
-    # rename_axis ensures the index column is always called 'feature'
-    # regardless of whether the original index had a name.
-    fi = fi.rename_axis("feature").reset_index()
-    rename_map = {"importance": "permutation_importance",
-                  "stddev": "permutation_stddev"}
-    keep = ["feature", "permutation_importance", "permutation_stddev"]
-    fi = fi.rename(columns=rename_map)
-    if "p_value" in fi.columns:
-        keep.append("p_value")
-    else:
-        fi["p_value"] = float("nan")   # placeholder so downstream code is stable
-        keep.append("p_value")
-    fi = fi[keep]
-    return fi.sort_values("permutation_importance", ascending=False).reset_index(drop=True)
 
 
 def compute_shap(
@@ -146,7 +107,6 @@ def build_explanation_outputs(
     out_stem: Path,
     top_n: int = 3,
     max_shap_samples: int = 200,
-    num_shuffle_sets: int = 5,
     nsamples_per_shap: int = 200,
     n_background_clusters: int = 25,
 ) -> dict[str, list]:
@@ -157,19 +117,7 @@ def build_explanation_outputs(
     -------
     1. <out_stem>_global_importance.tsv
        One row per feature, columns:
-         feature | permutation_importance | permutation_stddev | p_value
-                 | mean_abs_shap | shap_rank | permutation_rank
-
-       Two importance scores are included deliberately:
-       - Permutation importance : how much model accuracy drops when the
-         feature is shuffled.  Captures the feature's global relevance but can
-         be inflated for correlated features.
-       - Mean |SHAP| : average magnitude of a feature's contribution
-         across all explained samples.  More granular and less sensitive to
-         correlation, but estimated only on the positive predictions subset.
-
-       Having both allows you to cross-validate: features that rank high on
-       both metrics are the most trustworthy drivers.
+         feature | mean_abs_shap | shap_rank
 
     2. <out_stem>_shap_per_sample.tsv
        One row per explained sample (predicted positives), columns:
@@ -187,9 +135,6 @@ def build_explanation_outputs(
     """
     feat_cols = list(_drop_non_numeric(X_pred).columns)
     X_numeric = X_pred[feat_cols]
-
-    # -- Global: permutation importance ----------------------------------------
-    perm_fi = compute_global_importance(predictor, X_pred, num_shuffle_sets)
 
     # -- SHAP: explain predicted positives (capped for runtime) ----------------
     pos_mask = binary_labels == 1
@@ -218,20 +163,8 @@ def build_explanation_outputs(
 
     # -- Global SHAP summary ---------------------------------------------------
     mean_abs_shap = shap_df.abs().mean().rename("mean_abs_shap")
-
-    # set_index/join/reset_index: rename_axis guarantees the restored
-    # column is always called 'feature', not 'index'.
-    global_tbl = (
-        perm_fi.set_index("feature")
-        .join(mean_abs_shap, how="outer")
-        .fillna(0.0)
-        .rename_axis("feature")
-        .reset_index()
-    )
-    global_tbl["shap_rank"] = (global_tbl["mean_abs_shap"]
-                                       .rank(ascending=False).astype(int))
-    global_tbl["permutation_rank"] = (global_tbl["permutation_importance"]
-                                       .rank(ascending=False).astype(int))
+    global_tbl = mean_abs_shap.reset_index().rename(columns={"index": "feature"})
+    global_tbl["shap_rank"] = global_tbl["mean_abs_shap"].rank(ascending=False).astype(int)
     global_tbl = global_tbl.sort_values("mean_abs_shap", ascending=False)
 
     global_path = Path(str(out_stem) + "_global_importance.tsv")
@@ -240,8 +173,7 @@ def build_explanation_outputs(
     print("Top 5 features (by mean |SHAP|):")
     for _, row in global_tbl.head(5).iterrows():
         print(f"{row['feature']:45s}  "
-              f"SHAP={row['mean_abs_shap']:.4f} (rank {row['shap_rank']:>3})  "
-              f"perm={row['permutation_importance']:.4f} (rank {row['permutation_rank']:>3})")
+              f"SHAP={row['mean_abs_shap']:.4f} (rank {row['shap_rank']:>3})")
 
     # -- Per-sample top-N driver columns ---------------------------------------
     per_sample_top: dict[str, list] = {}
@@ -352,9 +284,6 @@ def main() -> int:
     parser.add_argument("-shap-clusters", type=int, default=25,
                         dest="shap_clusters",
                         help="k-means clusters for SHAP background (default: 15)")
-    parser.add_argument("-perm-shuffles", type=int, default=5,
-                        dest="perm_shuffles",
-                        help="Shuffle sets for permutation importance (default: 5)")
 
     args = parser.parse_args()
 
@@ -483,7 +412,6 @@ def main() -> int:
                 out_stem = out_stem,
                 top_n = args.explain_top_n,
                 max_shap_samples = args.explain_samples,
-                num_shuffle_sets = args.perm_shuffles,
                 nsamples_per_shap = args.shap_nsamples,
                 n_background_clusters = args.shap_clusters,
             )

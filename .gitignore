@@ -1,2 +1,4 @@
-models/autogluon_final_model/
+models/
 mamba/mamba_siamese.py
+results/
+data/
