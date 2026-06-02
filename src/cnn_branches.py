@@ -131,6 +131,11 @@ def _one_hot(seq: str, length: int) -> np.ndarray:
     return out
 
 
+def _read_table(path: str | Path) -> pd.DataFrame:
+    sep = "\t" if str(path).endswith(".tsv") else ","
+    return pd.read_csv(path, sep=sep)
+
+
 def _parse_vector(raw, length: int) -> np.ndarray:
     """Parse a comma-separated float string (or list/ndarray) into a fixed-size
     float32 array of shape (length,).  Pads with 0 or crops as needed."""
@@ -179,7 +184,7 @@ class MiRNAInteractionDataset(Dataset):
         energy_stats: Optional[dict] = None,
         has_labels: bool = True,
     ) -> None:
-        df = pd.read_csv(path)
+        df = _read_table(path)
         self.has_labels = has_labels
 
         # Sequences
@@ -774,7 +779,7 @@ def cmd_predict(args: argparse.Namespace) -> None:
             all_preds.extend((probs >= args.threshold).astype(int).tolist())
             all_labels.extend(labels.numpy().tolist())
 
-    df_in = pd.read_csv(args.input)
+    df_in = _read_table(args.input)
     df_in["interaction_probability"] = all_probs
     df_in["prediction"] = all_preds
 

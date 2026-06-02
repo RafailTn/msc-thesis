@@ -349,9 +349,13 @@ def main() -> int:
                         "Defaults to cuda if available.")
     p.add_argument("--threads", type=int, default=4,
                    help="Parallel threads for IntaRNA")
-    p.add_argument("--sep",     default="\t",
+    p.add_argument("--sep",       default="\t",
                    help="Separator of the input file")
-    p.add_argument("--id-col",  default=None, dest="id_col",
+    p.add_argument("--mre-col",   default="mre_sequence", dest="mre_col",
+                   help="Column name for the MRE / target nucleotide sequence")
+    p.add_argument("--mirna-col", default="mirna_sequence", dest="mirna_col",
+                   help="Column name for the miRNA / query nucleotide sequence")
+    p.add_argument("--id-col",    default=None, dest="id_col",
                    help="Column to use as target_id passed to IntaRNA "
                         "(default: row index)")
     p.add_argument("--debug",   action="store_true",
@@ -370,9 +374,20 @@ def main() -> int:
     n  = len(df)
     print(f"  {n} rows", file=sys.stderr)
 
-    for col in ("mre_sequence", "mirna_sequence"):
+    for col in (args.mre_col, args.mirna_col):
         if col not in df.columns:
             sys.exit(f"ERROR: required column '{col}' not found in input.")
+
+    # ── Deduplication on chimeric sequence ────────────────────────────────────
+    chimeric = (df[args.mirna_col].str.upper().str.replace("T", "U", regex=False)
+                + df[args.mre_col].str.upper().str.replace("T", "U", regex=False))
+    before = len(df)
+    df = df[~chimeric.duplicated(keep="first")].reset_index(drop=True)
+    n = len(df)
+    removed = before - n
+    if removed:
+        print(f"  dedup: removed {removed} duplicate chimeric sequences "
+              f"({before} → {n} rows)", file=sys.stderr)
 
     # ── Phase 1: IntaRNA (parallel) ───────────────────────────────────────────
     print(f"\nPhase 1 — IntaRNA ensemble ({args.threads} threads) ...",
@@ -392,8 +407,8 @@ def main() -> int:
     with ThreadPoolExecutor(max_workers=args.threads) as pool:
         futures = {}
         for i, row in df.iterrows():
-            mre   = str(row["mre_sequence"]).upper().replace("T", "U")
-            mirna = str(row["mirna_sequence"]).upper().replace("T", "U")
+            mre   = str(row[args.mre_col]).upper().replace("T", "U")
+            mirna = str(row[args.mirna_col]).upper().replace("T", "U")
             tid   = str(row[args.id_col]) if args.id_col else f"target_{i}"
             qid   = f"mirna_{i}"
             futures[pool.submit(
@@ -454,7 +469,7 @@ def main() -> int:
         print(f"  loading checkpoint: {args.eclip_checkpoint}", file=sys.stderr)
         try:
             model = _load_eclip_model(args.eclip_checkpoint, args.eclip_src_dir, device)
-            mre_seqs = df["mre_sequence"].astype(str).tolist()
+            mre_seqs = df[args.mre_col].astype(str).tolist()
             eclip_probs_mat = _run_eclip_inference(
                 model, mre_seqs, device, args.eclip_batch_size)
             print(f"  done — shape {eclip_probs_mat.shape}", file=sys.stderr)
