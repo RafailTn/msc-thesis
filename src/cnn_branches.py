@@ -96,6 +96,12 @@ try:
 except ImportError:
     HAS_SKLEARN = False
 
+try:
+    import wandb
+    HAS_WANDB = True
+except ImportError:
+    HAS_WANDB = False
+
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -718,6 +724,21 @@ def _train_one_run(
         log += f"  ({dt:.1f}s)" + (" *" if improved else "")
         print(log)
 
+        if HAS_WANDB and wandb.run is not None:
+            log_dict: dict = {
+                "epoch":        epoch,
+                "train/loss":   train_loss,
+                "val/loss":     val_metrics["loss"],
+                "val/f1":       val_metrics["f1"],
+                "val/accuracy": val_metrics["accuracy"],
+                "lr":           sched.get_last_lr()[0],
+            }
+            if "auroc" in val_metrics:
+                log_dict["val/auroc"] = val_metrics["auroc"]
+            if "auprc" in val_metrics:
+                log_dict["val/auprc"] = val_metrics["auprc"]
+            wandb.log(log_dict)
+
         if improved:
             best_val = ckpt_val
             patience_counter = 0
@@ -736,6 +757,8 @@ def _train_one_run(
                 break
 
     print(f"\nBest {args.checkpoint_metric} = {best_val:.4f}")
+    if HAS_WANDB and wandb.run is not None:
+        wandb.run.summary[f"best_{args.checkpoint_metric}"] = best_val
     return best_val
 
 
@@ -765,10 +788,28 @@ def _run_single(args: argparse.Namespace, device: torch.device) -> None:
     model = ThreeBranchCNN(**model_args).to(device)
     print(f"Model parameters: {sum(p.numel() for p in model.parameters()) / 1e6:.2f}M")
 
+    if HAS_WANDB and getattr(args, "wandb_project", None):
+        wandb.init(
+            project=args.wandb_project,
+            entity=args.wandb_entity or None,
+            name=args.wandb_run_name or None,
+            group=args.wandb_group or None,
+            config={
+                **model_args,
+                "epochs": args.epochs, "batch_size": args.batch_size,
+                "lr": args.lr, "weight_decay": args.weight_decay,
+                "warmup_steps": args.warmup_steps, "patience": args.patience,
+                "balance": args.balance, "checkpoint_metric": args.checkpoint_metric,
+            },
+        )
+
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     _train_one_run(model, train_loader, val_loader, train_ds,
                    model_args, args, device, out_path)
+
+    if HAS_WANDB and wandb.run is not None:
+        wandb.finish()
 
 
 def _run_kfold(args: argparse.Namespace, device: torch.device) -> None:
@@ -834,6 +875,24 @@ def _run_kfold(args: argparse.Namespace, device: torch.device) -> None:
             print(f"Model parameters: "
                   f"{sum(p.numel() for p in model.parameters()) / 1e6:.2f}M")
 
+        if HAS_WANDB and getattr(args, "wandb_project", None):
+            _group = args.wandb_group or args.wandb_run_name or out_path.stem
+            _name  = (f"{args.wandb_run_name}_fold{fold}"
+                      if args.wandb_run_name else f"{out_path.stem}_fold{fold}")
+            wandb.init(
+                project=args.wandb_project,
+                entity=args.wandb_entity or None,
+                name=_name,
+                group=_group,
+                config={
+                    **model_args, "fold": fold, "n_folds": args.folds,
+                    "epochs": args.epochs, "batch_size": args.batch_size,
+                    "lr": args.lr, "weight_decay": args.weight_decay,
+                    "warmup_steps": args.warmup_steps, "patience": args.patience,
+                    "balance": args.balance, "checkpoint_metric": args.checkpoint_metric,
+                },
+            )
+
         fold_out = out_path.parent / f"{out_path.stem}_fold{fold}{out_path.suffix}"
         score = _train_one_run(model, train_loader, val_loader, train_ds,
                                model_args, args, device, fold_out)
@@ -861,6 +920,12 @@ def _run_kfold(args: argparse.Namespace, device: torch.device) -> None:
                 fold_test_metrics[test_name].append(metrics)
                 row = "  ".join(f"{k}={v:.4f}" for k, v in metrics.items())
                 print(f"    [{test_name}]  {row}")
+                if HAS_WANDB and wandb.run is not None:
+                    for k, v in metrics.items():
+                        wandb.run.summary[f"test_{test_name}/{k}"] = v
+
+        if HAS_WANDB and wandb.run is not None:
+            wandb.finish()
 
     # ── Cross-fold summary ────────────────────────────────────────────────────
     print(f"\n{'='*60}")
@@ -1014,6 +1079,16 @@ def main() -> int:
                     help="Validation metric to use for checkpointing.")
     tr.add_argument("--device",
                     default="cuda" if torch.cuda.is_available() else "cpu")
+    # W&B
+    tr.add_argument("--wandb-project",  default=None, dest="wandb_project",
+                    help="W&B project name. W&B logging is disabled when not set.")
+    tr.add_argument("--wandb-entity",   default=None, dest="wandb_entity",
+                    help="W&B entity (user or team). Uses your W&B default if not set.")
+    tr.add_argument("--wandb-run-name", default=None, dest="wandb_run_name",
+                    help="W&B run display name. Auto-generated by W&B if not set.")
+    tr.add_argument("--wandb-group",    default=None, dest="wandb_group",
+                    help="W&B run group. For k-fold, folds are grouped automatically "
+                         "under this name (falls back to --wandb-run-name or output stem).")
 
     # ── predict ───────────────────────────────────────────────────────────────
     pr = sub.add_parser("predict", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
