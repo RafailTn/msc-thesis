@@ -91,6 +91,7 @@ from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
 
 try:
     from sklearn.metrics import roc_auc_score, average_precision_score
+    from sklearn.model_selection import GroupKFold
     HAS_SKLEARN = True
 except ImportError:
     HAS_SKLEARN = False
@@ -183,13 +184,37 @@ class MiRNAInteractionDataset(Dataset):
         path: str | Path,
         energy_stats: Optional[dict] = None,
         has_labels: bool = True,
+        mre_col: str = "mre_sequence",
+        mirna_col: str = "mirna_sequence",
     ) -> None:
-        df = _read_table(path)
+        self._init(_read_table(path), energy_stats, has_labels, mre_col, mirna_col)
+
+    @classmethod
+    def from_df(
+        cls,
+        df: pd.DataFrame,
+        energy_stats: Optional[dict] = None,
+        has_labels: bool = True,
+        mre_col: str = "mre_sequence",
+        mirna_col: str = "mirna_sequence",
+    ) -> "MiRNAInteractionDataset":
+        obj = cls.__new__(cls)
+        obj._init(df, energy_stats, has_labels, mre_col, mirna_col)
+        return obj
+
+    def _init(
+        self,
+        df: pd.DataFrame,
+        energy_stats: Optional[dict],
+        has_labels: bool,
+        mre_col: str = "mre_sequence",
+        mirna_col: str = "mirna_sequence",
+    ) -> None:
         self.has_labels = has_labels
 
         # Sequences
-        self.mre_seqs    = df["mre_sequence"].astype(str).tolist()
-        self.mirna_seqs  = df["mirna_sequence"].astype(str).tolist()
+        self.mre_seqs    = df[mre_col].astype(str).tolist()
+        self.mirna_seqs  = df[mirna_col].astype(str).tolist()
 
         # Conservation vector
         if "conservation_vector" in df.columns:
@@ -585,47 +610,37 @@ def evaluate(model: ThreeBranchCNN, loader: DataLoader,
 
 
 # ---------------------------------------------------------------------------
-# Train subcommand
+# Train subcommand helpers
 # ---------------------------------------------------------------------------
 
-def cmd_train(args: argparse.Namespace) -> None:
-    device = torch.device(args.device)
-    print(f"Device: {device}")
+def _model_args_from_cli(args: argparse.Namespace) -> dict:
+    return {
+        "seq_channels": args.seq_channels,
+        "seq_blocks":   args.seq_blocks,
+        "vec_channels": args.vec_channels,
+        "vec_blocks":   args.vec_blocks,
+        "energy_dim":   args.energy_dim,
+        "kernel_size":  args.kernel_size,
+        "dropout":      args.dropout,
+        "norm":         args.norm,
+        "use_eclip":    not args.no_eclip,
+    }
 
-    print("Loading training data ...")
-    train_ds = MiRNAInteractionDataset(args.train, energy_stats=None, has_labels=True)
-    print(f"  train samples : {len(train_ds)}")
-    print(f"  positives     : {int(train_ds.labels.sum())} / {len(train_ds.labels)}")
 
-    print("Loading validation data ...")
-    val_ds = MiRNAInteractionDataset(
-        args.val,
-        energy_stats=train_ds.energy_stats,
-        has_labels=True,
-    )
-    print(f"  val samples   : {len(val_ds)}")
+def _train_one_run(
+    model: ThreeBranchCNN,
+    train_loader: DataLoader,
+    val_loader: DataLoader,
+    train_ds: MiRNAInteractionDataset,
+    model_args: dict,
+    args: argparse.Namespace,
+    device: torch.device,
+    out_path: Path,
+) -> float:
+    """Run the training loop; save best checkpoint to out_path.
 
-    train_loader = _make_loader(train_ds, args.batch_size, shuffle=True,
-                                num_workers=args.num_workers, balance=args.balance)
-    val_loader   = _make_loader(val_ds,   args.batch_size, shuffle=False,
-                                num_workers=args.num_workers)
-
-    model = ThreeBranchCNN(
-        seq_channels=args.seq_channels,
-        seq_blocks=args.seq_blocks,
-        vec_channels=args.vec_channels,
-        vec_blocks=args.vec_blocks,
-        energy_dim=args.energy_dim,
-        kernel_size=args.kernel_size,
-        dropout=args.dropout,
-        norm=args.norm,
-        use_eclip=not args.no_eclip,
-    ).to(device)
-
-    n_params = sum(p.numel() for p in model.parameters())
-    print(f"Model parameters: {n_params / 1e6:.2f}M")
-
-    # Class-imbalance weight for loss
+    Returns the best value of args.checkpoint_metric.
+    """
     pos_weight: Optional[torch.Tensor] = None
     if not args.balance:
         n_pos = int(train_ds.labels.sum())
@@ -636,8 +651,7 @@ def cmd_train(args: argparse.Namespace) -> None:
             print(f"  BCEWithLogitsLoss pos_weight = {pw:.3f}")
 
     optim = torch.optim.AdamW(
-        model.parameters(), lr=args.lr, weight_decay=args.weight_decay,
-    )
+        model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     total_steps  = args.epochs * max(1, len(train_loader))
     warmup_steps = min(args.warmup_steps, total_steps // 10)
     if warmup_steps > 0:
@@ -654,9 +668,6 @@ def cmd_train(args: argparse.Namespace) -> None:
         )
     else:
         sched = torch.optim.lr_scheduler.CosineAnnealingLR(optim, T_max=total_steps)
-
-    out_path = Path(args.out)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
 
     best_val = -float("inf")
     patience_counter = 0
@@ -692,8 +703,7 @@ def cmd_train(args: argparse.Namespace) -> None:
         val_metrics = evaluate(model, val_loader, device, pos_weight)
         dt = time.time() - t0
 
-        ckpt_val = val_metrics.get(args.checkpoint_metric,
-                                   -val_metrics["loss"])
+        ckpt_val = val_metrics.get(args.checkpoint_metric, -val_metrics["loss"])
         improved = ckpt_val > best_val
 
         log = (f"[{epoch:03d}/{args.epochs}] "
@@ -712,21 +722,11 @@ def cmd_train(args: argparse.Namespace) -> None:
             best_val = ckpt_val
             patience_counter = 0
             torch.save({
-                "model_state":   model.state_dict(),
-                "model_args":    {
-                    "seq_channels":  args.seq_channels,
-                    "seq_blocks":    args.seq_blocks,
-                    "vec_channels":  args.vec_channels,
-                    "vec_blocks":    args.vec_blocks,
-                    "energy_dim":    args.energy_dim,
-                    "kernel_size":   args.kernel_size,
-                    "dropout":       args.dropout,
-                    "norm":          args.norm,
-                    "use_eclip":     not args.no_eclip,
-                },
-                "energy_stats":  train_ds.energy_stats,
-                "val_metrics":   val_metrics,
-                "epoch":         epoch,
+                "model_state":  model.state_dict(),
+                "model_args":   model_args,
+                "energy_stats": train_ds.energy_stats,
+                "val_metrics":  val_metrics,
+                "epoch":        epoch,
             }, out_path)
             print(f"  → checkpoint saved: {out_path}")
         else:
@@ -735,7 +735,165 @@ def cmd_train(args: argparse.Namespace) -> None:
                 print(f"Early stopping after {patience_counter} epochs without improvement.")
                 break
 
-    print(f"\nDone. Best {args.checkpoint_metric} = {best_val:.4f}")
+    print(f"\nBest {args.checkpoint_metric} = {best_val:.4f}")
+    return best_val
+
+
+def _run_single(args: argparse.Namespace, device: torch.device) -> None:
+    if not args.val:
+        sys.exit("ERROR: --val is required when --folds is not set.")
+
+    print("Loading training data ...")
+    train_ds = MiRNAInteractionDataset(
+        args.train, energy_stats=None, has_labels=True,
+        mre_col=args.mre_col, mirna_col=args.mirna_col)
+    print(f"  train samples : {len(train_ds)}")
+    print(f"  positives     : {int(train_ds.labels.sum())} / {len(train_ds.labels)}")
+
+    print("Loading validation data ...")
+    val_ds = MiRNAInteractionDataset(
+        args.val, energy_stats=train_ds.energy_stats, has_labels=True,
+        mre_col=args.mre_col, mirna_col=args.mirna_col)
+    print(f"  val samples   : {len(val_ds)}")
+
+    train_loader = _make_loader(train_ds, args.batch_size, shuffle=True,
+                                num_workers=args.num_workers, balance=args.balance)
+    val_loader   = _make_loader(val_ds,   args.batch_size, shuffle=False,
+                                num_workers=args.num_workers)
+
+    model_args = _model_args_from_cli(args)
+    model = ThreeBranchCNN(**model_args).to(device)
+    print(f"Model parameters: {sum(p.numel() for p in model.parameters()) / 1e6:.2f}M")
+
+    out_path = Path(args.out)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    _train_one_run(model, train_loader, val_loader, train_ds,
+                   model_args, args, device, out_path)
+
+
+def _run_kfold(args: argparse.Namespace, device: torch.device) -> None:
+    if not HAS_SKLEARN:
+        sys.exit("ERROR: scikit-learn is required for --folds. "
+                 "Install with: pip install scikit-learn")
+
+    print(f"Loading data for {args.folds}-fold group cross-validation ...")
+    df = _read_table(args.train)
+    print(f"  {len(df)} rows")
+
+    if args.family_col not in df.columns:
+        sys.exit(f"ERROR: --family-col '{args.family_col}' not found in input. "
+                 f"Available columns: {list(df.columns)}")
+
+    groups = df[args.family_col].fillna("unknown").astype(str).values
+    n_families = len(set(groups))
+    print(f"  {n_families} unique miRNA families → {args.folds} folds")
+
+    out_path = Path(args.out)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    model_args = _model_args_from_cli(args)
+    gkf = GroupKFold(n_splits=args.folds)
+    fold_scores: list[float] = []
+    test_paths = args.test or []
+    # keyed by test file stem; each value is a list of metric dicts (one per fold)
+    fold_test_metrics: dict[str, list[dict]] = {
+        Path(p).stem: [] for p in test_paths
+    }
+
+    for fold, (train_idx, val_idx) in enumerate(
+            gkf.split(df, groups=groups), 1):
+        val_families = sorted(set(groups[val_idx]))
+        print(f"\n{'='*60}")
+        print(f"Fold {fold}/{args.folds}  "
+              f"train={len(train_idx)}  val={len(val_idx)}")
+        preview = val_families[:8]
+        suffix  = " ..." if len(val_families) > 8 else ""
+        print(f"  val families ({len(val_families)}): {preview}{suffix}")
+        print(f"{'='*60}")
+
+        train_df = df.iloc[train_idx].reset_index(drop=True)
+        val_df   = df.iloc[val_idx].reset_index(drop=True)
+
+        train_ds = MiRNAInteractionDataset.from_df(
+            train_df, energy_stats=None, has_labels=True,
+            mre_col=args.mre_col, mirna_col=args.mirna_col)
+        val_ds   = MiRNAInteractionDataset.from_df(
+            val_df, energy_stats=train_ds.energy_stats, has_labels=True,
+            mre_col=args.mre_col, mirna_col=args.mirna_col)
+
+        print(f"  train positives: {int(train_ds.labels.sum())} / {len(train_ds.labels)}")
+        print(f"  val   positives: {int(val_ds.labels.sum())} / {len(val_ds.labels)}")
+
+        train_loader = _make_loader(train_ds, args.batch_size, shuffle=True,
+                                    num_workers=args.num_workers, balance=args.balance)
+        val_loader   = _make_loader(val_ds,   args.batch_size, shuffle=False,
+                                    num_workers=args.num_workers)
+
+        model = ThreeBranchCNN(**model_args).to(device)
+        if fold == 1:
+            print(f"Model parameters: "
+                  f"{sum(p.numel() for p in model.parameters()) / 1e6:.2f}M")
+
+        fold_out = out_path.parent / f"{out_path.stem}_fold{fold}{out_path.suffix}"
+        score = _train_one_run(model, train_loader, val_loader, train_ds,
+                               model_args, args, device, fold_out)
+        fold_scores.append(score)
+
+        # ── Evaluate on external test sets using the best checkpoint ──────────
+        if test_paths:
+            best_ckpt = torch.load(fold_out, map_location=device,
+                                   weights_only=False)
+            model.load_state_dict(best_ckpt["model_state"])
+            print(f"\n  Test-set evaluation (fold {fold} best checkpoint):")
+            for test_path in test_paths:
+                test_name = Path(test_path).stem
+                test_ds = MiRNAInteractionDataset.from_df(
+                    _read_table(test_path),
+                    energy_stats=train_ds.energy_stats,
+                    has_labels=True,
+                    mre_col=args.mre_col,
+                    mirna_col=args.mirna_col,
+                )
+                test_loader = _make_loader(
+                    test_ds, args.batch_size, shuffle=False,
+                    num_workers=args.num_workers)
+                metrics = evaluate(model, test_loader, device)
+                fold_test_metrics[test_name].append(metrics)
+                row = "  ".join(f"{k}={v:.4f}" for k, v in metrics.items())
+                print(f"    [{test_name}]  {row}")
+
+    # ── Cross-fold summary ────────────────────────────────────────────────────
+    print(f"\n{'='*60}")
+    print(f"{args.folds}-fold CV results ({args.checkpoint_metric}):")
+    for k, s in enumerate(fold_scores, 1):
+        print(f"  fold {k}: {s:.4f}")
+    mean, std = float(np.mean(fold_scores)), float(np.std(fold_scores))
+    print(f"  mean  : {mean:.4f} ± {std:.4f}")
+
+    if fold_test_metrics:
+        print(f"\nTest-set summary across folds:")
+        for test_name, metrics_list in fold_test_metrics.items():
+            print(f"  {test_name}:")
+            for metric_key in metrics_list[0]:
+                vals = [m[metric_key] for m in metrics_list]
+                per_fold = "  ".join(f"{v:.4f}" for v in vals)
+                print(f"    {metric_key:<20s} folds=[{per_fold}]  "
+                      f"mean={np.mean(vals):.4f} ± {np.std(vals):.4f}")
+
+    print(f"{'='*60}")
+
+
+# ---------------------------------------------------------------------------
+# Train subcommand
+# ---------------------------------------------------------------------------
+
+def cmd_train(args: argparse.Namespace) -> None:
+    device = torch.device(args.device)
+    print(f"Device: {device}")
+    if args.folds:
+        _run_kfold(args, device)
+    else:
+        _run_single(args, device)
 
 
 # ---------------------------------------------------------------------------
@@ -758,7 +916,8 @@ def cmd_predict(args: argparse.Namespace) -> None:
 
     has_labels = True   # will be corrected after loading
     ds = MiRNAInteractionDataset(
-        args.input, energy_stats=energy_stats, has_labels=has_labels)
+        args.input, energy_stats=energy_stats, has_labels=has_labels,
+        mre_col=args.mre_col, mirna_col=args.mirna_col)
     loader = DataLoader(ds, batch_size=args.batch_size, shuffle=False,
                         num_workers=2)
 
@@ -809,9 +968,24 @@ def main() -> int:
 
     # ── train ─────────────────────────────────────────────────────────────────
     tr = sub.add_parser("train", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    tr.add_argument("--train",    required=True, help="Training CSV")
-    tr.add_argument("--val",      required=True, help="Validation CSV")
-    tr.add_argument("--out",      default="checkpoints/cnn_branches.pt")
+    tr.add_argument("--train",      required=True,
+                    help="Training CSV/TSV (full dataset when --folds is set)")
+    tr.add_argument("--val",        default=None,
+                    help="Validation CSV/TSV. Required unless --folds is set.")
+    tr.add_argument("--folds",      type=int, default=None,
+                    help="Number of GroupKFold folds (uses --family-col as groups). "
+                         "Saves one checkpoint per fold.")
+    tr.add_argument("--family-col", default="mirna_family", dest="family_col",
+                    help="Column with miRNA family labels for GroupKFold.")
+    tr.add_argument("--test", nargs="+", default=None, metavar="FILE",
+                    help="One or more test CSV/TSV files evaluated after each fold "
+                         "(only used with --folds). Energy stats come from the "
+                         "training fold, not the test file.")
+    tr.add_argument("--out",        default="checkpoints/cnn_branches.pt")
+    tr.add_argument("--mre-col",   default="mre_sequence", dest="mre_col",
+                    help="Column name for the MRE nucleotide sequence.")
+    tr.add_argument("--mirna-col", default="mirna_sequence", dest="mirna_col",
+                    help="Column name for the miRNA nucleotide sequence.")
     # Architecture
     tr.add_argument("--seq-channels",  type=int,   default=128)
     tr.add_argument("--seq-blocks",    type=int,   default=6)
@@ -848,6 +1022,10 @@ def main() -> int:
     pr.add_argument("--output",     required=True, help="Output TSV")
     pr.add_argument("--threshold",  type=float, default=0.5)
     pr.add_argument("--batch-size", type=int,   default=256)
+    pr.add_argument("--mre-col",   default="mre_sequence", dest="mre_col",
+                    help="Column name for the MRE nucleotide sequence.")
+    pr.add_argument("--mirna-col", default="mirna_sequence", dest="mirna_col",
+                    help="Column name for the miRNA nucleotide sequence.")
     pr.add_argument("--device",
                     default="cuda" if torch.cuda.is_available() else "cpu")
 
