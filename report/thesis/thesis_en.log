@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.141592653-2.6-0.999998 (TeX Live 2026/Arch Linux) (preloaded format=xelatex 2026.5.14)  28 MAY 2026 16:03
+This is XeTeX, Version 3.141592653-2.6-0.999998 (TeX Live 2026/Arch Linux) (preloaded format=xelatex 2026.5.31)  3 JUN 2026 11:00
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -1471,4 +1471,4 @@ Here is how much of TeX's memory you used:
  14 hyphenation exceptions out of 8191
  75i,15n,130p,2923b,7081s stack positions out of 10000i,1000n,20000p,200000b,200000s
 
-Output written on thesis_en.xdv (62 pages, 1140568 bytes).
+Output written on thesis_en.xdv (62 pages, 1140752 bytes).
