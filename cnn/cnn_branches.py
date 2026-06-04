@@ -347,6 +347,39 @@ class AttentionPool(nn.Module):
         return (h * w.unsqueeze(1)).sum(dim=-1)         # (B, C)
 
 
+class CrossAttention(nn.Module):
+    """Bidirectional cross-attention between miRNA and MRE feature sequences.
+
+    MRE positions attend to miRNA positions and vice versa; both results are
+    returned with residual connections and layer normalisation.
+    """
+
+    def __init__(self, dim: int, num_heads: int = 4, dropout: float = 0.1) -> None:
+        super().__init__()
+        self.mre_to_mirna = nn.MultiheadAttention(
+            dim, num_heads, dropout=dropout, batch_first=True)
+        self.mirna_to_mre = nn.MultiheadAttention(
+            dim, num_heads, dropout=dropout, batch_first=True)
+        self.norm_mre   = nn.LayerNorm(dim)
+        self.norm_mirna = nn.LayerNorm(dim)
+
+    def forward(
+        self,
+        h_mirna: torch.Tensor,   # (B, C, MAX_MIRNA)
+        h_mre:   torch.Tensor,   # (B, C, MRE_LEN)
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        # MultiheadAttention expects (B, L, C)
+        mirna_t = h_mirna.transpose(1, 2)   # (B, 30, C)
+        mre_t   = h_mre.transpose(1, 2)     # (B, 50, C)
+
+        mre_ctx,   _ = self.mre_to_mirna(mre_t,   mirna_t, mirna_t)
+        mirna_ctx, _ = self.mirna_to_mre(mirna_t, mre_t,   mre_t)
+
+        mre_out   = self.norm_mre  (mre_t   + mre_ctx  ).transpose(1, 2)  # (B, C, 50)
+        mirna_out = self.norm_mirna(mirna_t + mirna_ctx ).transpose(1, 2)  # (B, C, 30)
+        return mirna_out, mre_out
+
+
 # ---------------------------------------------------------------------------
 # Three-branch CNN
 # ---------------------------------------------------------------------------
@@ -395,22 +428,39 @@ class ThreeBranchCNN(nn.Module):
         dropout:       float = 0.15,
         norm:          str   = "batch",
         use_eclip:     bool  = True,
+        num_heads:     int   = 4,
     ) -> None:
         super().__init__()
         self.use_eclip = use_eclip
 
-        # ── Branch 1: sequence (5-channel one-hot + segment indicator) ────────
-        self.seq_stem = nn.Conv1d(5, seq_channels, kernel_size, padding="same")
+        if seq_channels % num_heads != 0:
+            raise ValueError(
+                f"seq_channels ({seq_channels}) must be divisible by "
+                f"num_heads ({num_heads}).")
+
+        # ── Branch 1: sequence — separate miRNA / MRE stems + cross-attention ──
+        # Separate stems learn molecule-specific local patterns; the tower is
+        # shared (same RNA alphabet, keeps parameter count in check).
+        self.mirna_stem   = nn.Conv1d(4, seq_channels, kernel_size, padding="same")
+        self.mre_seq_stem = nn.Conv1d(4, seq_channels, kernel_size, padding="same")
         self.seq_tower = nn.ModuleList([
             DilatedResBlock(seq_channels, dilation=2**i,
                             kernel_size=3, dropout=dropout, norm=norm)
             for i in range(seq_blocks)
         ])
-        self.seq_pool = AttentionPool(seq_channels)
+        # Learned positional embeddings — one vector per position
+        self.mirna_pe = nn.Embedding(MAX_MIRNA, seq_channels)
+        self.mre_pe   = nn.Embedding(MRE_LEN,   seq_channels)
+
+        self.cross_attn   = CrossAttention(seq_channels, num_heads=num_heads,
+                                           dropout=dropout)
+        self.mirna_pool   = AttentionPool(seq_channels)
+        self.mre_seq_pool = AttentionPool(seq_channels)
+        # Two pooled vectors → project back to seq_channels
         self.seq_proj = nn.Sequential(
-            nn.LayerNorm(seq_channels),
+            nn.LayerNorm(seq_channels * 2),
             nn.GELU(),
-            nn.Linear(seq_channels, seq_channels),
+            nn.Linear(seq_channels * 2, seq_channels),
         )
 
         # ── Branch 2: conservation vector (1-channel) ─────────────────────────
@@ -490,10 +540,24 @@ class ThreeBranchCNN(nn.Module):
         energy: torch.Tensor,   # (B, N_ENERGY)
     ) -> torch.Tensor:          # (B,) logits
 
-        # ── Branch 1: sequence ────────────────────────────────────────────────
-        h_seq = self.seq_stem(seq)
-        h_seq = self._run_tower(h_seq, self.seq_tower)
-        h_seq = self.seq_proj(self.seq_pool(h_seq))           # (B, seq_channels)
+        # ── Branch 1: sequence (cross-attention between miRNA and MRE) ──────────
+        mirna_oh = seq[:, :4, :MAX_MIRNA]    # (B, 4, 30)
+        mre_oh   = seq[:, :4, MAX_MIRNA:]    # (B, 4, 50)
+
+        h_mirna = self._run_tower(self.mirna_stem(mirna_oh),   self.seq_tower)
+        h_mre_s = self._run_tower(self.mre_seq_stem(mre_oh),   self.seq_tower)
+
+        mirna_pos = torch.arange(MAX_MIRNA, device=seq.device)
+        mre_pos   = torch.arange(MRE_LEN,   device=seq.device)
+        h_mirna = h_mirna + self.mirna_pe(mirna_pos).T.unsqueeze(0)  # (1, C, 30)
+        h_mre_s = h_mre_s + self.mre_pe(mre_pos).T.unsqueeze(0)     # (1, C, 50)
+
+        h_mirna_ctx, h_mre_ctx = self.cross_attn(h_mirna, h_mre_s)
+
+        h_seq = self.seq_proj(torch.cat([
+            self.mirna_pool(h_mirna_ctx),    # (B, seq_channels)
+            self.mre_seq_pool(h_mre_ctx),    # (B, seq_channels)
+        ], dim=1))                           # (B, seq_channels)
 
         # ── Branch 2: conservation ────────────────────────────────────────────
         h_cons = self.cons_stem(cons)
@@ -630,6 +694,7 @@ def _model_args_from_cli(args: argparse.Namespace) -> dict:
         "dropout":      args.dropout,
         "norm":         args.norm,
         "use_eclip":    not args.no_eclip,
+        "num_heads":    args.num_heads,
     }
 
 
@@ -683,6 +748,8 @@ def _train_one_run(
         t0 = time.time()
         running_loss = 0.0
         seen = 0
+        train_logits_buf: list[np.ndarray] = []
+        train_labels_buf: list[np.ndarray] = []
 
         for seq, cons, eclip, tspot, energy, labels in train_loader:
             seq    = seq.to(device,    non_blocking=True)
@@ -704,8 +771,14 @@ def _train_one_run(
 
             running_loss += loss.item() * seq.size(0)
             seen += seq.size(0)
+            train_logits_buf.append(logits.detach().cpu().numpy())
+            train_labels_buf.append(labels.cpu().numpy().astype(int))
 
         train_loss = running_loss / max(seen, 1)
+        train_metrics = _binary_metrics(
+            np.concatenate(train_logits_buf),
+            np.concatenate(train_labels_buf),
+        )
         val_metrics = evaluate(model, val_loader, device, pos_weight)
         dt = time.time() - t0
 
@@ -726,17 +799,24 @@ def _train_one_run(
 
         if HAS_WANDB and wandb.run is not None:
             log_dict: dict = {
-                "epoch":        epoch,
-                "train/loss":   train_loss,
-                "val/loss":     val_metrics["loss"],
-                "val/f1":       val_metrics["f1"],
-                "val/accuracy": val_metrics["accuracy"],
-                "lr":           sched.get_last_lr()[0],
+                "epoch":           epoch,
+                "lr":              sched.get_last_lr()[0],
+                "train/loss":      train_loss,
+                "train/f1":        train_metrics["f1"],
+                "train/accuracy":  train_metrics["accuracy"],
+                "train/precision": train_metrics["precision"],
+                "train/recall":    train_metrics["recall"],
+                "val/loss":        val_metrics["loss"],
+                "val/f1":          val_metrics["f1"],
+                "val/accuracy":    val_metrics["accuracy"],
+                "val/precision":   val_metrics["precision"],
+                "val/recall":      val_metrics["recall"],
             }
-            if "auroc" in val_metrics:
-                log_dict["val/auroc"] = val_metrics["auroc"]
-            if "auprc" in val_metrics:
-                log_dict["val/auprc"] = val_metrics["auprc"]
+            for split, metrics in (("train", train_metrics), ("val", val_metrics)):
+                if "auroc" in metrics:
+                    log_dict[f"{split}/auroc"] = metrics["auroc"]
+                if "auprc" in metrics:
+                    log_dict[f"{split}/auprc"] = metrics["auprc"]
             wandb.log(log_dict)
 
         if improved:
@@ -971,6 +1051,7 @@ def cmd_predict(args: argparse.Namespace) -> None:
     ckpt = torch.load(args.checkpoint, map_location=device)
     margs = ckpt["model_args"]
     margs.setdefault("use_eclip", True)   # backward compat with old checkpoints
+    margs.setdefault("num_heads", 4)
     energy_stats = ckpt["energy_stats"]
 
     model = ThreeBranchCNN(**margs).to(device)
@@ -1060,6 +1141,9 @@ def main() -> int:
     tr.add_argument("--kernel-size",   type=int,   default=7)
     tr.add_argument("--dropout",       type=float, default=0.15)
     tr.add_argument("--norm", choices=["batch", "layer"], default="batch")
+    tr.add_argument("--num-heads",     type=int,   default=4,  dest="num_heads",
+                    help="Number of attention heads in cross-attention "
+                         "(seq_channels must be divisible by this).")
     tr.add_argument("--no-eclip", action="store_true",
                     help="Disable the eCLIP branch (use when eclip_probs is unavailable).")
     # Training
