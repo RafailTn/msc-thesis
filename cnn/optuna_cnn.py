@@ -8,9 +8,16 @@ The study is persisted to a SQLite file so it can be resumed.
 
 Usage
 -----
-    # start a new search (single train/val split)
+    # explicit val file
     python optuna_cnn.py \\
         --train data/train.csv --val data/val.csv \\
+        --trials 100 --epochs 25 \\
+        --study-name cnn_search --storage optuna_cnn.db
+
+    # auto val split via StratifiedGroupKFold (fold 0 of 5 as val)
+    python optuna_cnn.py \\
+        --train data/train.csv \\
+        --family-col mirna_family --val-folds 5 --val-fold 0 \\
         --trials 100 --epochs 25 \\
         --study-name cnn_search --storage optuna_cnn.db
 
@@ -41,9 +48,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
+import pandas as pd
 import optuna
 from optuna.pruners import MedianPruner
 from optuna.samplers import TPESampler
+from sklearn.model_selection import StratifiedGroupKFold
 
 # Import reusable pieces from the sibling module.
 sys.path.insert(0, str(Path(__file__).parent))
@@ -51,6 +60,7 @@ from cnn_branches import (
     MiRNAInteractionDataset,
     ThreeBranchCNN,
     _make_loader,
+    _read_table,
     evaluate,
 )
 
@@ -238,7 +248,16 @@ def main() -> int:
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     p.add_argument("--train",       required=True,  help="Training CSV/TSV")
-    p.add_argument("--val",         required=True,  help="Validation CSV/TSV")
+    p.add_argument("--val",         default=None,
+                   help="Validation CSV/TSV. Mutually exclusive with --val-folds.")
+    p.add_argument("--val-folds",   type=int, default=5, dest="val_folds",
+                   help="Total folds for StratifiedGroupKFold auto-split "
+                        "(used when --val is not provided).")
+    p.add_argument("--val-fold",    type=int, default=0, dest="val_fold",
+                   help="Which fold index to use as validation (0-based).")
+    p.add_argument("--family-col",  default="mirna_family", dest="family_col",
+                   help="Column for StratifiedGroupKFold groups "
+                        "(required when --val is not provided).")
     p.add_argument("--mre-col",     default="mre_sequence",   dest="mre_col")
     p.add_argument("--mirna-col",   default="mirna_sequence", dest="mirna_col")
     p.add_argument("--trials",      type=int,   default=100,
@@ -263,17 +282,44 @@ def main() -> int:
                    help="Epochs before MedianPruner is allowed to prune.")
     args = p.parse_args()
 
+    if args.val and args.val_fold != 0:
+        sys.exit("ERROR: --val-fold is only used when --val is not provided.")
+
     device = torch.device(args.device)
     print(f"Device: {device}")
 
     print("Loading datasets ...")
-    train_ds = MiRNAInteractionDataset(
-        args.train, energy_stats=None, has_labels=True,
-        mre_col=args.mre_col, mirna_col=args.mirna_col)
-    val_ds = MiRNAInteractionDataset(
-        args.val, energy_stats=train_ds.energy_stats, has_labels=True,
-        mre_col=args.mre_col, mirna_col=args.mirna_col)
-    print(f"  train={len(train_ds)}  val={len(val_ds)}")
+    if args.val:
+        train_ds = MiRNAInteractionDataset(
+            args.train, energy_stats=None, has_labels=True,
+            mre_col=args.mre_col, mirna_col=args.mirna_col)
+        val_ds = MiRNAInteractionDataset(
+            args.val, energy_stats=train_ds.energy_stats, has_labels=True,
+            mre_col=args.mre_col, mirna_col=args.mirna_col)
+        print(f"  train={len(train_ds)}  val={len(val_ds)}")
+    else:
+        df = _read_table(args.train)
+        if args.family_col not in df.columns:
+            sys.exit(f"ERROR: --family-col '{args.family_col}' not found. "
+                     f"Available: {list(df.columns)}")
+        groups = df[args.family_col].fillna("unknown").astype(str).values
+        labels = df["label"].values
+        sgkf   = StratifiedGroupKFold(n_splits=args.val_folds)
+        splits = list(sgkf.split(df, y=labels, groups=groups))
+        if args.val_fold >= len(splits):
+            sys.exit(f"ERROR: --val-fold {args.val_fold} out of range "
+                     f"(only {len(splits)} folds).")
+        train_idx, val_idx = splits[args.val_fold]
+        train_df = df.iloc[train_idx].reset_index(drop=True)
+        val_df   = df.iloc[val_idx].reset_index(drop=True)
+        train_ds = MiRNAInteractionDataset.from_df(
+            train_df, energy_stats=None, has_labels=True,
+            mre_col=args.mre_col, mirna_col=args.mirna_col)
+        val_ds = MiRNAInteractionDataset.from_df(
+            val_df, energy_stats=train_ds.energy_stats, has_labels=True,
+            mre_col=args.mre_col, mirna_col=args.mirna_col)
+        print(f"  StratifiedGroupKFold: fold {args.val_fold}/{args.val_folds}  "
+              f"train={len(train_ds)}  val={len(val_ds)}")
 
     storage_url = f"sqlite:///{args.storage}"
     sampler = TPESampler(n_startup_trials=args.startup_trials, seed=42)

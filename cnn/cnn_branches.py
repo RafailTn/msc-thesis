@@ -91,7 +91,7 @@ from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
 
 try:
     from sklearn.metrics import roc_auc_score, average_precision_score
-    from sklearn.model_selection import GroupKFold
+    from sklearn.model_selection import StratifiedGroupKFold
     HAS_SKLEARN = True
 except ImportError:
     HAS_SKLEARN = False
@@ -897,7 +897,7 @@ def _run_kfold(args: argparse.Namespace, device: torch.device) -> None:
         sys.exit("ERROR: scikit-learn is required for --folds. "
                  "Install with: pip install scikit-learn")
 
-    print(f"Loading data for {args.folds}-fold group cross-validation ...")
+    print(f"Loading data for {args.folds}-fold stratified group cross-validation ...")
     df = _read_table(args.train)
     print(f"  {len(df)} rows")
 
@@ -913,7 +913,7 @@ def _run_kfold(args: argparse.Namespace, device: torch.device) -> None:
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
     model_args = _model_args_from_cli(args)
-    gkf = GroupKFold(n_splits=args.folds)
+    gkf = StratifiedGroupKFold(n_splits=args.folds)
     fold_scores: list[float] = []
     test_paths = args.test or []
     # keyed by test file stem; each value is a list of metric dicts (one per fold)
@@ -922,7 +922,7 @@ def _run_kfold(args: argparse.Namespace, device: torch.device) -> None:
     }
 
     for fold, (train_idx, val_idx) in enumerate(
-            gkf.split(df, groups=groups), 1):
+            gkf.split(df, y=df["label"].values, groups=groups), 1):
         val_families = sorted(set(groups[val_idx]))
         print(f"\n{'='*60}")
         print(f"Fold {fold}/{args.folds}  "
@@ -1119,10 +1119,10 @@ def main() -> int:
     tr.add_argument("--val",        default=None,
                     help="Validation CSV/TSV. Required unless --folds is set.")
     tr.add_argument("--folds",      type=int, default=None,
-                    help="Number of GroupKFold folds (uses --family-col as groups). "
-                         "Saves one checkpoint per fold.")
+                    help="Number of StratifiedGroupKFold folds (uses --family-col as groups, "
+                         "stratifies by label). Saves one checkpoint per fold.")
     tr.add_argument("--family-col", default="mirna_family", dest="family_col",
-                    help="Column with miRNA family labels for GroupKFold.")
+                    help="Column with miRNA family labels for StratifiedGroupKFold.")
     tr.add_argument("--test", nargs="+", default=None, metavar="FILE",
                     help="One or more test CSV/TSV files evaluated after each fold "
                          "(only used with --folds). Energy stats come from the "
