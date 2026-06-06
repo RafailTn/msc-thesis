@@ -92,7 +92,7 @@ def _fetch_conservation(bw, chrom: str, start, end, strand: str,
     """Fetch phastCons scores for a region and resize to *length* values."""
     chrom = _normalise_chrom(chrom)
     try:
-        scores = bw.values(chrom, int(start) - 1, int(end))   # 0-based half-open
+        scores = bw.values(chrom, int(float(start)) - 1, int(float(end)))   # 0-based half-open
         scores = np.nan_to_num(np.array(scores, dtype=np.float32), nan=0.0)
         if strand == "-":
             scores = scores[::-1]
@@ -125,11 +125,11 @@ def _parse_spot_prob_file(filepath: str, target_len: int) -> List[float]:
                 if not line or line.startswith("#"):
                     continue
                 parts = line.split(";")
-                if len(parts) < 2:
+                if len(parts) < 3:
                     continue
                 try:
                     pos = int(parts[0]) - 1        # 1-based → 0-based
-                    val = float(parts[1])
+                    val = float(parts[2])           # format: idx;nucleotide;spotProb
                     if 0 <= pos < target_len:
                         probs[pos] = val
                 except ValueError:

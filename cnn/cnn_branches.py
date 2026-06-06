@@ -419,19 +419,25 @@ class ThreeBranchCNN(nn.Module):
 
     def __init__(
         self,
-        seq_channels:  int   = 128,
-        seq_blocks:    int   = 6,
-        vec_channels:  int   = 64,
-        vec_blocks:    int   = 3,
-        energy_dim:    int   = 64,
-        kernel_size:   int   = 7,
-        dropout:       float = 0.15,
-        norm:          str   = "batch",
-        use_eclip:     bool  = True,
-        num_heads:     int   = 4,
+        seq_channels:     int   = 128,
+        seq_blocks:       int   = 6,
+        vec_channels:     int   = 64,
+        vec_blocks:       int   = 3,
+        energy_dim:       int   = 64,
+        kernel_size:      int   = 7,
+        dropout:          float = 0.15,
+        norm:             str   = "batch",
+        use_conservation: bool  = True,
+        use_eclip:        bool  = True,
+        use_tspot:        bool  = True,
+        use_energy:       bool  = True,
+        num_heads:        int   = 4,
     ) -> None:
         super().__init__()
-        self.use_eclip = use_eclip
+        self.use_conservation = use_conservation
+        self.use_eclip  = use_eclip
+        self.use_tspot  = use_tspot
+        self.use_energy = use_energy
 
         if seq_channels % num_heads != 0:
             raise ValueError(
@@ -463,14 +469,15 @@ class ThreeBranchCNN(nn.Module):
             nn.Linear(seq_channels * 2, seq_channels),
         )
 
-        # ── Branch 2: conservation vector (1-channel) ─────────────────────────
-        self.cons_stem = nn.Conv1d(1, vec_channels, kernel_size, padding="same")
-        self.cons_tower = nn.ModuleList([
-            DilatedResBlock(vec_channels, dilation=2**i,
-                            kernel_size=3, dropout=dropout, norm=norm)
-            for i in range(vec_blocks)
-        ])
-        self.cons_pool = AttentionPool(vec_channels)
+        # ── Branch 2: conservation vector (1-channel, optional) ───────────────
+        if use_conservation:
+            self.cons_stem = nn.Conv1d(1, vec_channels, kernel_size, padding="same")
+            self.cons_tower = nn.ModuleList([
+                DilatedResBlock(vec_channels, dilation=2**i,
+                                kernel_size=3, dropout=dropout, norm=norm)
+                for i in range(vec_blocks)
+            ])
+            self.cons_pool = AttentionPool(vec_channels)
 
         # ── Branch 3: eCLIP vector (1-channel, optional) ──────────────────────
         if use_eclip:
@@ -482,40 +489,46 @@ class ThreeBranchCNN(nn.Module):
             ])
             self.eclip_pool = AttentionPool(vec_channels)
 
-        # ── Branch 4: IntaRNA tSpotProb vector (1-channel) ────────────────────
-        self.tspot_stem = nn.Conv1d(1, vec_channels, kernel_size, padding="same")
-        self.tspot_tower = nn.ModuleList([
-            DilatedResBlock(vec_channels, dilation=2**i,
-                            kernel_size=3, dropout=dropout, norm=norm)
-            for i in range(vec_blocks)
-        ])
-        self.tspot_pool = AttentionPool(vec_channels)
+        # ── Branch 4: IntaRNA tSpotProb vector (1-channel, optional) ─────────
+        if use_tspot:
+            self.tspot_stem = nn.Conv1d(1, vec_channels, kernel_size, padding="same")
+            self.tspot_tower = nn.ModuleList([
+                DilatedResBlock(vec_channels, dilation=2**i,
+                                kernel_size=3, dropout=dropout, norm=norm)
+                for i in range(vec_blocks)
+            ])
+            self.tspot_pool = AttentionPool(vec_channels)
 
-        # Shared projection for all vector branches after attention pooling
-        self.vec_proj = nn.Sequential(
-            nn.LayerNorm(vec_channels),
-            nn.GELU(),
-            nn.Linear(vec_channels, vec_channels),
-        )
+        # Shared projection for all active vector branches after attention pooling
+        n_vec = sum([use_conservation, use_eclip, use_tspot])
+        if n_vec > 0:
+            self.vec_proj = nn.Sequential(
+                nn.LayerNorm(vec_channels),
+                nn.GELU(),
+                nn.Linear(vec_channels, vec_channels),
+            )
 
-        # ── Energy MLP (gate + embedding) ─────────────────────────────────────
-        n_vec = 3 if use_eclip else 2
-        combined_dim = seq_channels + n_vec * vec_channels   # 320 (eclip) or 256 (no eclip)
-        self.energy_embed = nn.Sequential(
-            nn.Linear(N_ENERGY, energy_dim),
-            nn.LayerNorm(energy_dim),
-            nn.GELU(),
-            nn.Linear(energy_dim, energy_dim),
-            nn.GELU(),
-        )
-        # Gate projects the energy embedding to the combined_dim size
-        self.energy_gate = nn.Sequential(
-            nn.Linear(energy_dim, combined_dim),
-            nn.Sigmoid(),
-        )
+        combined_dim = seq_channels + n_vec * vec_channels
+
+        # ── Energy MLP (gate + embedding, optional) ───────────────────────────
+        if use_energy:
+            self.energy_embed = nn.Sequential(
+                nn.Linear(N_ENERGY, energy_dim),
+                nn.LayerNorm(energy_dim),
+                nn.GELU(),
+                nn.Linear(energy_dim, energy_dim),
+                nn.GELU(),
+            )
+            # Gate projects the energy embedding to the combined_dim size
+            self.energy_gate = nn.Sequential(
+                nn.Linear(energy_dim, combined_dim),
+                nn.Sigmoid(),
+            )
+            fused_dim = combined_dim + energy_dim
+        else:
+            fused_dim = combined_dim
 
         # ── Classifier ────────────────────────────────────────────────────────
-        fused_dim = combined_dim + energy_dim  # 320+64 = 384 (default)
         self.classifier = nn.Sequential(
             nn.LayerNorm(fused_dim),
             nn.GELU(),
@@ -559,31 +572,35 @@ class ThreeBranchCNN(nn.Module):
             self.mre_seq_pool(h_mre_ctx),    # (B, seq_channels)
         ], dim=1))                           # (B, seq_channels)
 
-        # ── Branch 2: conservation ────────────────────────────────────────────
-        h_cons = self.cons_stem(cons)
-        h_cons = self._run_tower(h_cons, self.cons_tower)
-        h_cons = self.vec_proj(self.cons_pool(h_cons))        # (B, vec_channels)
+        # ── Branch 2: conservation (optional) ────────────────────────────────
+        parts = [h_seq]
+        if self.use_conservation:
+            h_cons = self.cons_stem(cons)
+            h_cons = self._run_tower(h_cons, self.cons_tower)
+            parts.append(self.vec_proj(self.cons_pool(h_cons)))
 
         # ── Branch 3: eCLIP (optional) ────────────────────────────────────────
         if self.use_eclip:
             h_eclip = self.eclip_stem(eclip)
             h_eclip = self._run_tower(h_eclip, self.eclip_tower)
-            h_eclip = self.vec_proj(self.eclip_pool(h_eclip))  # (B, vec_channels)
+            parts.append(self.vec_proj(self.eclip_pool(h_eclip)))
 
-        # ── Branch 4: tSpotProb ───────────────────────────────────────────────
-        h_tspot = self.tspot_stem(tspot)
-        h_tspot = self._run_tower(h_tspot, self.tspot_tower)
-        h_tspot = self.vec_proj(self.tspot_pool(h_tspot))     # (B, vec_channels)
+        # ── Branch 4: tSpotProb (optional) ───────────────────────────────────
+        if self.use_tspot:
+            h_tspot = self.tspot_stem(tspot)
+            h_tspot = self._run_tower(h_tspot, self.tspot_tower)
+            parts.append(self.vec_proj(self.tspot_pool(h_tspot)))
 
-        # ── Energy gate ───────────────────────────────────────────────────────
-        e_emb = self.energy_embed(energy)                               # (B, energy_dim)
-        gate  = self.energy_gate(e_emb)                                 # (B, combined_dim)
-        parts = [h_seq, h_cons, h_eclip, h_tspot] if self.use_eclip \
-                else [h_seq, h_cons, h_tspot]
-        combined = torch.cat(parts, dim=1)                              # (B, combined_dim)
-        gated    = combined * gate                             # modulate by thermodynamics
+        combined = torch.cat(parts, dim=1)                    # (B, combined_dim)
 
-        fused  = torch.cat([gated, e_emb], dim=1)             # (B, fused_dim)
+        # ── Energy gate (optional) ────────────────────────────────────────────
+        if self.use_energy:
+            e_emb = self.energy_embed(energy)                 # (B, energy_dim)
+            gate  = self.energy_gate(e_emb)                   # (B, combined_dim)
+            fused = torch.cat([combined * gate, e_emb], dim=1)
+        else:
+            fused = combined
+
         return self.classifier(fused).squeeze(-1)             # (B,)
 
 
@@ -685,16 +702,19 @@ def evaluate(model: ThreeBranchCNN, loader: DataLoader,
 
 def _model_args_from_cli(args: argparse.Namespace) -> dict:
     return {
-        "seq_channels": args.seq_channels,
-        "seq_blocks":   args.seq_blocks,
-        "vec_channels": args.vec_channels,
-        "vec_blocks":   args.vec_blocks,
-        "energy_dim":   args.energy_dim,
-        "kernel_size":  args.kernel_size,
-        "dropout":      args.dropout,
-        "norm":         args.norm,
-        "use_eclip":    not args.no_eclip,
-        "num_heads":    args.num_heads,
+        "seq_channels":     args.seq_channels,
+        "seq_blocks":       args.seq_blocks,
+        "vec_channels":     args.vec_channels,
+        "vec_blocks":       args.vec_blocks,
+        "energy_dim":       args.energy_dim,
+        "kernel_size":      args.kernel_size,
+        "dropout":          args.dropout,
+        "norm":             args.norm,
+        "use_conservation": not args.no_conservation,
+        "use_eclip":        not args.no_eclip,
+        "use_tspot":        not args.no_tspot,
+        "use_energy":       not args.no_energy,
+        "num_heads":        args.num_heads,
     }
 
 
@@ -1050,7 +1070,10 @@ def cmd_predict(args: argparse.Namespace) -> None:
 
     ckpt = torch.load(args.checkpoint, map_location=device)
     margs = ckpt["model_args"]
-    margs.setdefault("use_eclip", True)   # backward compat with old checkpoints
+    margs.setdefault("use_conservation", True)   # backward compat with old checkpoints
+    margs.setdefault("use_eclip", True)
+    margs.setdefault("use_tspot", True)
+    margs.setdefault("use_energy", True)
     margs.setdefault("num_heads", 4)
     energy_stats = ckpt["energy_stats"]
 
@@ -1144,8 +1167,14 @@ def main() -> int:
     tr.add_argument("--num-heads",     type=int,   default=4,  dest="num_heads",
                     help="Number of attention heads in cross-attention "
                          "(seq_channels must be divisible by this).")
+    tr.add_argument("--no-conservation", action="store_true",
+                    help="Disable the conservation branch.")
     tr.add_argument("--no-eclip", action="store_true",
-                    help="Disable the eCLIP branch (use when eclip_probs is unavailable).")
+                    help="Disable the eCLIP branch.")
+    tr.add_argument("--no-tspot", action="store_true",
+                    help="Disable the IntaRNA tSpotProb branch.")
+    tr.add_argument("--no-energy", action="store_true",
+                    help="Disable the IntaRNA energy gate (Eall / P_E scalars).")
     # Training
     tr.add_argument("--epochs",        type=int,   default=40)
     tr.add_argument("--batch-size",    type=int,   default=64)
