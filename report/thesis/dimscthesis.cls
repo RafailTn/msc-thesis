@@ -492,14 +492,14 @@ includehead,includefoot]{geometry} % add option showframe=true for debugging
 \vfill
 {
 \ifenglishcommitteepage
-	{\bfseries EXAMINATION COMMITTEE:}
+	{\bfseries EXAMINATION COMMITTEE:}\par\noindent
     \begin{minipage}[t]{\textwidth}
         {\bfseries \@advisorEn{}}, \@advisorRankEn{} \@advisorOrgEn{}\\
         {\bfseries \@boardTwoEn{}}, \@boardTwoRankEn{} \@boardTwoOrgEn{}\\
         {\bfseries \@boardThreeEn{}}, \@boardThreeRankEn{} \@boardThreeOrgEn{}
     \end{minipage}
 \else
-	{\bfseries ΕΞΕΤΑΣΤΙΚΗ ΕΠΙΤΡΟΠΗ:}
+	{\bfseries ΕΞΕΤΑΣΤΙΚΗ ΕΠΙΤΡΟΠΗ:}\par\noindent
     \begin{minipage}[t]{\textwidth}
         {\bfseries \@advisorGr{}}, \@advisorRankGr{} \@advisorOrgGr{}\\
         {\bfseries \@boardTwoGr{}}, \@boardTwoRankGr{} \@boardTwoOrgGr{}\\
