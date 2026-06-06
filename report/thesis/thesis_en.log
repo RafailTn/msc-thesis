@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.141592653-2.6-0.999998 (TeX Live 2026/Arch Linux) (preloaded format=xelatex 2026.5.31)  5 JUN 2026 16:21
+This is XeTeX, Version 3.141592653-2.6-0.999998 (TeX Live 2026/Arch Linux) (preloaded format=xelatex 2026.5.31)  6 JUN 2026 13:56
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -1411,12 +1411,7 @@ File: ./figures/val_aps.png Graphic file (type bmp)
 <./figures/val_aps.png>
 File: ./figures/val_auroc.png Graphic file (type bmp)
 <./figures/val_auroc.png>
-[47]
-Overfull \hbox (12.52559pt too wide) in paragraph at lines 678--679
-[]\TU/Arial(0)/m/n/12 The proposed architecture functions as an end-to-end binary classifier for chimeric RNA/DNA
- []
-
-[48]
+[47] [48]
 Overfull \hbox (49.319pt too wide) in paragraph at lines 753--760
  [] 
  []
@@ -1475,10 +1470,10 @@ Package logreq Info: Writing requests to 'thesis_en.run.xml'.
 Here is how much of TeX's memory you used:
  34913 strings out of 470191
  715774 string characters out of 5479697
- 1751953 words of memory out of 5000000
+ 1751974 words of memory out of 5000000
  63080 multiletter control sequences out of 15000+600000
  636397 words of font info for 126 fonts, out of 8000000 for 9000
  14 hyphenation exceptions out of 8191
  75i,15n,130p,2923b,7081s stack positions out of 10000i,1000n,20000p,200000b,200000s
 
-Output written on thesis_en.xdv (64 pages, 1176524 bytes).
+Output written on thesis_en.xdv (64 pages, 1176652 bytes).
