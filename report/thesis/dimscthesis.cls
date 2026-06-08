@@ -304,6 +304,9 @@ includehead,includefoot]{geometry} % add option showframe=true for debugging
 %
 % Commands for setting up abstract (greek and english versions), ack, incsription, and preface pages
 %
+\providecommand{\repourl}[1]{\gdef\@repourl{#1}}
+\gdef\@repourl{}
+
 \providecommand{\abstractEn}[1]{\gdef\@abstractEn{#1}}
 \providecommand{\abstractGr}[1]{\gdef\@abstractGr{#1}}
 \providecommand{\acks}[1]{\gdef\@acknowledgements{#1}}
@@ -412,6 +415,12 @@ includehead,includefoot]{geometry} % add option showframe=true for debugging
     \end{minipage}
     \fi
     \\
+
+    \ifx\@repourl\empty\else
+        \begin{center}
+        \small\textit{Code: \href{\@repourl}{\@repourl}}
+        \end{center}
+    \fi
 
     \begin{center}
     {\bfseries

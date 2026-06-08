@@ -15,7 +15,7 @@
 \contentsline {table}{\numberline {3.7}{\ignorespaces IntaRNA Ensemble Featurewiz}}{51}{table.caption.27}%
 \contentsline {table}{\numberline {3.8}{\ignorespaces Final Model}}{51}{table.caption.28}%
 \contentsline {table}{\numberline {3.9}{\ignorespaces Final Model vs miRBind vs TargetScan}}{51}{table.caption.29}%
-\contentsline {table}{\numberline {3.10}{\ignorespaces Features extracted by the unified feature-extraction pipeline. Notation: $\mathbf {E} = (E_1,\dots ,E_n)$ denotes the vector of Turner nearest-neighbour stacking energies (kcal\,mol$^{-1}$, 37\,$^{\circ }$C) for consecutive dinucleotides of a given sequence region; $\Delta E_i = E_{i+1} - E_i$. The duplex vector $\mathbf {v}$ encodes per-position alignment codes (\texttt {1}\,=\,match, \texttt {2}\,=\,mismatch, \texttt {3}\,=\,MRE bulge, \texttt {4}\,=\,miRNA bulge).}}{51}{table.3.10}%
+\contentsline {table}{\numberline {3.10}{\ignorespaces Features extracted by the unified feature-extraction pipeline. Notation: $\mathbf {E} = (E_1,\dots ,E_n)$ denotes the vector of Turner nearest-neighbour stacking energies (kcal\,mol$^{-1}$, 37\,$^{\circ }$C) for consecutive dinucleotides of a given sequence region; $\Delta E_i = E_{i+1} - E_i$. The duplex vector $\mathbf {v}$ encodes per-position alignment codes (\texttt {1}\,=\,match, \texttt {2}\,=\,mismatch, \texttt {3}\,=\,MRE bulge, \texttt {4}\,=\,miRNA bulge).}}{52}{table.3.10}%
 \contentsline {table}{\numberline {3.11}{\ignorespaces Global Feature Importance (Mean Absolute SHAP Values) - Complete Results}}{55}{table.caption.30}%
 \contentsline {table}{\numberline {3.12}{\ignorespaces Permutation Feature Importance - Complete Results}}{56}{table.caption.31}%
 \addvspace {10\p@ }

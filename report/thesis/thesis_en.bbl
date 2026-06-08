@@ -1230,7 +1230,7 @@
       \field{sortinit}{D}
       \field{sortinithash}{6f385f66841fb5e82009dc833c761848}
       \field{extradatescope}{labelyear}
-      \field{labeldatesource}{url}
+      \field{labeldatesource}{}
       \field{labelnamesource}{author}
       \field{labeltitlesource}{shorttitle}
       \field{abstract}{Abstract. Motivation: For several decades, free energy minimization methods have been the dominant strategy for single sequence RNA secondary structure pre}
@@ -1240,6 +1240,8 @@
       \field{urlday}{20}
       \field{urlmonth}{4}
       \field{urlyear}{2026}
+      \field{year}{2006}
+      \field{dateera}{ce}
       \field{urldateera}{ce}
       \verb{file}
       \verb /home/rafail/Zotero/storage/348J5RWT/Do et al. - CONTRAfold RNA secondary structure prediction without physics-based models.pdf
