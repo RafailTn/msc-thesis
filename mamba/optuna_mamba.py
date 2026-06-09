@@ -35,8 +35,8 @@ def load_data():
 # ── objective ────────────────────────────────────────────────────────────────
 def objective(trial: optuna.Trial, train_df, val_df) -> float:
     # ── suggest hyperparameters ──────────────────────────────────────────────
-    d_model    = trial.suggest_categorical('d_model',    [32, 64, 128])
-    num_layers = trial.suggest_int('num_layers', 1, 3)
+    d_model    = trial.suggest_categorical('d_model',    [4,8,16,24,32])
+    num_layers = trial.suggest_int('num_layers', 2, 5)
     dropout    = trial.suggest_float('dropout',  0.1, 0.3, step=0.05)
     learning_rate = trial.suggest_float('learning_rate', 1e-5, 1e-2, log=True)
     weight_decay = trial.suggest_float('weight_decay', 1e-6, 1e-2, log=True)
@@ -82,8 +82,8 @@ def main():
     study = optuna.create_study(
         direction='maximize',
         pruner=pruner,
-        study_name='mamba-dna-hpo_add',
-        storage='sqlite:///mamba_hpo_add.db',   # persists results; safe to Ctrl-C and resume
+        study_name='mamba-dna-hpo_add_final',
+        storage='sqlite:///mamba_hpo_add_final.db',   # persists results; safe to Ctrl-C and resume
         load_if_exists=True,
     )
 
