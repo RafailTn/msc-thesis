@@ -79,11 +79,14 @@ def _train_trial(
     device: torch.device,
     epochs: int,
     patience: int,
+    checkpoint_path: Path,
+    model_args: dict,
 ) -> float:
     """Train for *epochs* epochs, report AUPRC to Optuna each epoch.
 
-    Returns the best AUPRC achieved.  Raises TrialPruned if Optuna decides
-    the trial is unpromising.
+    Saves a checkpoint to *checkpoint_path* whenever the per-trial best
+    AUPRC improves.  Returns the best AUPRC achieved.  Raises TrialPruned
+    if Optuna decides the trial is unpromising.
     """
     pos_weight = None
     if not hparams["balance"]:
@@ -162,6 +165,13 @@ def _train_trial(
         if auprc > best_auprc:
             best_auprc = auprc
             patience_counter = 0
+            torch.save({
+                "model_state":  model.state_dict(),
+                "model_args":   model_args,
+                "energy_stats": train_ds.energy_stats,
+                "trial":        trial.number,
+                "val_auprc":    best_auprc,
+            }, checkpoint_path)
         else:
             patience_counter += 1
             if patience > 0 and patience_counter >= patience:
@@ -182,14 +192,19 @@ def make_objective(
     epochs:   int,
     patience: int,
     num_workers: int,
+    ckpt_dir: Path,
+    use_conservation: bool = True,
+    use_eclip:        bool = True,
+    use_tspot:        bool = True,
+    use_energy:       bool = True,
 ):
     def objective(trial: optuna.Trial) -> float:
         # ── Architecture ──────────────────────────────────────────────────
         seq_channels = trial.suggest_categorical("seq_channels", [64, 128, 256])
-        seq_blocks   = trial.suggest_int("seq_blocks", 3, 8)
+        seq_blocks   = trial.suggest_int("seq_blocks", 1, 8)
         vec_channels = trial.suggest_categorical("vec_channels", [32, 64, 128])
-        vec_blocks   = trial.suggest_int("vec_blocks", 2, 5)
-        energy_dim   = trial.suggest_categorical("energy_dim", [32, 64, 128])
+        vec_blocks   = trial.suggest_int("vec_blocks", 1, 5)
+        energy_dim   = trial.suggest_categorical("energy_dim", [4, 8, 16, 32, 64, 128])
         kernel_size  = trial.suggest_categorical("kernel_size", [3, 5, 7, 9])
         dropout      = trial.suggest_float("dropout", 0.05, 0.4)
         norm         = trial.suggest_categorical("norm", ["batch", "layer"])
@@ -198,9 +213,9 @@ def make_objective(
             "num_heads", [h for h in [2, 4, 8] if seq_channels % h == 0])
 
         # ── Training ──────────────────────────────────────────────────────
-        lr            = trial.suggest_float("lr", 1e-4, 5e-3, log=True)
-        weight_decay  = trial.suggest_float("weight_decay", 1e-5, 1e-2, log=True)
-        batch_size    = trial.suggest_categorical("batch_size", [32, 64, 128, 256])
+        lr            = trial.suggest_float("lr", 1e-5, 5e-3, log=True)
+        weight_decay  = trial.suggest_float("weight_decay", 1e-6, 1e-2, log=True)
+        batch_size    = trial.suggest_categorical("batch_size", [16, 32, 64])
         warmup_steps  = trial.suggest_int("warmup_steps", 0, 500, step=50)
         balance       = trial.suggest_categorical("balance", [True, False])
 
@@ -214,6 +229,10 @@ def make_objective(
             vec_channels=vec_channels, vec_blocks=vec_blocks,
             energy_dim=energy_dim, kernel_size=kernel_size,
             dropout=dropout, norm=norm, num_heads=num_heads,
+            use_conservation=use_conservation,
+            use_eclip=use_eclip,
+            use_tspot=use_tspot,
+            use_energy=use_energy,
         )
 
         model = ThreeBranchCNN(**model_args).to(device)
@@ -232,10 +251,61 @@ def make_objective(
         best_auprc = _train_trial(
             trial, model, train_loader, val_loader,
             train_ds, hparams, device, epochs, patience,
+            checkpoint_path=ckpt_dir / f"trial_{trial.number}.pt",
+            model_args=model_args,
         )
         return best_auprc
 
     return objective
+
+
+# ---------------------------------------------------------------------------
+# Retrain best config and evaluate on held-out test files
+# ---------------------------------------------------------------------------
+
+def _load_and_test(
+    study:    optuna.Study,
+    train_ds: MiRNAInteractionDataset,
+    args:     argparse.Namespace,
+    device:   torch.device,
+) -> None:
+    best_trial = study.best_trial
+    ckpt_path  = Path(args.ckpt_dir) / f"trial_{best_trial.number}.pt"
+
+    if not ckpt_path.exists():
+        print(f"WARNING: checkpoint not found at {ckpt_path} — skipping test evaluation.")
+        return
+
+    print(f"\n{'='*60}")
+    print(f"Loading best checkpoint: {ckpt_path}")
+    ckpt  = torch.load(ckpt_path, map_location=device, weights_only=False)
+    model = ThreeBranchCNN(**ckpt["model_args"]).to(device)
+    model.load_state_dict(ckpt["model_state"])
+    model.eval()
+    print(f"  trial={ckpt['trial']}  val_auprc={ckpt['val_auprc']:.4f}")
+
+    # Optionally copy to --best-model-out
+    if args.best_model_out:
+        out_path = Path(args.best_model_out)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        import shutil
+        shutil.copy2(ckpt_path, out_path)
+        print(f"  Copied → {out_path}")
+
+    energy_stats = ckpt["energy_stats"]
+    batch_size   = study.best_params["batch_size"]
+
+    print(f"\nTest-set evaluation (trial #{ckpt['trial']}, val_auprc={ckpt['val_auprc']:.4f}):")
+    for test_path in args.test:
+        test_ds = MiRNAInteractionDataset(
+            test_path, energy_stats=energy_stats, has_labels=True,
+            mre_col=args.mre_col, mirna_col=args.mirna_col)
+        test_loader = _make_loader(test_ds, batch_size, shuffle=False,
+                                   num_workers=args.num_workers)
+        metrics = evaluate(model, test_loader, device)
+        print(f"  [{Path(test_path).stem}]  "
+              + "  ".join(f"{k}={v:.4f}" for k, v in metrics.items()))
+    print("="*60)
 
 
 # ---------------------------------------------------------------------------
@@ -280,10 +350,30 @@ def main() -> int:
                    help="Random trials before TPE kicks in.")
     p.add_argument("--pruner-warmup", type=int, default=5, dest="pruner_warmup",
                    help="Epochs before MedianPruner is allowed to prune.")
+    p.add_argument("--no-conservation", action="store_true",
+                   help="Disable the conservation branch for all trials.")
+    p.add_argument("--no-eclip",        action="store_true",
+                   help="Disable the eCLIP branch for all trials.")
+    p.add_argument("--no-tspot",        action="store_true",
+                   help="Disable the IntaRNA tSpotProb branch for all trials.")
+    p.add_argument("--no-energy",       action="store_true",
+                   help="Disable the IntaRNA energy gate for all trials.")
+    p.add_argument("--test",          nargs="+", default=None, metavar="FILE",
+                   help="One or more test CSV/TSV files to evaluate using the "
+                        "best trial's saved checkpoint (no retraining).")
+    p.add_argument("--ckpt-dir",      default=None, dest="ckpt_dir",
+                   help="Directory for per-trial checkpoints. "
+                        "Defaults to <storage_stem>_trials/ next to --storage.")
+    p.add_argument("--best-model-out", default=None, dest="best_model_out",
+                   help="Optional path to copy the best trial checkpoint to.")
     args = p.parse_args()
 
     if args.val and args.val_fold != 0:
         sys.exit("ERROR: --val-fold is only used when --val is not provided.")
+
+    ckpt_dir = Path(args.ckpt_dir) if args.ckpt_dir else \
+               Path(args.storage).with_suffix("") .parent / (Path(args.storage).stem + "_trials")
+    ckpt_dir.mkdir(parents=True, exist_ok=True)
 
     device = torch.device(args.device)
     print(f"Device: {device}")
@@ -344,6 +434,11 @@ def main() -> int:
         epochs=args.epochs,
         patience=args.patience,
         num_workers=args.num_workers,
+        ckpt_dir=ckpt_dir,
+        use_conservation=not args.no_conservation,
+        use_eclip=not args.no_eclip,
+        use_tspot=not args.no_tspot,
+        use_energy=not args.no_energy,
     )
 
     study.optimize(
@@ -375,6 +470,9 @@ def main() -> int:
     for t in completed[:5]:
         print(f"  #{t.number:<4d}  auprc={t.value:.4f}  "
               + "  ".join(f"{k}={v}" for k, v in t.params.items()))
+
+    if args.test:
+        _load_and_test(study, train_ds, args, device)
 
     return 0
 
