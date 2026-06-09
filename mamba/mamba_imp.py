@@ -1,3 +1,4 @@
+import argparse
 import torch
 import polars as ps
 from mamba_ssm import Mamba2
@@ -8,7 +9,7 @@ from pytorch_lightning.loggers import WandbLogger
 from torchmetrics import AveragePrecision, AUROC, MatthewsCorrCoef
 from sklearn.model_selection import StratifiedGroupKFold, GroupShuffleSplit
 from torch.utils.data import DataLoader
-from utils import OneHotDataset, collate_fn_onehot, DnaOneHotEncoder, AttentionPool, get_rc_indices 
+from utils import OneHotDataset, collate_fn_onehot, DnaOneHotEncoder, AttentionPool, get_rc_indices
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -17,7 +18,7 @@ class MambaBlock(nn.Module):
     """
     Single residual Mamba2 block: pre-LayerNorm → Mamba2 → residual → dropout.
     """
-    def __init__(self, d_model: int, d_state: int, d_conv: int, expand: int, dropout: float):
+    def __init__(self, d_model: int, d_state: int, d_conv: int, expand: int, headdim: int, dropout: float):
         super().__init__()
         self.norm = nn.LayerNorm(d_model)
         self.mamba = Mamba2(
@@ -25,6 +26,7 @@ class MambaBlock(nn.Module):
             d_state=d_state,
             d_conv=d_conv,
             expand=expand,
+            headdim=headdim,
         )
         self.dropout = nn.Dropout(dropout)
 
@@ -46,12 +48,13 @@ class MambaDNA(nn.Module):
         d_state: int = 16,
         d_conv: int = 4,
         expand: int = 2,
+        headdim: int = 64,
         num_layers: int = 2,
         dropout: float = 0.3,
     ):
         super().__init__()
         self.blocks = nn.ModuleList([
-            MambaBlock(d_model, d_state, d_conv, expand, dropout)
+            MambaBlock(d_model, d_state, d_conv, expand, headdim, dropout)
             for _ in range(num_layers)
         ])
         self.pool = AttentionPool(d_model)
@@ -73,21 +76,21 @@ class MambaDNALightning(pl.LightningModule):
         d_state: int = 16,
         d_conv: int = 4,
         expand: int = 2,
-        num_layers: int   = 2,
+        headdim: int = 64,
+        num_layers: int = 2,
         dropout: float = 0.3,
         learning_rate: float = 1e-3,
         weight_decay: float = 1e-2,
     ):
         super().__init__()
         self.save_hyperparameters()
-        # input_dim=5: [A, C, G, T, segment_id]; max_seq_len=256 to safely cover
-        # chimeric sequences (mRNA site + miRNA, typically 30–80 nt each)
-        self.encoder=DnaOneHotEncoder(input_dim=5, emb_size=d_model, max_seq_len=256, dropout=dropout)
-        self.model=MambaDNA(
+        self.encoder = DnaOneHotEncoder(input_dim=5, emb_size=d_model, max_seq_len=256, dropout=dropout)
+        self.model = MambaDNA(
             d_model=d_model,
             d_state=d_state,
             d_conv=d_conv,
             expand=expand,
+            headdim=headdim,
             num_layers=num_layers,
             dropout=dropout,
         )
@@ -188,7 +191,24 @@ class MambaDNALightning(pl.LightningModule):
         }
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="Train MambaDNA on miRNA binding data")
+    parser.add_argument("--d_model", type=int, default=128)
+    parser.add_argument("--d_state", type=int, default=16)
+    parser.add_argument("--d_conv", type=int, default=4)
+    parser.add_argument("--expand", type=int, default=2)
+    parser.add_argument("--headdim", type=int, default=64)
+    parser.add_argument("--num_layers", type=int, default=2)
+    parser.add_argument("--dropout", type=float, default=0.3)
+    parser.add_argument("--learning_rate", type=float, default=1e-3)
+    parser.add_argument("--weight_decay", type=float, default=1e-2)
+    parser.add_argument("--max_epochs", type=int, default=25)
+    parser.add_argument("--batch_size", type=int, default=256)
+    return parser.parse_args()
+
+
 def main():
+    args = parse_args()
     df = ps.read_csv('/home/adam/adam/data/AGO2eCLIPManakov2022trainimprovedwfeatures.csv', columns=['mre_sequence', 'mirna_sequence', 'mir_fam', 'label'])
     df = df.unique(subset=['mre_sequence', 'mirna_sequence'], keep='none')
     test_df = ps.read_csv('/home/adam/adam/data/AGO2eCLIPManakov2022testimprovedwfeatures.csv', columns=['mre_sequence', 'mirna_sequence', 'label'])
@@ -208,18 +228,28 @@ def main():
         eval_dataset = OneHotDataset(final_val_data)
         test_dataset = OneHotDataset(test_df)
         final_test_dataset = OneHotDataset(final_test_df)
-        train_dataloader = DataLoader(train_dataset, batch_size=256, collate_fn=collate_fn_onehot, shuffle=True, num_workers=4)  
-        val_dataloader = DataLoader(eval_dataset, batch_size=256, collate_fn=collate_fn_onehot, shuffle=False, num_workers=4) 
-        test_dataloader = DataLoader(test_dataset, batch_size=256, collate_fn=collate_fn_onehot, shuffle=False, num_workers=4) 
-        final_test_dataloader = DataLoader(final_test_dataset, batch_size=256, collate_fn=collate_fn_onehot, shuffle=False, num_workers=4) 
+        train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, collate_fn=collate_fn_onehot, shuffle=True, num_workers=4)
+        val_dataloader = DataLoader(eval_dataset, batch_size=args.batch_size, collate_fn=collate_fn_onehot, shuffle=False, num_workers=4)
+        test_dataloader = DataLoader(test_dataset, batch_size=args.batch_size, collate_fn=collate_fn_onehot, shuffle=False, num_workers=4)
+        final_test_dataloader = DataLoader(final_test_dataset, batch_size=args.batch_size, collate_fn=collate_fn_onehot, shuffle=False, num_workers=4)
         wandb_logger = WandbLogger(
             project="mamba-mirna-dropout03-weightedpool",
             name=f"fold-{i}",
-            log_model=False,  # set to True to upload checkpoints as WandB artifacts
+            log_model=False,
         )
-        model = MambaDNALightning()
+        model = MambaDNALightning(
+            d_model=args.d_model,
+            d_state=args.d_state,
+            d_conv=args.d_conv,
+            expand=args.expand,
+            headdim=args.headdim,
+            num_layers=args.num_layers,
+            dropout=args.dropout,
+            learning_rate=args.learning_rate,
+            weight_decay=args.weight_decay,
+        )
         trainer = pl.Trainer(
-            max_epochs=25,
+            max_epochs=args.max_epochs,
             callbacks=[early_stop_callback, checkpoint_callback],
             accelerator='auto',
             precision = '16-mixed',

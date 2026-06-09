@@ -33,13 +33,22 @@ def load_data():
 
 
 # ── objective ────────────────────────────────────────────────────────────────
+_HEADDIM_CANDIDATES = [8, 16, 32, 64]
+
+
 def objective(trial: optuna.Trial, train_df, val_df) -> float:
     # ── suggest hyperparameters ──────────────────────────────────────────────
-    d_model    = trial.suggest_categorical('d_model',    [32, 64, 128])
+    d_model    = trial.suggest_categorical('d_model',    [16, 32, 64, 128])
+    expand     = trial.suggest_categorical('expand',     [2, 4])
     num_layers = trial.suggest_int('num_layers', 1, 3)
     dropout    = trial.suggest_float('dropout',  0.1, 0.3, step=0.05)
     learning_rate = trial.suggest_float('learning_rate', 1e-5, 1e-2, log=True)
     weight_decay = trial.suggest_float('weight_decay', 1e-6, 1e-2, log=True)
+
+    # headdim must divide d_ssm = expand * d_model; build valid candidates first
+    d_ssm = expand * d_model
+    valid_headdims = [h for h in _HEADDIM_CANDIDATES if d_ssm % h == 0]
+    headdim = trial.suggest_categorical('headdim', valid_headdims)
 
     # ── dataloaders ──────────────────────────────────────────────────────────
     train_loader = DataLoader(OneHotDataset(train_df), batch_size=256,
@@ -48,7 +57,7 @@ def objective(trial: optuna.Trial, train_df, val_df) -> float:
                               collate_fn=collate_fn_onehot, shuffle=False, num_workers=4)
 
     # ── model & trainer ──────────────────────────────────────────────────────
-    model = MambaDNALightning(d_model=d_model, num_layers=num_layers, dropout=dropout, learning_rate=learning_rate, weight_decay=weight_decay)
+    model = MambaDNALightning(d_model=d_model, expand=expand, headdim=headdim, num_layers=num_layers, dropout=dropout, learning_rate=learning_rate, weight_decay=weight_decay)
 
     callbacks = [
         # Report val_ap to Optuna each epoch and prune underperforming trials early
@@ -94,12 +103,14 @@ def main():
     )
 
     print("\n─── Best trial ───────────────────────────────")
-    print(f"  val_ap     : {study.best_value:.4f}")
-    print(f"  d_model    : {study.best_params['d_model']}")
-    print(f"  num_layers : {study.best_params['num_layers']}")
-    print(f"  dropout    : {study.best_params['dropout']:.2f}")
-    print(f"  learning_rate    : {study.best_params['learning_rate']:.2f}")
-    print(f"  weight_decay    : {study.best_params['weight_decay']:.2f}")
+    print(f"  val_ap        : {study.best_value:.4f}")
+    print(f"  d_model       : {study.best_params['d_model']}")
+    print(f"  expand        : {study.best_params['expand']}")
+    print(f"  headdim       : {study.best_params['headdim']}")
+    print(f"  num_layers    : {study.best_params['num_layers']}")
+    print(f"  dropout       : {study.best_params['dropout']:.2f}")
+    print(f"  learning_rate : {study.best_params['learning_rate']:.2e}")
+    print(f"  weight_decay  : {study.best_params['weight_decay']:.2e}")
 
 if __name__ == "__main__":
     main()
