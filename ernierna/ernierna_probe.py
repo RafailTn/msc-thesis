@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
 """
-DNABERT-2 linear probe for miRNA–MRE interaction classification.
+RNA foundation model linear probe for miRNA–MRE interaction classification.
 
-The backbone (zhihan1996/DNABERT-2-117M) is kept FROZEN; only a small MLP
-classification head is trained on the mean-pooled sequence-pair embeddings.
+The backbone (multimolecule/ernierna by default) is kept FROZEN; only a small
+MLP classification head is trained on the mean-pooled sequence-pair embeddings.
+
+ERNIE-RNA is an RNA-native BERT model pretrained on 23M non-coding RNA
+sequences with secondary-structure awareness, making it more appropriate for
+miRNA–MRE interaction tasks than DNA-based models.
 
 Workflow
 --------
-1. embed  – pass a raw CSV through DNABERT-2 and save (embeddings, labels,
+1. embed  – pass a raw CSV through the backbone and save (embeddings, labels,
              groups) to a compressed .npz file.
 2. train  – load a .npz produced by `embed` and train the MLP head.
 3. predict – load a pre-extracted .npz (or raw CSV) plus a head checkpoint
@@ -15,10 +19,10 @@ Workflow
 
 Sequence encoding
 -----------------
-Both sequences are RNA-normalised (U→T) and fed as a BERT pair:
+Both sequences are RNA-normalised (T→U) and fed as a BERT pair:
     [CLS] mirna_seq [SEP] mre_seq [SEP]
 Mean pooling over all non-padding token embeddings is used as the pair
-representation (768 dims for DNABERT-2-117M).
+representation (768 dims for ERNIE-RNA).
 
 Embeddings are stored as float16 in the .npz to halve disk usage; they are
 cast back to float32 at training time.
@@ -26,39 +30,45 @@ cast back to float32 at training time.
 Usage
 -----
   # Step 1 – extract embeddings once (GPU recommended)
-  python dnabert/dnabert_probe.py embed \\
+  python ernierna/ernierna_probe.py embed \\
       --input  data/manakov_train_cnn.csv \\
       --output data/train_emb.npz \\
       --batch-size 128
 
-  python dnabert/dnabert_probe.py embed \\
+  python ernierna/ernierna_probe.py embed \\
       --input  data/manakov_test_cnn.csv \\
       --output data/test_emb.npz \\
       --batch-size 128
 
   # Step 2 – train MLP head on pre-extracted embeddings
-  python dnabert/dnabert_probe.py train \\
+  python ernierna/ernierna_probe.py train \\
       --train data/train_emb.npz \\
       --val   data/test_emb.npz \\
-      --out   checkpoints/dnabert_probe.pt
+      --out   checkpoints/rna_probe.pt
 
   # Step 2 (alternative) – k-fold CV from a single .npz
-  python dnabert/dnabert_probe.py train \\
+  python ernierna/ernierna_probe.py train \\
       --train data/train_emb.npz \\
       --folds 5 \\
-      --out   checkpoints/dnabert_probe.pt
+      --out   checkpoints/rna_probe.pt
 
   # Step 3 – predict
-  python dnabert/dnabert_probe.py predict \\
-      --checkpoint checkpoints/dnabert_probe.pt \\
+  python ernierna/ernierna_probe.py predict \\
+      --checkpoint checkpoints/rna_probe.pt \\
       --input      data/test_emb.npz \\
       --output     predictions.tsv
 
   # Sanity-check baseline: randomly initialised backbone
-  python dnabert/dnabert_probe.py embed \\
+  python ernierna/ernierna_probe.py embed \\
       --input data/manakov_train_cnn.csv \\
       --output data/train_emb_random.npz \\
       --random-init
+
+  # Use a different backbone (e.g. RNA-FM)
+  python ernierna/ernierna_probe.py embed \\
+      --input  data/manakov_train_cnn.csv \\
+      --output data/train_emb_rnafm.npz \\
+      --model  multimolecule/rnafm
 """
 
 from __future__ import annotations
@@ -105,18 +115,18 @@ except ImportError:
 # Constants
 # ---------------------------------------------------------------------------
 
-DNABERT2_MODEL = "zhihan1996/DNABERT-2-117M"
-EMBED_DIM  = 768   # DNABERT-2-117M hidden size
-MAX_LENGTH = 128   # miRNA ~22 nt + MRE 50 nt + special tokens << 128
+DEFAULT_MODEL = "multimolecule/ernierna"
+EMBED_DIM     = 768   # ERNIE-RNA hidden size (also 768 for RNABERT, RNA-MSM, BiRNA-BERT)
+MAX_LENGTH    = 128   # miRNA ~22 nt + MRE 50 nt + special tokens << 128
 
 
 # ---------------------------------------------------------------------------
 # Utilities
 # ---------------------------------------------------------------------------
 
-def _norm_dna(seq: str) -> str:
-    """Normalise RNA/DNA to uppercase DNA (U → T)."""
-    return seq.upper().replace("U", "T")
+def _norm_rna(seq: str) -> str:
+    """Normalise DNA/RNA to uppercase RNA (T → U) for RNA-native models."""
+    return seq.upper().replace("T", "U")
 
 
 def _read_table(path: str | Path) -> "pd.DataFrame":
@@ -150,12 +160,19 @@ def _binary_metrics(logits: np.ndarray, labels: np.ndarray,
 # Backbone loader
 # ---------------------------------------------------------------------------
 
-def load_backbone(model_name: str = DNABERT2_MODEL,
+def load_backbone(model_name: str = DEFAULT_MODEL,
                   random_init: bool = False,
                   device: torch.device = torch.device("cpu")):
-    """Load DNABERT-2 tokenizer and encoder; freeze all backbone parameters."""
+    """Load tokenizer and frozen RNA backbone (default: multimolecule/ernierna)."""
     if not HAS_TRANSFORMERS:
         sys.exit("ERROR: transformers not found. pip install transformers")
+
+    # multimolecule registers RnaTokenizer / ErnieRnaModel etc. into the HF
+    # Auto registries on import; without this, AutoTokenizer can't resolve them.
+    try:
+        import multimolecule  # noqa: F401
+    except ImportError:
+        pass
 
     tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
 
@@ -188,9 +205,9 @@ def extract_embeddings(
     batch_size: int = 64,
 ) -> np.ndarray:
     """
-    Extract mean-pooled DNABERT-2 embeddings for miRNA-MRE sequence pairs.
+    Extract mean-pooled RNA backbone embeddings for miRNA-MRE sequence pairs.
 
-    Sequences are fed as BERT pairs:
+    Sequences are DNA-normalised to RNA (T→U) and fed as a BERT pair:
         [CLS] mirna_seq [SEP] mre_seq [SEP]
 
     Mean pooling is applied over all non-padding token positions.
@@ -199,8 +216,8 @@ def extract_embeddings(
     n = len(mirna_seqs)
     embeddings = np.zeros((n, EMBED_DIM), dtype=np.float32)
 
-    mirna_norm = [_norm_dna(s) for s in mirna_seqs]
-    mre_norm   = [_norm_dna(s) for s in mre_seqs]
+    mirna_norm = [_norm_rna(s) for s in mirna_seqs]
+    mre_norm   = [_norm_rna(s) for s in mre_seqs]
 
     for start in range(0, n, batch_size):
         end   = min(start + batch_size, n)
@@ -219,7 +236,7 @@ def extract_embeddings(
         attention_mask = encoding["attention_mask"].to(device)
 
         outputs = backbone(input_ids=input_ids, attention_mask=attention_mask)
-        hidden  = outputs.last_hidden_state          # (B, L, 768)
+        hidden  = outputs[0] if isinstance(outputs, tuple) else outputs.last_hidden_state
 
         # Mean pool over non-padding tokens
         mask_expanded = attention_mask.unsqueeze(-1).float()
@@ -240,9 +257,9 @@ def extract_embeddings(
 
 class MLPHead(nn.Module):
     """
-    Small MLP trained on top of frozen DNABERT-2 mean-pooled embeddings.
+    Small MLP trained on top of frozen RNA backbone mean-pooled embeddings.
 
-    Architecture: 768 → hidden → hidden//2 → 1 (binary logit)
+    Architecture: in_dim → hidden → hidden//2 → 1 (binary logit)
     """
 
     def __init__(self, in_dim: int = EMBED_DIM, hidden: int = 256,
@@ -452,7 +469,7 @@ def _train_head(
                 "head_args":      {"hidden": args.hidden, "dropout": args.dropout},
                 "val_metrics":    val_metrics,
                 "epoch":          epoch,
-                "dnabert2_model": DNABERT2_MODEL,
+                "backbone_model": DEFAULT_MODEL,
             }, out_path)
             print(f"  → checkpoint saved: {out_path}")
         else:
@@ -637,7 +654,7 @@ def cmd_predict(args: argparse.Namespace) -> None:
         # Raw CSV: extract on the fly
         if not HAS_PANDAS:
             sys.exit("ERROR: pandas not found. pip install pandas")
-        model_name = ckpt.get("dnabert2_model", DNABERT2_MODEL)
+        model_name = ckpt.get("backbone_model", ckpt.get("dnabert2_model", DEFAULT_MODEL))
         print(f"Extracting embeddings with {model_name} ...")
         tokenizer, backbone = load_backbone(model_name, device=device)
         df         = _read_table(args.input)
@@ -693,7 +710,7 @@ def cmd_predict(args: argparse.Namespace) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="DNABERT-2 linear probe for miRNA–MRE interaction classification.",
+        description="RNA foundation model linear probe for miRNA–MRE interaction classification.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     sub = parser.add_subparsers(dest="command", required=True)
@@ -703,12 +720,12 @@ def main() -> int:
     # ── embed ──────────────────────────────────────────────────────────────────
     em = sub.add_parser("embed",
                         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-                        help="Extract frozen DNABERT-2 embeddings from a CSV.")
+                        help="Extract frozen RNA backbone embeddings from a CSV.")
     em.add_argument("--input",      required=True,
                     help="Input CSV/TSV with sequence columns")
     em.add_argument("--output",     required=True,
                     help="Output .npz file (float16 embeddings + labels + groups)")
-    em.add_argument("--model",      default=DNABERT2_MODEL,
+    em.add_argument("--model",      default=DEFAULT_MODEL,
                     help="HuggingFace model ID or local path")
     em.add_argument("--mre-col",    default="gene",             dest="mre_col",
                     help="Column name for MRE/target sequence")
@@ -717,7 +734,7 @@ def main() -> int:
     em.add_argument("--family-col", default="noncodingRNA_fam", dest="family_col",
                     help="Column used as group key for k-fold splits")
     em.add_argument("--batch-size", type=int, default=64,  dest="batch_size",
-                    help="Sequences per forward pass through DNABERT-2")
+                    help="Sequences per forward pass through the backbone")
     em.add_argument("--random-init", action="store_true", dest="random_init",
                     help="Randomly initialise backbone weights (control baseline)")
     em.add_argument("--device", default=_device_default)
@@ -733,7 +750,7 @@ def main() -> int:
                     help=".npz for validation (required unless --folds is set)")
     tr.add_argument("--folds",   type=int, default=None,
                     help="Run stratified-group k-fold CV instead of train/val split")
-    tr.add_argument("--out",     default="checkpoints/dnabert_probe.pt",
+    tr.add_argument("--out",     default="checkpoints/rna_probe.pt",
                     help="Output checkpoint path (.pt)")
     # Head architecture
     tr.add_argument("--hidden",  type=int,   default=256,
