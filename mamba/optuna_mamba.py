@@ -45,10 +45,13 @@ def objective(trial: optuna.Trial, train_df, val_df) -> float:
     learning_rate = trial.suggest_float('learning_rate', 1e-5, 1e-2, log=True)
     weight_decay = trial.suggest_float('weight_decay', 1e-6, 1e-2, log=True)
 
-    # headdim must divide d_ssm = expand * d_model; build valid candidates first
+    # headdim must divide d_ssm = expand * d_model.
+    # Always suggest from the full fixed set (Optuna requires a stable space),
+    # then snap down to the largest valid divisor <= the suggested value.
     d_ssm = expand * d_model
-    valid_headdims = [h for h in _HEADDIM_CANDIDATES if d_ssm % h == 0]
-    headdim = trial.suggest_categorical('headdim', valid_headdims)
+    headdim_raw = trial.suggest_categorical('headdim', _HEADDIM_CANDIDATES)
+    headdim = max(h for h in _HEADDIM_CANDIDATES if d_ssm % h == 0 and h <= headdim_raw)
+    trial.set_user_attr('headdim_actual', headdim)
 
     # ── dataloaders ──────────────────────────────────────────────────────────
     train_loader = DataLoader(OneHotDataset(train_df), batch_size=256,
@@ -106,7 +109,7 @@ def main():
     print(f"  val_ap        : {study.best_value:.4f}")
     print(f"  d_model       : {study.best_params['d_model']}")
     print(f"  expand        : {study.best_params['expand']}")
-    print(f"  headdim       : {study.best_params['headdim']}")
+    print(f"  headdim       : {study.best_trial.user_attrs['headdim_actual']} (suggested: {study.best_params['headdim']})")
     print(f"  num_layers    : {study.best_params['num_layers']}")
     print(f"  dropout       : {study.best_params['dropout']:.2f}")
     print(f"  learning_rate : {study.best_params['learning_rate']:.2e}")
