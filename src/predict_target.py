@@ -24,7 +24,7 @@ _HERE = Path(__file__).parent
 # SUBPROCESS HELPER
 # =============================================================================
 
-def _run(cmd: list[str], step: str, timeout: int = 600) -> None:
+def _run(cmd: list[str], step: str, timeout: int | None = None) -> None:
     """
     Run a subprocess command (as a list — no shell=True needed).
     Raises RuntimeError with a clear message if the step fails.
@@ -264,6 +264,14 @@ def main() -> int:
                         help="Threads for IntaRNA (default: 4)")
     parser.add_argument("-keep_files", action="store_true",
                         help="Keep intermediate files after completion")
+    parser.add_argument("-timeout", type=int, default=None,
+                        help="Timeout in seconds for each IntaRNA step "
+                             "(default: no timeout)")
+    parser.add_argument("-fallback_mismatch", action="store_true",
+                        dest="fallback_mismatch",
+                        help="For pairs where MFE and ensemble never agree on any "
+                             "interaction coordinates, fall back to an ID-only merge "
+                             "using each mode's lowest-E row instead of dropping the pair.")
     # -- Explainability --------------------------------------------------------
     parser.add_argument("-explain", action="store_true",
                         help="Compute feature importance + SHAP explanations. "
@@ -334,6 +342,7 @@ def main() -> int:
              "-o", str(intarna_out),
              "--threads", str(args.threads)],
             step="intarna",
+            timeout=args.timeout,
         )
 
         # -- Step 2: IntaRNA ensemble ------------------------------------------
@@ -344,17 +353,24 @@ def main() -> int:
              "--threads", str(args.threads),
              "--ensemble"],
             step="intarna-ensemble",
+            timeout=args.timeout,
         )
 
         # -- Step 3: Merge -----------------------------------------------------
-        merged_out = tmp_dir / "intarna_merged.tsv"
-        _run(
-            ["python3", str(_HERE / "merge_intarna.py"),
-             "-m", str(intarna_out),
-             "-e", str(intarna_ens_out),
-             "-o", str(merged_out)],
-            step="merge",
+        merged_out   = tmp_dir / "intarna_merged.tsv"
+        # Mismatch log lives next to the output file so it survives temp cleanup
+        mismatch_log = Path(args.o).with_suffix("") .parent / (
+            Path(args.o).stem + "_coord_mismatch.tsv"
         )
+        merge_cmd = [
+            "python3", str(_HERE / "merge_intarna.py"),
+            "-m", str(intarna_out),
+            "-e", str(intarna_ens_out),
+            "-o", str(merged_out),
+        ]
+        if args.fallback_mismatch:
+            merge_cmd += ["--fallback-on-mismatch", "--mismatch-log", str(mismatch_log)]
+        _run(merge_cmd, step="merge", timeout=args.timeout)
 
         # -- Step 4: Best structure per pair -----------------------------------
         best_out = tmp_dir / "intarna_best.tsv"
@@ -365,6 +381,7 @@ def main() -> int:
              "--mirna-fasta", args.query_fasta,
              "--output", str(best_out)],
             step="best-intarna",
+            timeout=args.timeout,
         )
 
         # -- Step 5: Feature extraction ----------------------------------------
@@ -382,7 +399,7 @@ def main() -> int:
             feat_cmd += ["--conservation", str(best_out)]
         if bigwig_path:
             feat_cmd += ["--bigwig", str(bigwig_path)]
-        _run(feat_cmd, step="feature-extraction")
+        _run(feat_cmd, step="feature-extraction", timeout=args.timeout)
 
         # -- Step 6: Load model + predict --------------------------------------
         print(f"\nLoading predictor from: {args.model}")
@@ -431,6 +448,8 @@ def main() -> int:
         output = pl.from_pandas(input4pred[seq_cols]).with_columns(extra_pl_cols)
         output.write_csv(args.o, separator="\t")
         print(f"\nResults written to: {args.o}  ({n_total} rows, {output.width} columns)")
+        if args.fallback_mismatch and mismatch_log.exists():
+            print(f"Coord-mismatch log: {mismatch_log}")
 
     finally:
         if args.keep_files:
