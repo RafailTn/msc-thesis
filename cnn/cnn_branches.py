@@ -219,26 +219,16 @@ class MiRNAInteractionDataset(Dataset):
         self.has_labels = has_labels
 
         # Sequences
-        self.mre_seqs    = df[mre_col].astype(str).tolist()
-        self.mirna_seqs  = df[mirna_col].astype(str).tolist()
+        self.mre_seqs   = df[mre_col].astype(str).tolist()
+        self.mirna_seqs = df[mirna_col].astype(str).tolist()
 
-        # Conservation vector
-        if "conservation_vector" in df.columns:
-            self.cons_vecs = df["conservation_vector"].tolist()
-        else:
-            self.cons_vecs = [None] * len(df)
-
-        # eCLIP probability vector
-        if "eclip_probs" in df.columns:
-            self.eclip_vecs = df["eclip_probs"].tolist()
-        else:
-            self.eclip_vecs = [None] * len(df)
-
-        # IntaRNA tSpotProb vector
-        if "tspot_probs" in df.columns:
-            self.tspot_vecs = df["tspot_probs"].tolist()
-        else:
-            self.tspot_vecs = [None] * len(df)
+        # Pre-parse vector columns once so __getitem__ only does array indexing.
+        raw_cons  = df["conservation_vector"].tolist() if "conservation_vector" in df.columns else [None] * len(df)
+        raw_eclip = df["eclip_probs"].tolist()         if "eclip_probs"         in df.columns else [None] * len(df)
+        raw_tspot = df["tspot_probs"].tolist()         if "tspot_probs"         in df.columns else [None] * len(df)
+        self.cons_mat  = np.stack([_parse_vector(v, MRE_LEN) for v in raw_cons])   # (N, MRE_LEN)
+        self.eclip_mat = np.stack([_parse_vector(v, MRE_LEN) for v in raw_eclip])
+        self.tspot_mat = np.stack([_parse_vector(v, MRE_LEN) for v in raw_tspot])
 
         # Energy features
         energy_mat = np.zeros((len(df), N_ENERGY), dtype=np.float32)
@@ -277,17 +267,10 @@ class MiRNAInteractionDataset(Dataset):
         seg[0, :MAX_MIRNA] = 1.0
         seq_input = np.concatenate([seq_oh, seg], axis=0)       # (5, 80)
 
-        # --- Conservation branch (1 × MRE_LEN) --------------------------------
-        cons  = _parse_vector(self.cons_vecs[idx],  MRE_LEN)[None, :]  # (1, 50)
-
-        # --- eCLIP branch (1 × MRE_LEN) ----------------------------------------
-        eclip = _parse_vector(self.eclip_vecs[idx], MRE_LEN)[None, :]  # (1, 50)
-
-        # --- tSpotProb branch (1 × MRE_LEN) ------------------------------------
-        tspot = _parse_vector(self.tspot_vecs[idx], MRE_LEN)[None, :]  # (1, 50)
-
-        # --- Energy (N_ENERGY,) ------------------------------------------------
-        energy = self.energy[idx].astype(np.float32)
+        cons   = self.cons_mat[idx][None, :]   # (1, MRE_LEN)
+        eclip  = self.eclip_mat[idx][None, :]
+        tspot  = self.tspot_mat[idx][None, :]
+        energy = self.energy[idx]
 
         return (
             torch.from_numpy(seq_input),
@@ -659,6 +642,7 @@ def _make_loader(dataset: MiRNAInteractionDataset,
         num_workers=num_workers,
         pin_memory=True,
         drop_last=(shuffle and sampler is None),
+        persistent_workers=(num_workers > 0),
     )
 
 

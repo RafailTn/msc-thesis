@@ -101,29 +101,45 @@ _WC_PAIRS: set[tuple[str, str]] = {
     ("G", "U"), ("U", "G"),   # wobble
 }
 
+# Vectorised lookup table: _NUC_IDX maps nucleotide → int index (unknown → 4)
+_NUC_IDX: dict[str, int] = {"A": 0, "C": 1, "G": 2, "U": 3}
+# 5×5 so that index 4 (unknown) always maps to 0
+_WC_TABLE = np.zeros((5, 5), dtype=np.float32)
+for _a, _b in _WC_PAIRS:
+    _WC_TABLE[_NUC_IDX[_a], _NUC_IDX[_b]] = 1.0
+
+# ASCII byte → nucleotide index lookup (default 4 = unknown/padding).
+# Lets us tokenise whole sequences with a single vectorised gather instead of
+# a per-character Python loop.  Handles upper/lowercase and T→U.
+_ASCII_IDX = np.full(256, 4, dtype=np.int8)
+for _c, _i in _NUC_IDX.items():
+    _ASCII_IDX[ord(_c)] = _i
+    _ASCII_IDX[ord(_c.lower())] = _i
+_ASCII_IDX[ord("T")] = _NUC_IDX["U"]
+_ASCII_IDX[ord("t")] = _NUC_IDX["U"]
+
+# Bump when the on-disk preprocessing cache format changes.
+_CACHE_VERSION = 1
+
 
 def _norm_seq(seq: str) -> str:
     return seq.upper().replace("T", "U")
 
 
-def _wc_matrix(mirna_seq: str, mre_seq: str,
-               mirna_len: int = MAX_MIRNA,
-               mre_len: int = MRE_LEN) -> np.ndarray:
-    """Binary Watson-Crick complementarity matrix.
+def _encode_seqs(seqs: list[str], length: int) -> np.ndarray:
+    """Tokenise nucleotide strings into a fixed-length int8 index matrix.
 
-    Returns shape (1, mirna_len, mre_len) float32.
-    M[0, i, j] = 1 if mirna[i] can base-pair with mre[j], else 0.
-    miRNA is cropped/padded to mirna_len; MRE to mre_len.
+    Returns shape (N, length); each entry is the nucleotide index (0–3) or 4
+    for unknown/padding.  Padding indices map to an all-zero row/column of
+    _WC_TABLE, so the Watson–Crick matrix built downstream is identical to the
+    previous per-sample construction — just computed once, in bulk, and the
+    actual matrix assembled on-device in the model's forward pass.
     """
-    mirna = _norm_seq(mirna_seq)[:mirna_len]
-    mre   = _norm_seq(mre_seq)[:mre_len]
-
-    mat = np.zeros((mirna_len, mre_len), dtype=np.float32)
-    for i, mb in enumerate(mirna):
-        for j, tb in enumerate(mre):
-            if (mb, tb) in _WC_PAIRS:
-                mat[i, j] = 1.0
-    return mat[np.newaxis]   # (1, mirna_len, mre_len)
+    out = np.full((len(seqs), length), 4, dtype=np.int8)
+    for r, s in enumerate(seqs):
+        b = np.frombuffer(s.encode("ascii", "ignore")[:length], dtype=np.uint8)
+        out[r, :b.shape[0]] = _ASCII_IDX[b]
+    return out
 
 
 def _read_table(path: str | Path) -> pd.DataFrame:
@@ -152,6 +168,72 @@ def _parse_vector(raw, length: int) -> np.ndarray:
 
 
 # ---------------------------------------------------------------------------
+# Preprocessing cache
+#
+# Parsing a multi-GB CSV with pandas and re-tokenising every sequence on each
+# run is the dominant start-up cost (and RAM spike).  We cache the parsed
+# arrays to a sidecar .cnncache.npz next to the source file and reload that
+# instead whenever it is present and up to date.
+# ---------------------------------------------------------------------------
+
+def _cache_path(path: str | Path) -> Path:
+    return Path(str(path) + ".cnncache.npz")
+
+
+def _save_cache(path: str | Path, mre_col: str, mirna_col: str,
+                ds: "MiRNAInteractionDataset") -> None:
+    cp = _cache_path(path)
+    try:
+        np.savez(
+            cp,
+            version=np.array([_CACHE_VERSION]),
+            mre_col=np.array([mre_col]),
+            mirna_col=np.array([mirna_col]),
+            dims=np.array([MAX_MIRNA, MRE_LEN]),
+            mirna_idx=ds.mirna_idx,
+            mre_idx=ds.mre_idx,
+            cons=ds.cons_mat,
+            eclip=ds.eclip_mat,
+            tspot=ds.tspot_mat,
+            energy_raw=ds.energy_raw,
+            labels=ds.labels,
+        )
+        print(f"  [cache] wrote {cp.name}")
+    except Exception as e:   # caching is best-effort; never fail training over it
+        print(f"  [cache] could not write {cp.name}: {e}")
+
+
+def _load_cache(path: str | Path, mre_col: str, mirna_col: str) -> Optional[dict]:
+    cp = _cache_path(path)
+    if not cp.exists():
+        return None
+    try:
+        if cp.stat().st_mtime < Path(path).stat().st_mtime:
+            return None   # source changed after the cache was written
+        z = np.load(cp, allow_pickle=False)
+        if (int(z["version"][0]) != _CACHE_VERSION
+                or str(z["mre_col"][0]) != mre_col
+                or str(z["mirna_col"][0]) != mirna_col
+                or list(z["dims"]) != [MAX_MIRNA, MRE_LEN]):
+            z.close()
+            return None
+        data = {
+            "mirna_idx":  z["mirna_idx"],
+            "mre_idx":    z["mre_idx"],
+            "cons":       z["cons"],
+            "eclip":      z["eclip"],
+            "tspot":      z["tspot"],
+            "energy_raw": z["energy_raw"],
+            "labels":     z["labels"],
+        }
+        z.close()
+        return data
+    except Exception as e:
+        print(f"  [cache] ignoring unreadable cache {cp.name}: {e}")
+        return None
+
+
+# ---------------------------------------------------------------------------
 # Dataset
 # ---------------------------------------------------------------------------
 
@@ -163,8 +245,18 @@ class MiRNAInteractionDataset(Dataset):
         has_labels: bool = True,
         mre_col: str = "mre_sequence",
         mirna_col: str = "mirna_sequence",
+        cache: bool = True,
     ) -> None:
-        self._init(_read_table(path), energy_stats, has_labels, mre_col, mirna_col)
+        cached = _load_cache(path, mre_col, mirna_col) if cache else None
+        if cached is not None:
+            print(f"  [cache] loaded {_cache_path(path).name}")
+            self.has_labels = has_labels
+            self._set_arrays(**cached)
+            self._finalize_energy(energy_stats)
+        else:
+            self._init(_read_table(path), energy_stats, has_labels, mre_col, mirna_col)
+            if cache:
+                _save_cache(path, mre_col, mirna_col, self)
 
     @classmethod
     def from_df(
@@ -187,13 +279,29 @@ class MiRNAInteractionDataset(Dataset):
         mre_col: str,
         mirna_col: str,
     ) -> None:
-        self.has_labels  = has_labels
-        self.mre_seqs    = df[mre_col].astype(str).tolist()
-        self.mirna_seqs  = df[mirna_col].astype(str).tolist()
+        self.has_labels = has_labels
+        self._build_arrays(df, has_labels, mre_col, mirna_col)
+        self._finalize_energy(energy_stats)
 
-        self.cons_vecs   = df["conservation_vector"].tolist() if "conservation_vector" in df.columns else [None] * len(df)
-        self.eclip_vecs  = df["eclip_probs"].tolist()         if "eclip_probs"         in df.columns else [None] * len(df)
-        self.tspot_vecs  = df["tspot_probs"].tolist()         if "tspot_probs"         in df.columns else [None] * len(df)
+    def _build_arrays(
+        self,
+        df: pd.DataFrame,
+        has_labels: bool,
+        mre_col: str,
+        mirna_col: str,
+    ) -> None:
+        # Tokenise sequences once into int8 index matrices; the Watson–Crick
+        # matrix is assembled on-device in the model forward pass.
+        self.mirna_idx = _encode_seqs(df[mirna_col].astype(str).tolist(), MAX_MIRNA)  # (N, 30)
+        self.mre_idx   = _encode_seqs(df[mre_col].astype(str).tolist(),   MRE_LEN)    # (N, 50)
+
+        # Pre-parse vector columns once so __getitem__ only does array indexing.
+        raw_cons  = df["conservation_vector"].tolist() if "conservation_vector" in df.columns else [None] * len(df)
+        raw_eclip = df["eclip_probs"].tolist()         if "eclip_probs"         in df.columns else [None] * len(df)
+        raw_tspot = df["tspot_probs"].tolist()         if "tspot_probs"         in df.columns else [None] * len(df)
+        self.cons_mat  = np.stack([_parse_vector(v, MRE_LEN) for v in raw_cons])   # (N, MRE_LEN)
+        self.eclip_mat = np.stack([_parse_vector(v, MRE_LEN) for v in raw_eclip])
+        self.tspot_mat = np.stack([_parse_vector(v, MRE_LEN) for v in raw_tspot])
 
         energy_mat = np.zeros((len(df), N_ENERGY), dtype=np.float32)
         for j, col in enumerate(ENERGY_COLS):
@@ -201,6 +309,31 @@ class MiRNAInteractionDataset(Dataset):
                 energy_mat[:, j] = pd.to_numeric(df[col], errors="coerce").fillna(0.0).values
         self.energy_raw = energy_mat
 
+        if has_labels and "label" in df.columns:
+            self.labels = df["label"].astype(int).values
+        else:
+            self.labels = np.zeros(len(df), dtype=np.int64)
+
+    def _set_arrays(
+        self,
+        mirna_idx: np.ndarray,
+        mre_idx: np.ndarray,
+        cons: np.ndarray,
+        eclip: np.ndarray,
+        tspot: np.ndarray,
+        energy_raw: np.ndarray,
+        labels: np.ndarray,
+    ) -> None:
+        """Populate arrays from a loaded cache (energy is finalised separately)."""
+        self.mirna_idx  = mirna_idx
+        self.mre_idx    = mre_idx
+        self.cons_mat   = cons
+        self.eclip_mat  = eclip
+        self.tspot_mat  = tspot
+        self.energy_raw = energy_raw
+        self.labels = labels if self.has_labels else np.zeros(len(mirna_idx), dtype=np.int64)
+
+    def _finalize_energy(self, energy_stats: Optional[dict]) -> None:
         if energy_stats is None:
             mean = self.energy_raw.mean(axis=0)
             std  = self.energy_raw.std(axis=0)
@@ -210,31 +343,17 @@ class MiRNAInteractionDataset(Dataset):
             self.energy_stats = energy_stats
         self.energy = (self.energy_raw - self.energy_stats["mean"]) / self.energy_stats["std"]
 
-        if has_labels and "label" in df.columns:
-            self.labels = df["label"].astype(int).values
-        else:
-            self.labels = np.zeros(len(df), dtype=np.int64)
-
     def __len__(self) -> int:
-        return len(self.mre_seqs)
+        return len(self.mirna_idx)
 
     def __getitem__(self, idx: int):
-        # --- Sequence branch: miRBind 2D WC-complementarity matrix ------------
-        wc_mat = _wc_matrix(self.mirna_seqs[idx], self.mre_seqs[idx])  # (1, 30, 50)
-
-        # --- Vector branches --------------------------------------------------
-        cons  = _parse_vector(self.cons_vecs[idx],  MRE_LEN)[None, :]
-        eclip = _parse_vector(self.eclip_vecs[idx], MRE_LEN)[None, :]
-        tspot = _parse_vector(self.tspot_vecs[idx], MRE_LEN)[None, :]
-
-        energy = self.energy[idx].astype(np.float32)
-
         return (
-            torch.from_numpy(wc_mat),
-            torch.from_numpy(cons),
-            torch.from_numpy(eclip),
-            torch.from_numpy(tspot),
-            torch.from_numpy(energy),
+            torch.from_numpy(self.mirna_idx[idx]),          # (MAX_MIRNA,) int8
+            torch.from_numpy(self.mre_idx[idx]),            # (MRE_LEN,)   int8
+            torch.from_numpy(self.cons_mat[idx][None, :]),  # (1, MRE_LEN)
+            torch.from_numpy(self.eclip_mat[idx][None, :]),
+            torch.from_numpy(self.tspot_mat[idx][None, :]),
+            torch.from_numpy(self.energy[idx]),
             int(self.labels[idx]),
         )
 
@@ -434,6 +553,12 @@ class MiRBindCNN(nn.Module):
         self.use_tspot  = use_tspot
         self.use_energy = use_energy
 
+        # Watson–Crick lookup used to assemble the complementarity matrix on the
+        # same device as the model.  Non-persistent: it is a constant, so it is
+        # rebuilt at construction and kept out of the saved state_dict (which
+        # also keeps older checkpoints loadable).
+        self.register_buffer("wc_table", torch.from_numpy(_WC_TABLE), persistent=False)
+
         # ── Branch 1: miRBind 2D sequence branch ─────────────────────────────
         self.seq_branch = MiRBindSeqBranch(
             n_filters=seq_filters, out_dim=seq_dim, dropout=seq_dropout)
@@ -501,7 +626,8 @@ class MiRBindCNN(nn.Module):
 
     def forward(
         self,
-        wc_mat: torch.Tensor,   # (B, 1, MAX_MIRNA, MRE_LEN)
+        mi:     torch.Tensor,   # (B, MAX_MIRNA)  int nucleotide indices
+        ti:     torch.Tensor,   # (B, MRE_LEN)    int nucleotide indices
         cons:   torch.Tensor,   # (B, 1, MRE_LEN)
         eclip:  torch.Tensor,   # (B, 1, MRE_LEN)
         tspot:  torch.Tensor,   # (B, 1, MRE_LEN)
@@ -509,6 +635,13 @@ class MiRBindCNN(nn.Module):
     ) -> torch.Tensor:          # (B,) logits
 
         # ── Branch 1: miRBind 2D sequence branch ─────────────────────────────
+        # Assemble the Watson–Crick complementarity matrix on-device from the
+        # nucleotide-index vectors: a single broadcasted gather into wc_table,
+        # giving (B, MAX_MIRNA, MRE_LEN).  This keeps the per-sample CPU work in
+        # the data loader down to a slice copy.
+        mi = mi.long()
+        ti = ti.long()
+        wc_mat = self.wc_table[mi[:, :, None], ti[:, None, :]].unsqueeze(1)
         h_seq = self.seq_branch(wc_mat)         # (B, seq_dim)
 
         # ── Branches 2–4 ─────────────────────────────────────────────────────
@@ -585,6 +718,7 @@ def _make_loader(dataset: MiRNAInteractionDataset, batch_size: int,
         dataset, batch_size=batch_size, shuffle=shuffle,
         sampler=sampler, num_workers=num_workers,
         pin_memory=True, drop_last=(shuffle and sampler is None),
+        persistent_workers=(num_workers > 0),
     )
 
 
@@ -600,15 +734,16 @@ def evaluate(model: MiRBindCNN, loader: DataLoader,
     all_logits, all_labels = [], []
     total_loss, n_batches  = 0.0, 0
 
-    for wc_mat, cons, eclip, tspot, energy, labels in loader:
-        wc_mat = wc_mat.to(device, non_blocking=True)
+    for mi, ti, cons, eclip, tspot, energy, labels in loader:
+        mi     = mi.to(device,     non_blocking=True)
+        ti     = ti.to(device,     non_blocking=True)
         cons   = cons.to(device,   non_blocking=True)
         eclip  = eclip.to(device,  non_blocking=True)
         tspot  = tspot.to(device,  non_blocking=True)
         energy = energy.to(device, non_blocking=True)
         labels = labels.to(device, non_blocking=True).float()
 
-        logits = model(wc_mat, cons, eclip, tspot, energy)
+        logits = model(mi, ti, cons, eclip, tspot, energy)
         loss   = F.binary_cross_entropy_with_logits(logits, labels,
                                                      pos_weight=pos_weight)
         total_loss += loss.item()
@@ -693,15 +828,16 @@ def _train_one_run(
         seen = 0
         train_logits_buf, train_labels_buf = [], []
 
-        for wc_mat, cons, eclip, tspot, energy, labels in train_loader:
-            wc_mat = wc_mat.to(device, non_blocking=True)
+        for mi, ti, cons, eclip, tspot, energy, labels in train_loader:
+            mi     = mi.to(device,     non_blocking=True)
+            ti     = ti.to(device,     non_blocking=True)
             cons   = cons.to(device,   non_blocking=True)
             eclip  = eclip.to(device,  non_blocking=True)
             tspot  = tspot.to(device,  non_blocking=True)
             energy = energy.to(device, non_blocking=True)
             labels = labels.to(device, non_blocking=True).float()
 
-            logits = model(wc_mat, cons, eclip, tspot, energy)
+            logits = model(mi, ti, cons, eclip, tspot, energy)
             loss   = F.binary_cross_entropy_with_logits(
                 logits, labels, pos_weight=pos_weight)
 
@@ -711,8 +847,8 @@ def _train_one_run(
             optim.step()
             sched.step()
 
-            running_loss += loss.item() * wc_mat.size(0)
-            seen += wc_mat.size(0)
+            running_loss += loss.item() * mi.size(0)
+            seen += mi.size(0)
             train_logits_buf.append(logits.detach().cpu().numpy())
             train_labels_buf.append(labels.cpu().numpy().astype(int))
 
@@ -782,17 +918,18 @@ def _run_single(args: argparse.Namespace, device: torch.device) -> None:
     if not args.val:
         sys.exit("ERROR: --val is required when --folds is not set.")
 
+    cache = not args.no_cache
     print("Loading training data ...")
     train_ds = MiRNAInteractionDataset(
         args.train, energy_stats=None, has_labels=True,
-        mre_col=args.mre_col, mirna_col=args.mirna_col)
+        mre_col=args.mre_col, mirna_col=args.mirna_col, cache=cache)
     print(f"  train samples : {len(train_ds)}")
     print(f"  positives     : {int(train_ds.labels.sum())} / {len(train_ds.labels)}")
 
     print("Loading validation data ...")
     val_ds = MiRNAInteractionDataset(
         args.val, energy_stats=train_ds.energy_stats, has_labels=True,
-        mre_col=args.mre_col, mirna_col=args.mirna_col)
+        mre_col=args.mre_col, mirna_col=args.mirna_col, cache=cache)
     print(f"  val samples   : {len(val_ds)}")
 
     train_loader = _make_loader(train_ds, args.batch_size, shuffle=True,
@@ -970,18 +1107,20 @@ def cmd_predict(args: argparse.Namespace) -> None:
 
     ds = MiRNAInteractionDataset(
         args.input, energy_stats=energy_stats, has_labels=True,
-        mre_col=args.mre_col, mirna_col=args.mirna_col)
-    loader = DataLoader(ds, batch_size=args.batch_size, shuffle=False, num_workers=2)
+        mre_col=args.mre_col, mirna_col=args.mirna_col, cache=not args.no_cache)
+    loader = DataLoader(ds, batch_size=args.batch_size, shuffle=False,
+                        num_workers=args.num_workers, pin_memory=True)
 
     all_probs, all_preds, all_labels = [], [], []
     with torch.no_grad():
-        for wc_mat, cons, eclip, tspot, energy, labels in loader:
-            wc_mat = wc_mat.to(device)
+        for mi, ti, cons, eclip, tspot, energy, labels in loader:
+            mi     = mi.to(device)
+            ti     = ti.to(device)
             cons   = cons.to(device)
             eclip  = eclip.to(device)
             tspot  = tspot.to(device)
             energy = energy.to(device)
-            logits = model(wc_mat, cons, eclip, tspot, energy)
+            logits = model(mi, ti, cons, eclip, tspot, energy)
             probs  = torch.sigmoid(logits).cpu().numpy()
             all_probs.extend(probs.tolist())
             all_preds.extend((probs >= args.threshold).astype(int).tolist())
@@ -1047,13 +1186,15 @@ def main() -> int:
     tr.add_argument("--no-energy",       action="store_true")
     # Training
     tr.add_argument("--epochs",       type=int,   default=40)
-    tr.add_argument("--batch-size",   type=int,   default=64)
+    tr.add_argument("--batch-size",   type=int,   default=256)
     tr.add_argument("--lr",           type=float, default=1e-3)
     tr.add_argument("--weight-decay", type=float, default=1e-4)
     tr.add_argument("--warmup-steps", type=int,   default=200)
-    tr.add_argument("--num-workers",  type=int,   default=2)
+    tr.add_argument("--num-workers",  type=int,   default=8)
     tr.add_argument("--patience",     type=int,   default=10)
     tr.add_argument("--balance",      action="store_true")
+    tr.add_argument("--no-cache",     action="store_true", dest="no_cache",
+                    help="Disable the preprocessing .cnncache.npz sidecar files.")
     tr.add_argument("--checkpoint-metric",
                     choices=["auroc", "auprc", "f1", "accuracy"], default="auprc")
     tr.add_argument("--device",
@@ -1070,8 +1211,11 @@ def main() -> int:
     pr.add_argument("--output",     required=True)
     pr.add_argument("--threshold",  type=float, default=0.5)
     pr.add_argument("--batch-size", type=int,   default=256)
+    pr.add_argument("--num-workers", type=int,  default=4, dest="num_workers")
     pr.add_argument("--mre-col",   default="mre_sequence",   dest="mre_col")
     pr.add_argument("--mirna-col", default="mirna_sequence", dest="mirna_col")
+    pr.add_argument("--no-cache",  action="store_true", dest="no_cache",
+                    help="Disable the preprocessing .cnncache.npz sidecar files.")
     pr.add_argument("--device",
                     default="cuda" if torch.cuda.is_available() else "cpu")
 
