@@ -108,6 +108,26 @@ _WC_TABLE = np.zeros((5, 5), dtype=np.float32)
 for _a, _b in _WC_PAIRS:
     _WC_TABLE[_NUC_IDX[_a], _NUC_IDX[_b]] = 1.0
 
+# Per-cell pairing-TYPE lookup tables for the multi-channel sequence branch.
+# Each is 5×5; index 4 (pad/unknown) maps to all-zero so padding cells carry no
+# signal in any channel.
+_PAIR_WC = np.zeros((5, 5), dtype=np.float32)   # canonical Watson–Crick only
+for _a, _b in {("A", "U"), ("U", "A"), ("G", "C"), ("C", "G")}:
+    _PAIR_WC[_NUC_IDX[_a], _NUC_IDX[_b]] = 1.0
+
+_PAIR_GU = np.zeros((5, 5), dtype=np.float32)   # G·U wobble only
+for _a, _b in {("G", "U"), ("U", "G")}:
+    _PAIR_GU[_NUC_IDX[_a], _NUC_IDX[_b]] = 1.0
+
+_PAIR_MM = np.zeros((5, 5), dtype=np.float32)   # mismatch: both real, not a pair
+for _i in range(4):
+    for _j in range(4):
+        if _PAIR_WC[_i, _j] == 0.0 and _PAIR_GU[_i, _j] == 0.0:
+            _PAIR_MM[_i, _j] = 1.0
+
+# (3, 5, 5) stack: Watson–Crick / wobble / mismatch channels.
+_PAIR_TABLE = np.stack([_PAIR_WC, _PAIR_GU, _PAIR_MM])
+
 # ASCII byte → nucleotide index lookup (default 4 = unknown/padding).
 # Lets us tokenise whole sequences with a single vectorised gather instead of
 # a per-character Python loop.  Handles upper/lowercase and T→U.
@@ -402,6 +422,29 @@ class DenseBlock(nn.Module):
         return self.net(x)
 
 
+class GeM2d(nn.Module):
+    """Generalized-mean pooling over the spatial dims: (B, C, H, W) → (B, C, 1, 1).
+
+    GeM(x) = ( mean_i x_i^p )^(1/p).  p=1 recovers average pooling, p→∞
+    approaches max pooling; p is learnable so the network tunes how peaky the
+    pooling is.  The 2D pairing map is mostly empty (the duplex is a small
+    contiguous block), so emphasising the strong region beats averaging it away.
+    Inputs are clamped to ≥eps because the mean-of-powers is only defined for
+    non-negative values (standard GeM assumption).  Translation-invariant, so it
+    preserves the property that makes the 2D branch generalise.
+    """
+
+    def __init__(self, p: float = 3.0, eps: float = 1e-6) -> None:
+        super().__init__()
+        self.p = nn.Parameter(torch.tensor(float(p)))
+        self.eps = eps
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = x.clamp(min=self.eps).pow(self.p)
+        x = F.adaptive_avg_pool2d(x, (1, 1))
+        return x.pow(1.0 / self.p)
+
+
 class MiRBindSeqBranch(nn.Module):
     """miRBind-style sequence branch.
 
@@ -424,18 +467,25 @@ class MiRBindSeqBranch(nn.Module):
         n_filters: int = 64,
         out_dim:   int = 128,
         dropout:   float = 0.3,
+        in_ch:     int = 1,
+        pool:      str = "gem",
     ) -> None:
         super().__init__()
 
         conv_blocks: list[nn.Module] = []
-        in_ch = 1
+        ch = in_ch
         for i in range(self.N_CONV_BLOCKS):
-            pool = i < self.N_POOL_BLOCKS
-            conv_blocks.append(Conv2dBlock(in_ch, n_filters, dropout=dropout, pool=pool))
-            in_ch = n_filters
+            pool_block = i < self.N_POOL_BLOCKS
+            conv_blocks.append(Conv2dBlock(ch, n_filters, dropout=dropout, pool=pool_block))
+            ch = n_filters
         self.conv_blocks = nn.Sequential(*conv_blocks)
 
-        self.global_pool = nn.AdaptiveAvgPool2d((1, 1))
+        if pool == "gem":
+            self.global_pool: nn.Module = GeM2d()
+        elif pool == "avg":
+            self.global_pool = nn.AdaptiveAvgPool2d((1, 1))
+        else:
+            raise ValueError(f"pool must be 'gem' or 'avg', got {pool!r}")
 
         hidden = max(n_filters * 2, out_dim)
         self.dense = nn.Sequential(
@@ -542,6 +592,8 @@ class MiRBindCNN(nn.Module):
         seq_dropout:      float = 0.3,
         vec_dropout:      float = 0.15,
         norm:             str   = "batch",
+        seq_pairing:      str   = "multi",
+        seq_pool:         str   = "gem",
         use_conservation: bool  = True,
         use_eclip:        bool  = True,
         use_tspot:        bool  = True,
@@ -553,15 +605,29 @@ class MiRBindCNN(nn.Module):
         self.use_tspot  = use_tspot
         self.use_energy = use_energy
 
-        # Watson–Crick lookup used to assemble the complementarity matrix on the
-        # same device as the model.  Non-persistent: it is a constant, so it is
-        # rebuilt at construction and kept out of the saved state_dict (which
-        # also keeps older checkpoints loadable).
-        self.register_buffer("wc_table", torch.from_numpy(_WC_TABLE), persistent=False)
+        # On-device pairing-matrix lookup, assembled in forward() on the same
+        # device as the model.  "binary" = single WC(+wobble) channel (legacy);
+        # "multi" = separate Watson–Crick / G·U wobble / mismatch channels.
+        # Non-persistent: it is a constant, so it is rebuilt at construction and
+        # kept out of the saved state_dict (which also keeps checkpoints loadable
+        # across this change).
+        if seq_pairing == "multi":
+            pair_table = _PAIR_TABLE                # (3, 5, 5)
+        elif seq_pairing == "binary":
+            pair_table = _WC_TABLE[np.newaxis]      # (1, 5, 5)
+        else:
+            raise ValueError(
+                f"seq_pairing must be 'binary' or 'multi', got {seq_pairing!r}")
+        self.register_buffer(
+            "pair_table",
+            torch.from_numpy(np.ascontiguousarray(pair_table)),
+            persistent=False)
+        n_pair_ch = pair_table.shape[0]
 
         # ── Branch 1: miRBind 2D sequence branch ─────────────────────────────
         self.seq_branch = MiRBindSeqBranch(
-            n_filters=seq_filters, out_dim=seq_dim, dropout=seq_dropout)
+            n_filters=seq_filters, out_dim=seq_dim, dropout=seq_dropout,
+            in_ch=n_pair_ch, pool=seq_pool)
 
         # ── Branches 2–4: 1D dilated CNN vector branches ─────────────────────
         def _make_vec_branch():
@@ -635,13 +701,14 @@ class MiRBindCNN(nn.Module):
     ) -> torch.Tensor:          # (B,) logits
 
         # ── Branch 1: miRBind 2D sequence branch ─────────────────────────────
-        # Assemble the Watson–Crick complementarity matrix on-device from the
-        # nucleotide-index vectors: a single broadcasted gather into wc_table,
-        # giving (B, MAX_MIRNA, MRE_LEN).  This keeps the per-sample CPU work in
-        # the data loader down to a slice copy.
+        # Assemble the pairing matrix on-device from the nucleotide-index
+        # vectors: a broadcasted gather into pair_table giving one channel per
+        # pairing type, (B, C_pair, MAX_MIRNA, MRE_LEN).  This keeps the
+        # per-sample CPU work in the data loader down to a slice copy.
         mi = mi.long()
         ti = ti.long()
-        wc_mat = self.wc_table[mi[:, :, None], ti[:, None, :]].unsqueeze(1)
+        pair = self.pair_table[:, mi[:, :, None], ti[:, None, :]]  # (C_pair, B, 30, 50)
+        wc_mat = pair.movedim(0, 1).contiguous()                   # (B, C_pair, 30, 50)
         h_seq = self.seq_branch(wc_mat)         # (B, seq_dim)
 
         # ── Branches 2–4 ─────────────────────────────────────────────────────
@@ -773,6 +840,8 @@ def _model_args_from_cli(args: argparse.Namespace) -> dict:
         "seq_dropout":      args.seq_dropout,
         "vec_dropout":      args.vec_dropout,
         "norm":             args.norm,
+        "seq_pairing":      args.seq_pairing,
+        "seq_pool":         args.seq_pool,
         "use_conservation": not args.no_conservation,
         "use_eclip":        not args.no_eclip,
         "use_tspot":        not args.no_tspot,
@@ -1093,9 +1162,12 @@ def cmd_predict(args: argparse.Namespace) -> None:
 
     ckpt   = torch.load(args.checkpoint, map_location=device, weights_only=False)
     margs  = ckpt["model_args"]
-    # backward-compat defaults
+    # backward-compat defaults: checkpoints predating these features used a
+    # single WC(+wobble) channel with average pooling, so default to that when
+    # the keys are absent (newer checkpoints carry their own values).
     for key, val in [("use_conservation", True), ("use_eclip", True),
-                     ("use_tspot", True), ("use_energy", True)]:
+                     ("use_tspot", True), ("use_energy", True),
+                     ("seq_pairing", "binary"), ("seq_pool", "avg")]:
         margs.setdefault(key, val)
 
     energy_stats = ckpt["energy_stats"]
@@ -1180,6 +1252,13 @@ def main() -> int:
     tr.add_argument("--vec-dropout",     type=float, default=0.15, dest="vec_dropout",
                     help="Dropout in the 1D vector branch blocks.")
     tr.add_argument("--norm", choices=["batch", "layer"], default="batch")
+    tr.add_argument("--seq-pairing", choices=["binary", "multi"], default="multi",
+                    dest="seq_pairing",
+                    help="2D pairing matrix encoding: single WC(+wobble) channel "
+                         "(binary) or separate WC/wobble/mismatch channels (multi).")
+    tr.add_argument("--seq-pool", choices=["avg", "gem"], default="gem",
+                    dest="seq_pool",
+                    help="Global pooling for the 2D sequence branch.")
     tr.add_argument("--no-conservation", action="store_true")
     tr.add_argument("--no-eclip",        action="store_true")
     tr.add_argument("--no-tspot",        action="store_true")

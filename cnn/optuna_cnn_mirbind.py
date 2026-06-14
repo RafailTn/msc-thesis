@@ -223,6 +223,9 @@ def make_objective(
             vec_channels=vec_channels, vec_blocks=vec_blocks,
             vec_kernel_size=vec_kernel_size, vec_dropout=vec_dropout,
             energy_dim=energy_dim, norm=norm,
+            # Fixed (not part of the search space, so existing studies still
+            # resume); recorded so checkpoints reconstruct the right branch.
+            seq_pairing="multi", seq_pool="gem",
             use_conservation=use_conservation,
             use_eclip=use_eclip,
             use_tspot=use_tspot,
