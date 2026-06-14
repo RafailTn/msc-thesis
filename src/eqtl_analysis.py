@@ -47,6 +47,7 @@ def _complement(base: str) -> str:
     return base.upper().translate(_COMPLEMENT)
 
 
+
 def _run(cmd: list, step: str, timeout: int | None = None) -> None:
     print(f"[{step}] {' '.join(str(c) for c in cmd)}")
     result = subprocess.run(cmd, timeout=timeout)
@@ -80,72 +81,84 @@ def build_pairs(eqtl_df: pd.DataFrame, mirbench_df: pd.DataFrame) -> list[dict]:
     unique_pairs = eqtl_df[key_cols].drop_duplicates()
 
     pairs: list[dict] = []
-    n_no_key = n_no_overlap = n_ref_mismatch = 0
+    n_no_key = n_no_overlap = n_ref_mismatch = n_indel = 0
 
     for _, row in unique_pairs.iterrows():
-        key = int(row["miRBench_keys"])
-
-        if key not in mb_idx.index:
-            n_no_key += 1
-            continue
-
-        mb        = mb_idx.loc[key]
-        mre_seq   = str(mb["gene"]).upper().replace("T", "U")
-        mirna_seq = str(mb["noncodingRNA"]).upper().replace("T", "U")
-        chrom     = str(mb["chr"])          # stored WITHOUT 'chr' prefix
-        mb_start  = int(float(mb["start"])) # 1-based inclusive
-        mb_end    = int(float(mb["end"]))   # 1-based inclusive
-        strand    = str(mb["strand"])
-        mirna_fam = str(mb.get("noncodingRNA_fam", ""))
+        raw_keys = str(row["miRBench_keys"]).split(",")
 
         snp_pos  = int(row["coordinates"])  # 1-based genomic
         ref_base = str(row["reference"]).upper()
         alt_base = str(row["allele"]).upper()
 
-        if not (mb_start <= snp_pos <= mb_end):
-            n_no_overlap += 1
+        if len(ref_base) != 1 or len(alt_base) != 1:
+            n_indel += len(raw_keys)
             continue
 
-        if strand == "+":
-            offset     = snp_pos - mb_start
-            ref_in_seq = ref_base
-            alt_in_seq = alt_base
-        else:
-            offset     = mb_end - snp_pos
-            ref_in_seq = _complement(ref_base)
-            alt_in_seq = _complement(alt_base)
+        for raw_key in raw_keys:
+            try:
+                key = int(raw_key.strip())
+            except ValueError:
+                n_no_key += 1
+                continue
 
-        mre_dna = mre_seq.replace("U", "T")
+            if key not in mb_idx.index:
+                n_no_key += 1
+                continue
 
-        if offset >= len(mre_dna):
-            n_ref_mismatch += 1
-            continue
+            mb        = mb_idx.loc[key]
+            mre_seq   = str(mb["gene"]).upper().replace("T", "U")
+            mirna_seq = str(mb["noncodingRNA"]).upper().replace("T", "U")
+            chrom     = str(mb["chr"])          # stored WITHOUT 'chr' prefix
+            mb_start  = int(float(mb["start"])) # 1-based inclusive
+            mb_end    = int(float(mb["end"]))   # 1-based inclusive
+            strand    = str(mb["strand"])
+            mirna_fam = str(mb.get("noncodingRNA_fam", ""))
 
-        if mre_dna[offset].upper() != ref_in_seq.upper():
-            n_ref_mismatch += 1
-            continue
+            if not (mb_start <= snp_pos <= mb_end):
+                n_no_overlap += 1
+                continue
 
-        alt_mre_seq = (
-            mre_dna[:offset] + alt_in_seq + mre_dna[offset + 1:]
-        ).upper().replace("T", "U")
+            if strand == "+":
+                offset     = snp_pos - mb_start
+                ref_in_seq = ref_base
+                alt_in_seq = alt_base
+            else:
+                offset     = mb_end - snp_pos
+                ref_in_seq = _complement(ref_base)
+                alt_in_seq = _complement(alt_base)
 
-        pairs.append({
-            "encode_id"   : str(row["ENCODE_ID"]),
-            "mirbench_key": key,
-            "chr"         : chrom,
-            "start"       : mb_start,
-            "end"         : mb_end,
-            "strand"      : strand,
-            "mirna_fam"   : mirna_fam,
-            "ref_mre_seq" : mre_seq,
-            "alt_mre_seq" : alt_mre_seq,
-            "mirna_seq"   : mirna_seq,
-            "snp_pos"     : snp_pos,
-            "ref_allele"  : ref_base,
-            "alt_allele"  : alt_base,
-        })
+            mre_dna = mre_seq.replace("U", "T")
+
+            if offset >= len(mre_dna):
+                n_ref_mismatch += 1
+                continue
+
+            if mre_dna[offset].upper() != ref_in_seq.upper():
+                n_ref_mismatch += 1
+                continue
+
+            alt_mre_seq = (
+                mre_dna[:offset] + alt_in_seq + mre_dna[offset + 1:]
+            ).upper().replace("T", "U")
+
+            pairs.append({
+                "encode_id"   : str(row["ENCODE_ID"]),
+                "mirbench_key": key,
+                "chr"         : chrom,
+                "start"       : mb_start,
+                "end"         : mb_end,
+                "strand"      : strand,
+                "mirna_fam"   : mirna_fam,
+                "ref_mre_seq" : mre_seq,
+                "alt_mre_seq" : alt_mre_seq,
+                "mirna_seq"   : mirna_seq,
+                "snp_pos"     : snp_pos,
+                "ref_allele"  : ref_base,
+                "alt_allele"  : alt_base,
+            })
 
     print(f"  Valid pairs : {len(pairs):,}")
+    print(f"  Skipped — indel (not SNP)     : {n_indel:,}")
     print(f"  Skipped — key not in miRBench : {n_no_key:,}")
     print(f"  Skipped — SNP outside MRE     : {n_no_overlap:,}")
     print(f"  Skipped — ref base mismatch   : {n_ref_mismatch:,}")
@@ -323,6 +336,8 @@ def main() -> int:
                             "using each mode's lowest-E row instead of dropping the pair. "
                             "Adds coord_mismatch_ref / coord_mismatch_alt columns to output."
                         ))
+    parser.add_argument("--nes-agg", choices=["median", "max"], default="median",
+                        help="How to aggregate NES across tissues (default: median)")
     parser.add_argument("--keep-files", action="store_true",
                         help="Keep intermediate temp files after completion")
     args = parser.parse_args()
@@ -390,19 +405,30 @@ def main() -> int:
             "coord_mismatch_alt" : alt_mismatch_flags,
         })
 
-        # Aggregate GTEx NES across tissues per (encode_id, mirbench_key)
+        # Aggregate GTEx NES across tissues per (encode_id, individual mirbench_key).
+        # miRBench_keys may be comma-separated; explode so each key gets its own row.
+        nes_df = eqtl_df[["ENCODE_ID", "miRBench_keys",
+                           "normalized_effect_size_GTEx_v8"]].copy()
+        nes_df["mirbench_key"] = nes_df["miRBench_keys"].astype(str).str.split(",")
+        nes_df = nes_df.explode("mirbench_key")
+        nes_df["mirbench_key"] = pd.to_numeric(
+            nes_df["mirbench_key"].str.strip(), errors="coerce"
+        ).dropna().astype(int)
+        nes_df = nes_df.dropna(subset=["mirbench_key"])
+        nes_df["mirbench_key"] = nes_df["mirbench_key"].astype(int)
+        nes_agg_col = f"nes_{args.nes_agg}"
         nes = (
-            eqtl_df
-            .groupby(["ENCODE_ID", "miRBench_keys"])["normalized_effect_size_GTEx_v8"]
-            .agg(nes_median="median", nes_mean="mean", n_tissues="count")
+            nes_df
+            .groupby(["ENCODE_ID", "mirbench_key"])["normalized_effect_size_GTEx_v8"]
+            .agg(**{nes_agg_col: args.nes_agg, "nes_mean": "mean", "n_tissues": "count"})
             .reset_index()
-            .rename(columns={"ENCODE_ID": "encode_id", "miRBench_keys": "mirbench_key"})
+            .rename(columns={"ENCODE_ID": "encode_id"})
         )
         results = results.merge(nes, on=["encode_id", "mirbench_key"], how="left")
 
         # -------------------------------------------------------------------------
         # Correlation
-        valid = results.dropna(subset=["delta_pred", "nes_median"])
+        valid = results.dropna(subset=["delta_pred", nes_agg_col])
         n_valid = len(valid)
 
         print(f"\n{'='*60}")
@@ -415,8 +441,8 @@ def main() -> int:
             print(f"  Coord-mismatch fallback (ALT)  : {alt_mismatch_flags.sum():,}")
 
         if n_valid >= 3:
-            sp_r, sp_p = scipy_stats.spearmanr(valid["delta_pred"], valid["nes_median"])
-            pe_r, pe_p = scipy_stats.pearsonr(valid["delta_pred"],  valid["nes_median"])
+            sp_r, sp_p = scipy_stats.spearmanr(valid["delta_pred"], valid[nes_agg_col])
+            pe_r, pe_p = scipy_stats.pearsonr(valid["delta_pred"],  valid[nes_agg_col])
             print(f"\n  Spearman r = {sp_r:+.4f}  (p = {sp_p:.3e})")
             print(f"  Pearson  r = {pe_r:+.4f}  (p = {pe_p:.3e})")
         else:
