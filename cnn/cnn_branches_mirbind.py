@@ -746,6 +746,11 @@ class MiRBindCNN(nn.Module):
 def _binary_metrics(logits: np.ndarray, labels: np.ndarray,
                     threshold: float = 0.5) -> dict:
     probs = 1.0 / (1.0 + np.exp(-logits))
+    return _metrics_from_probs(probs, labels, threshold)
+
+
+def _metrics_from_probs(probs: np.ndarray, labels: np.ndarray,
+                        threshold: float = 0.5) -> dict:
     preds = (probs >= threshold).astype(int)
 
     tp = int(((preds == 1) & (labels == 1)).sum())
@@ -825,6 +830,30 @@ def evaluate(model: MiRBindCNN, loader: DataLoader,
     return metrics
 
 
+@torch.no_grad()
+def predict_logits(model: MiRBindCNN, loader: DataLoader,
+                   device: torch.device) -> tuple[np.ndarray, np.ndarray]:
+    """Return (logits, labels) for every sample in `loader` in dataset order.
+
+    Used for fold ensembling: a fixed (shuffle=False) loader yields samples in a
+    stable order across folds, so per-fold probabilities can be averaged
+    element-wise before scoring.
+    """
+    model.eval()
+    all_logits, all_labels = [], []
+    for mi, ti, cons, eclip, tspot, energy, labels in loader:
+        mi     = mi.to(device,     non_blocking=True)
+        ti     = ti.to(device,     non_blocking=True)
+        cons   = cons.to(device,   non_blocking=True)
+        eclip  = eclip.to(device,  non_blocking=True)
+        tspot  = tspot.to(device,  non_blocking=True)
+        energy = energy.to(device, non_blocking=True)
+        logits = model(mi, ti, cons, eclip, tspot, energy)
+        all_logits.append(logits.cpu().numpy())
+        all_labels.append(labels.numpy())
+    return np.concatenate(all_logits), np.concatenate(all_labels).astype(int)
+
+
 # ---------------------------------------------------------------------------
 # Training helpers
 # ---------------------------------------------------------------------------
@@ -847,6 +876,52 @@ def _model_args_from_cli(args: argparse.Namespace) -> dict:
         "use_tspot":        not args.no_tspot,
         "use_energy":       not args.no_energy,
     }
+
+
+class ModelEMA:
+    """Exponential moving average of model weights.
+
+    Shadows the full ``state_dict`` (parameters *and* buffers), so any
+    normalization running statistics are averaged alongside the weights and no
+    separate stats-recompute pass is needed. Non-persistent buffers (e.g. the
+    pairing lookup table) are not in ``state_dict`` and are left untouched.
+
+    Evaluate with the averaged weights via ``apply_to`` / ``restore``; the raw
+    training weights are unaffected between updates.
+    """
+
+    def __init__(self, model: nn.Module, decay: float = 0.999):
+        self.decay = decay
+        self.shadow = {
+            k: v.detach().clone() for k, v in model.state_dict().items()
+        }
+        self._backup: Optional[dict] = None
+
+    @torch.no_grad()
+    def update(self, model: nn.Module) -> None:
+        d = self.decay
+        for k, v in model.state_dict().items():
+            s = self.shadow[k]
+            if v.dtype.is_floating_point:
+                s.mul_(d).add_(v.detach(), alpha=1.0 - d)
+            else:                       # counters (e.g. num_batches_tracked)
+                s.copy_(v)
+
+    def state_dict(self, model: nn.Module) -> dict:
+        """EMA weights cast to the model's dtypes, ready for ``load_state_dict``."""
+        target = model.state_dict()
+        return {k: self.shadow[k].to(target[k].dtype) for k in target}
+
+    @torch.no_grad()
+    def apply_to(self, model: nn.Module) -> None:
+        self._backup = {k: v.detach().clone() for k, v in model.state_dict().items()}
+        model.load_state_dict(self.state_dict(model))
+
+    @torch.no_grad()
+    def restore(self, model: nn.Module) -> None:
+        if self._backup is not None:
+            model.load_state_dict(self._backup)
+            self._backup = None
 
 
 def _train_one_run(
@@ -887,6 +962,10 @@ def _train_one_run(
     else:
         sched = torch.optim.lr_scheduler.CosineAnnealingLR(optim, T_max=total_steps)
 
+    ema = ModelEMA(model, decay=args.ema_decay) if getattr(args, "ema", False) else None
+    if ema is not None:
+        print(f"  weight EMA enabled (decay={args.ema_decay})")
+
     best_val = -float("inf")
     patience_counter = 0
 
@@ -915,6 +994,8 @@ def _train_one_run(
             nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             optim.step()
             sched.step()
+            if ema is not None:
+                ema.update(model)
 
             running_loss += loss.item() * mi.size(0)
             seen += mi.size(0)
@@ -925,9 +1006,23 @@ def _train_one_run(
         train_metrics = _binary_metrics(
             np.concatenate(train_logits_buf), np.concatenate(train_labels_buf))
         val_metrics   = evaluate(model, val_loader, device, pos_weight)
-        dt            = time.time() - t0
 
-        ckpt_val = val_metrics.get(args.checkpoint_metric, -val_metrics["loss"])
+        def _ckpt_val(vm: dict) -> float:
+            return vm.get(args.checkpoint_metric, -vm["loss"])
+
+        # Candidate checkpoints for this epoch: the raw weights, and (if enabled)
+        # the EMA weights. Keep whichever scores higher on the validation metric.
+        sel_variant, sel_metrics = "raw", val_metrics
+        val_metrics_ema = None
+        if ema is not None:
+            ema.apply_to(model)
+            val_metrics_ema = evaluate(model, val_loader, device, pos_weight)
+            ema.restore(model)
+            if _ckpt_val(val_metrics_ema) > _ckpt_val(val_metrics):
+                sel_variant, sel_metrics = "ema", val_metrics_ema
+
+        dt       = time.time() - t0
+        ckpt_val = _ckpt_val(sel_metrics)
         improved = ckpt_val > best_val
 
         log = (f"[{epoch:03d}/{args.epochs}] "
@@ -939,7 +1034,9 @@ def _train_one_run(
             log += f"  val_auroc={val_metrics['auroc']:.4f}"
         if "auprc" in val_metrics:
             log += f"  val_auprc={val_metrics['auprc']:.4f}"
-        log += f"  ({dt:.1f}s)" + (" *" if improved else "")
+        if val_metrics_ema is not None and "auprc" in val_metrics_ema:
+            log += f"  ema_auprc={val_metrics_ema['auprc']:.4f}"
+        log += f"  ({dt:.1f}s)" + (f" *[{sel_variant}]" if improved else "")
         print(log)
 
         if HAS_WANDB and wandb.run is not None:
@@ -963,14 +1060,17 @@ def _train_one_run(
         if improved:
             best_val = ckpt_val
             patience_counter = 0
+            sel_state = (ema.state_dict(model) if sel_variant == "ema"
+                         else model.state_dict())
             torch.save({
-                "model_state":  model.state_dict(),
+                "model_state":  sel_state,
                 "model_args":   model_args,
                 "energy_stats": train_ds.energy_stats,
-                "val_metrics":  val_metrics,
+                "val_metrics":  sel_metrics,
                 "epoch":        epoch,
+                "weights":      sel_variant,
             }, out_path)
-            print(f"  → checkpoint saved: {out_path}")
+            print(f"  → checkpoint saved ({sel_variant}): {out_path}")
         else:
             patience_counter += 1
             if args.patience > 0 and patience_counter >= args.patience:
@@ -1052,6 +1152,11 @@ def _run_kfold(args: argparse.Namespace, device: torch.device) -> None:
     fold_scores: list[float] = []
     test_paths  = args.test or []
     fold_test_metrics: dict[str, list[dict]] = {Path(p).stem: [] for p in test_paths}
+    # Per-fold probabilities on each test set, accumulated for fold ensembling.
+    # Test loaders use shuffle=False, so sample order is identical across folds
+    # and probabilities can be averaged element-wise before scoring.
+    ensemble_probs:  dict[str, list[np.ndarray]] = {Path(p).stem: [] for p in test_paths}
+    ensemble_labels: dict[str, np.ndarray] = {}
 
     for fold, (train_idx, val_idx) in enumerate(
             gkf.split(df, y=df["label"].values, groups=groups), 1):
@@ -1116,8 +1221,12 @@ def _run_kfold(args: argparse.Namespace, device: torch.device) -> None:
                 test_loader = _make_loader(
                     test_ds, args.batch_size, shuffle=False,
                     num_workers=args.num_workers)
-                metrics = evaluate(model, test_loader, device)
+                logits, labels = predict_logits(model, test_loader, device)
+                probs   = 1.0 / (1.0 + np.exp(-logits))
+                metrics = _metrics_from_probs(probs, labels)
                 fold_test_metrics[test_name].append(metrics)
+                ensemble_probs[test_name].append(probs)
+                ensemble_labels[test_name] = labels
                 row = "  ".join(f"{k}={v:.4f}" for k, v in metrics.items())
                 print(f"    [{test_name}]  {row}")
 
@@ -1140,6 +1249,24 @@ def _run_kfold(args: argparse.Namespace, device: torch.device) -> None:
                 per_fold  = "  ".join(f"{v:.4f}" for v in vals)
                 print(f"    {metric_key:<20s} folds=[{per_fold}]  "
                       f"mean={np.mean(vals):.4f} ± {np.std(vals):.4f}")
+
+        # Fold ensemble: average per-fold probabilities, then score once.
+        # Valid on the test sets (their rows are unseen by every fold); this is
+        # NOT applied to the per-fold validation metric, where each row would be
+        # scored by models that trained on it.
+        print(f"\nFold-ensemble test results ({args.folds} folds, prob. average):")
+        for test_name, probs_list in ensemble_probs.items():
+            if not probs_list:
+                continue
+            mean_probs = np.mean(np.stack(probs_list), axis=0)
+            ens        = _metrics_from_probs(mean_probs, ensemble_labels[test_name])
+            print(f"  {test_name}:")
+            for metric_key, v in ens.items():
+                indiv     = [m[metric_key] for m in fold_test_metrics[test_name]]
+                mean_indiv = float(np.mean(indiv))
+                delta      = v - mean_indiv
+                print(f"    {metric_key:<20s} ensemble={v:.4f}  "
+                      f"(mean-of-folds={mean_indiv:.4f}, Δ={delta:+.4f})")
 
     print(f"{'='*60}")
 
@@ -1271,6 +1398,12 @@ def main() -> int:
     tr.add_argument("--warmup-steps", type=int,   default=200)
     tr.add_argument("--num-workers",  type=int,   default=8)
     tr.add_argument("--patience",     type=int,   default=10)
+    tr.add_argument("--ema",          action="store_true",
+                    help="Track an exponential moving average of the weights and "
+                         "checkpoint whichever of raw/EMA scores higher on val.")
+    tr.add_argument("--ema-decay",    type=float, default=0.999, dest="ema_decay",
+                    help="EMA decay; effective horizon ~1/(1-decay) steps. Lower "
+                         "it (e.g. 0.99) for short runs so the average keeps up.")
     tr.add_argument("--balance",      action="store_true")
     tr.add_argument("--no-cache",     action="store_true", dest="no_cache",
                     help="Disable the preprocessing .cnncache.npz sidecar files.")
