@@ -111,9 +111,17 @@ for _a, _b in _WC_PAIRS:
 # Per-cell pairing-TYPE lookup tables for the multi-channel sequence branch.
 # Each is 5×5; index 4 (pad/unknown) maps to all-zero so padding cells carry no
 # signal in any channel.
-_PAIR_WC = np.zeros((5, 5), dtype=np.float32)   # canonical Watson–Crick only
-for _a, _b in {("A", "U"), ("U", "A"), ("G", "C"), ("C", "G")}:
-    _PAIR_WC[_NUC_IDX[_a], _NUC_IDX[_b]] = 1.0
+_PAIR_AU = np.zeros((5, 5), dtype=np.float32)   # A·U Watson–Crick only
+for _a, _b in {("A", "U"), ("U", "A")}:
+    _PAIR_AU[_NUC_IDX[_a], _NUC_IDX[_b]] = 1.0
+
+_PAIR_GC = np.zeros((5, 5), dtype=np.float32)   # G·C Watson–Crick only
+for _a, _b in {("G", "C"), ("C", "G")}:
+    _PAIR_GC[_NUC_IDX[_a], _NUC_IDX[_b]] = 1.0
+
+# Combined Watson–Crick (A·U + G·C), used by the 3-channel "multi" encoding and
+# by the deterministic duplex statistics.
+_PAIR_WC = _PAIR_AU + _PAIR_GC
 
 _PAIR_GU = np.zeros((5, 5), dtype=np.float32)   # G·U wobble only
 for _a, _b in {("G", "U"), ("U", "G")}:
@@ -127,6 +135,10 @@ for _i in range(4):
 
 # (3, 5, 5) stack: Watson–Crick / wobble / mismatch channels.
 _PAIR_TABLE = np.stack([_PAIR_WC, _PAIR_GU, _PAIR_MM])
+
+# (4, 5, 5) stack: A·U / G·C / wobble / mismatch — the WC channel of _PAIR_TABLE
+# split into its weak (A·U, 2 H-bonds) and strong (G·C, 3 H-bonds) components.
+_PAIR_TABLE4 = np.stack([_PAIR_AU, _PAIR_GC, _PAIR_GU, _PAIR_MM])
 
 # ASCII byte → nucleotide index lookup (default 4 = unknown/padding).
 # Lets us tokenise whole sequences with a single vectorised gather instead of
@@ -607,17 +619,21 @@ class MiRBindCNN(nn.Module):
 
         # On-device pairing-matrix lookup, assembled in forward() on the same
         # device as the model.  "binary" = single WC(+wobble) channel (legacy);
-        # "multi" = separate Watson–Crick / G·U wobble / mismatch channels.
+        # "multi" = separate Watson–Crick / G·U wobble / mismatch channels;
+        # "multi4" = WC split into A·U and G·C, i.e. A·U / G·C / wobble / mismatch.
         # Non-persistent: it is a constant, so it is rebuilt at construction and
         # kept out of the saved state_dict (which also keeps checkpoints loadable
         # across this change).
         if seq_pairing == "multi":
             pair_table = _PAIR_TABLE                # (3, 5, 5)
+        elif seq_pairing == "multi4":
+            pair_table = _PAIR_TABLE4               # (4, 5, 5)
         elif seq_pairing == "binary":
             pair_table = _WC_TABLE[np.newaxis]      # (1, 5, 5)
         else:
             raise ValueError(
-                f"seq_pairing must be 'binary' or 'multi', got {seq_pairing!r}")
+                "seq_pairing must be 'binary', 'multi' or 'multi4', got "
+                f"{seq_pairing!r}")
         self.register_buffer(
             "pair_table",
             torch.from_numpy(np.ascontiguousarray(pair_table)),
@@ -852,6 +868,67 @@ def predict_logits(model: MiRBindCNN, loader: DataLoader,
         all_logits.append(logits.cpu().numpy())
         all_labels.append(labels.numpy())
     return np.concatenate(all_logits), np.concatenate(all_labels).astype(int)
+
+
+def _duplex_stats(mirna_idx: np.ndarray, mre_idx: np.ndarray) -> dict:
+    """Per-pair duplex summary at the strongest antiparallel register.
+
+    Deterministic functions of the two sequences (no model needed) for slicing
+    errors: within the best contiguous complementary register, the counts of
+    Watson-Crick / G·U-wobble / mismatch positions in the duplex span, the
+    longest contiguous paired run, the seed-region (miRNA positions 2-8) pair
+    count, and the real (unpadded) sequence lengths.
+    """
+    n = len(mirna_idx)
+    keys = ("n_wc", "n_gu", "n_mm", "max_run", "seed_pairs", "mirna_len", "mre_len")
+    out = {k: np.zeros(n, dtype=np.int32) for k in keys}
+    seed_pos = np.arange(1, 8)                      # miRNA positions 2..8 (0-indexed 1..7)
+    P, Q     = np.indices((MAX_MIRNA, MRE_LEN))
+    d_flat   = (P + Q).ravel()
+    ndiag    = MAX_MIRNA + MRE_LEN - 1
+
+    for s in range(n):
+        mi = mirna_idx[s].astype(np.intp)
+        ti = mre_idx[s].astype(np.intp)
+        out["mirna_len"][s] = int((mi != 4).sum())
+        out["mre_len"][s]   = int((ti != 4).sum())
+
+        wc   = _PAIR_WC[mi[:, None], ti[None, :]]   # (30, 50); 0 at padded indices
+        gu   = _PAIR_GU[mi[:, None], ti[None, :]]
+        pair = (wc + gu).ravel()
+        pair_d = np.bincount(d_flat, weights=pair, minlength=ndiag)
+        if pair_d.max() == 0:                       # no complementarity at all
+            continue
+        best = int(np.argmax(pair_d))               # diagonal p+q with most pairs
+
+        ps   = np.arange(max(0, best - (MRE_LEN - 1)), min(MAX_MIRNA - 1, best) + 1)
+        qs   = best - ps
+        real = (mi[ps] != 4) & (ti[qs] != 4)
+        wcl  = _PAIR_WC[mi[ps], ti[qs]].astype(bool)
+        gul  = _PAIR_GU[mi[ps], ti[qs]].astype(bool)
+        pl   = (wcl | gul) & real
+        hits = np.flatnonzero(pl)
+        if hits.size == 0:
+            continue
+        lo, hi   = hits[0], hits[-1]                # duplex span = first..last pair
+        seg_real = real[lo:hi + 1]
+        out["n_wc"][s] = int(wcl[lo:hi + 1][seg_real].sum())
+        out["n_gu"][s] = int(gul[lo:hi + 1][seg_real].sum())
+        out["n_mm"][s] = int((seg_real & ~(wcl | gul)[lo:hi + 1]).sum())
+
+        run = best_run = 0                          # longest contiguous paired run
+        for v in pl[lo:hi + 1]:
+            run = run + 1 if v else 0
+            best_run = max(best_run, run)
+        out["max_run"][s] = best_run
+
+        sq = best - seed_pos                         # seed pairs at this register
+        ok = (seed_pos < MAX_MIRNA) & (sq >= 0) & (sq < MRE_LEN)
+        sp = mi[seed_pos[ok]]
+        sq = sq[ok]
+        out["seed_pairs"][s] = int(
+            ((_PAIR_WC[sp, ti[sq]] + _PAIR_GU[sp, ti[sq]]) > 0).sum())
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -1284,6 +1361,58 @@ def cmd_train(args: argparse.Namespace) -> None:
         _run_single(args, device)
 
 
+def _write_error_dump(path: str | Path, df_in: pd.DataFrame,
+                      ds: "MiRNAInteractionDataset", probs: np.ndarray,
+                      preds: np.ndarray, labels: np.ndarray) -> None:
+    """Write a per-sample TSV for error analysis and print a quick breakdown.
+
+    Loader order is preserved (shuffle=False), so rows align with `df_in` and
+    the dataset arrays. Adds prediction columns, a TP/TN/FP/FN tag, deterministic
+    duplex stats, and per-sample summaries of the auxiliary feature vectors.
+    """
+    adf = df_in.copy()
+    adf["prob"]    = probs
+    adf["pred"]    = preds
+    adf["label"]   = labels
+    adf["correct"] = (preds == labels).astype(int)
+
+    et = np.full(len(adf), "??", dtype=object)
+    et[(labels == 1) & (preds == 1)] = "TP"
+    et[(labels == 0) & (preds == 0)] = "TN"
+    et[(labels == 0) & (preds == 1)] = "FP"
+    et[(labels == 1) & (preds == 0)] = "FN"
+    adf["error_type"] = et
+
+    for k, v in _duplex_stats(ds.mirna_idx, ds.mre_idx).items():
+        adf[k] = v
+
+    # Summaries of the per-position auxiliary vectors over the real MRE region.
+    real = ds.mre_idx != 4
+    with np.errstate(invalid="ignore"):
+        for name, mat in (("cons", ds.cons_mat), ("eclip", ds.eclip_mat),
+                          ("tspot", ds.tspot_mat)):
+            adf[f"{name}_mean"] = np.nansum(np.where(real, mat, 0.0), axis=1) / \
+                                  np.maximum(real.sum(axis=1), 1)
+            adf[f"{name}_max"]  = np.where(real, mat, -np.inf).max(axis=1)
+    for j, col in enumerate(ENERGY_COLS):
+        adf[f"energy_{col}"] = ds.energy_raw[:, j]
+
+    out_path = Path(path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    adf.to_csv(out_path, sep="\t", index=False)
+    print(f"\nWrote error-analysis dump ({len(adf)} rows) → {out_path}")
+
+    # Quick breakdown by outcome to orient the analysis.
+    print("  by outcome:  count   mean_prob   n_wc  seed_pairs  max_run")
+    for tag in ("TP", "FN", "TN", "FP"):
+        m = et == tag
+        if not m.any():
+            continue
+        print(f"    {tag}: {int(m.sum()):8d}   {adf['prob'][m].mean():8.3f}   "
+              f"{adf['n_wc'][m].mean():5.1f}  {adf['seed_pairs'][m].mean():9.1f}  "
+              f"{adf['max_run'][m].mean():7.1f}")
+
+
 def cmd_predict(args: argparse.Namespace) -> None:
     device = torch.device(args.device)
 
@@ -1341,6 +1470,11 @@ def cmd_predict(args: argparse.Namespace) -> None:
         for k, v in metrics.items():
             print(f"  {k:20s} = {v:.4f}")
 
+    if args.error_dump:
+        _write_error_dump(args.error_dump, df_in, ds,
+                          np.array(all_probs), np.array(all_preds, dtype=int),
+                          np.array(all_labels, dtype=int))
+
 
 # ---------------------------------------------------------------------------
 # CLI
@@ -1379,10 +1513,11 @@ def main() -> int:
     tr.add_argument("--vec-dropout",     type=float, default=0.15, dest="vec_dropout",
                     help="Dropout in the 1D vector branch blocks.")
     tr.add_argument("--norm", choices=["batch", "layer"], default="batch")
-    tr.add_argument("--seq-pairing", choices=["binary", "multi"], default="multi",
-                    dest="seq_pairing",
+    tr.add_argument("--seq-pairing", choices=["binary", "multi", "multi4"],
+                    default="multi", dest="seq_pairing",
                     help="2D pairing matrix encoding: single WC(+wobble) channel "
-                         "(binary) or separate WC/wobble/mismatch channels (multi).")
+                         "(binary), separate WC/wobble/mismatch channels (multi), "
+                         "or A·U/G·C/wobble/mismatch (multi4, WC split by strength).")
     tr.add_argument("--seq-pool", choices=["avg", "gem"], default="gem",
                     dest="seq_pool",
                     help="Global pooling for the 2D sequence branch.")
@@ -1421,6 +1556,10 @@ def main() -> int:
     pr.add_argument("--checkpoint", required=True)
     pr.add_argument("--input",      required=True)
     pr.add_argument("--output",     required=True)
+    pr.add_argument("--error-dump", default=None, dest="error_dump",
+                    help="Also write a per-sample error-analysis TSV (probs, "
+                         "error type, duplex stats, aux-feature summaries) to "
+                         "this path. Requires labels in the input; no training.")
     pr.add_argument("--threshold",  type=float, default=0.5)
     pr.add_argument("--batch-size", type=int,   default=256)
     pr.add_argument("--num-workers", type=int,  default=4, dest="num_workers")
