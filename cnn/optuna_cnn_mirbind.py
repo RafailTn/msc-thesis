@@ -199,14 +199,23 @@ def make_objective(
         seq_dropout  = trial.suggest_float("seq_dropout", 0.1, 0.5)
 
         # ── Vector branches (1D dilated CNN) ──────────────────────────────
-        vec_channels    = trial.suggest_categorical("vec_channels",    [32, 64, 128])
-        vec_blocks      = trial.suggest_int("vec_blocks", 1, 5)
-        vec_kernel_size = trial.suggest_categorical("vec_kernel_size", [3, 5, 7, 9])
-        vec_dropout     = trial.suggest_float("vec_dropout", 0.05, 0.4)
-        norm            = trial.suggest_categorical("norm", ["batch", "layer"])
+        # These params are shared across the conservation/eCLIP/tSpot branches,
+        # so they only enter the search space if at least one of them is active;
+        # otherwise they would be dead "noise dimensions" for the sampler.
+        any_vec = use_conservation or use_eclip or use_tspot
+        if any_vec:
+            vec_channels    = trial.suggest_categorical("vec_channels",    [32, 64, 128])
+            vec_blocks      = trial.suggest_int("vec_blocks", 1, 5)
+            vec_kernel_size = trial.suggest_categorical("vec_kernel_size", [3, 5, 7, 9])
+            vec_dropout     = trial.suggest_float("vec_dropout", 0.05, 0.4)
+            norm            = trial.suggest_categorical("norm", ["batch", "layer"])
+        else:
+            vec_channels, vec_blocks, vec_kernel_size = 64, 1, 3
+            vec_dropout, norm = 0.15, "batch"
 
         # ── Energy gate ───────────────────────────────────────────────────
-        energy_dim = trial.suggest_categorical("energy_dim", [4, 8, 16, 32, 64])
+        energy_dim = (trial.suggest_categorical("energy_dim", [4, 8, 16, 32, 64])
+                      if use_energy else 0)
 
         # ── Training ──────────────────────────────────────────────────────
         lr           = trial.suggest_float("lr", 1e-5, 5e-3, log=True)
