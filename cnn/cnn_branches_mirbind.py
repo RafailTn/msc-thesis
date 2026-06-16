@@ -140,6 +140,31 @@ _PAIR_TABLE = np.stack([_PAIR_WC, _PAIR_GU, _PAIR_MM])
 # split into its weak (A·U, 2 H-bonds) and strong (G·C, 3 H-bonds) components.
 _PAIR_TABLE4 = np.stack([_PAIR_AU, _PAIR_GC, _PAIR_GU, _PAIR_MM])
 
+# Graded pairing-STRENGTH map (single dense 5×5 channel): a monotonic stability
+# ordering G·C (3 H-bonds) > A·U (2) > G·U wobble (1) > mismatch (0).  Pad/unknown
+# (index 4) stays 0.  Used to chemistry-initialise the learnable "embed" pairing
+# representation so it starts from this prior instead of sparse one-hot channels.
+_PAIR_STRENGTH = (3.0 * _PAIR_GC + 2.0 * _PAIR_AU
+                  + 1.0 * _PAIR_GU + 0.0 * _PAIR_MM).astype(np.float32)   # (5, 5)
+
+
+def _chem_init_pair_embed(dim: int, seed: int = 0) -> np.ndarray:
+    """Chemistry-initialised (dim, 5, 5) lookup for the learnable pairing embedding.
+
+    Channel 0 is seeded with the graded pairing-strength prior (_PAIR_STRENGTH);
+    any extra channels start as small Gaussian noise so the network can learn
+    further distinctions (e.g. mismatch sub-types) on top of the prior.  The pad
+    index (4) rows/cols are zeroed so padding cells carry no signal at init.
+    """
+    if dim < 1:
+        raise ValueError(f"pair_embed_dim must be >= 1, got {dim}")
+    rng = np.random.default_rng(seed)
+    table = (0.02 * rng.standard_normal((dim, 5, 5))).astype(np.float32)
+    table[0] = _PAIR_STRENGTH
+    table[:, 4, :] = 0.0
+    table[:, :, 4] = 0.0
+    return np.ascontiguousarray(table)
+
 # ASCII byte → nucleotide index lookup (default 4 = unknown/padding).
 # Lets us tokenise whole sequences with a single vectorised gather instead of
 # a per-character Python loop.  Handles upper/lowercase and T→U.
@@ -605,6 +630,7 @@ class MiRBindCNN(nn.Module):
         vec_dropout:      float = 0.15,
         norm:             str   = "batch",
         seq_pairing:      str   = "multi",
+        pair_embed_dim:   int   = 3,
         seq_pool:         str   = "gem",
         use_conservation: bool  = True,
         use_eclip:        bool  = True,
@@ -617,28 +643,42 @@ class MiRBindCNN(nn.Module):
         self.use_tspot  = use_tspot
         self.use_energy = use_energy
 
-        # On-device pairing-matrix lookup, assembled in forward() on the same
+        # On-device pairing-matrix lookup, gathered in forward() on the same
         # device as the model.  "binary" = single WC(+wobble) channel (legacy);
         # "multi" = separate Watson–Crick / G·U wobble / mismatch channels;
-        # "multi4" = WC split into A·U and G·C, i.e. A·U / G·C / wobble / mismatch.
-        # Non-persistent: it is a constant, so it is rebuilt at construction and
-        # kept out of the saved state_dict (which also keeps checkpoints loadable
-        # across this change).
-        if seq_pairing == "multi":
-            pair_table = _PAIR_TABLE                # (3, 5, 5)
-        elif seq_pairing == "multi4":
-            pair_table = _PAIR_TABLE4               # (4, 5, 5)
-        elif seq_pairing == "binary":
-            pair_table = _WC_TABLE[np.newaxis]      # (1, 5, 5)
+        # "multi4" = WC split into A·U and G·C, i.e. A·U / G·C / wobble / mismatch;
+        # "embed" = a learnable, chemistry-initialised dense (pair_embed_dim,5,5)
+        # lookup — a low-dim continuous representation of each nucleotide pair that
+        # avoids the sparse one-hot channels and lets the network learn its own
+        # pairing distinctions on top of the strength prior.
+        #
+        # The fixed tables are constants → registered as non-persistent buffers
+        # (rebuilt at construction, kept out of the state_dict so older checkpoints
+        # stay loadable).  The "embed" table is learned → an nn.Parameter that IS
+        # saved.  In both cases forward() masks pad cells, so padding carries no
+        # signal regardless of the learned values.
+        self._pair_learnable = False
+        if seq_pairing == "embed":
+            self.pair_table = nn.Parameter(
+                torch.from_numpy(_chem_init_pair_embed(pair_embed_dim)))
+            self._pair_learnable = True
+            n_pair_ch = pair_embed_dim
         else:
-            raise ValueError(
-                "seq_pairing must be 'binary', 'multi' or 'multi4', got "
-                f"{seq_pairing!r}")
-        self.register_buffer(
-            "pair_table",
-            torch.from_numpy(np.ascontiguousarray(pair_table)),
-            persistent=False)
-        n_pair_ch = pair_table.shape[0]
+            if seq_pairing == "multi":
+                pair_table = _PAIR_TABLE                # (3, 5, 5)
+            elif seq_pairing == "multi4":
+                pair_table = _PAIR_TABLE4               # (4, 5, 5)
+            elif seq_pairing == "binary":
+                pair_table = _WC_TABLE[np.newaxis]      # (1, 5, 5)
+            else:
+                raise ValueError(
+                    "seq_pairing must be 'binary', 'multi', 'multi4' or 'embed', "
+                    f"got {seq_pairing!r}")
+            self.register_buffer(
+                "pair_table",
+                torch.from_numpy(np.ascontiguousarray(pair_table)),
+                persistent=False)
+            n_pair_ch = pair_table.shape[0]
 
         # ── Branch 1: miRBind 2D sequence branch ─────────────────────────────
         self.seq_branch = MiRBindSeqBranch(
@@ -725,6 +765,11 @@ class MiRBindCNN(nn.Module):
         ti = ti.long()
         pair = self.pair_table[:, mi[:, :, None], ti[:, None, :]]  # (C_pair, B, 30, 50)
         wc_mat = pair.movedim(0, 1).contiguous()                   # (B, C_pair, 30, 50)
+        if self._pair_learnable:
+            # Fixed tables zero pad rows/cols by construction; the learnable
+            # embedding does not, so mask any cell touching pad index 4 (mi/ti==4).
+            valid = ((mi < 4)[:, :, None] & (ti < 4)[:, None, :])  # (B, 30, 50)
+            wc_mat = wc_mat * valid.unsqueeze(1).to(wc_mat.dtype)
         h_seq = self.seq_branch(wc_mat)         # (B, seq_dim)
 
         # ── Branches 2–4 ─────────────────────────────────────────────────────
@@ -947,6 +992,7 @@ def _model_args_from_cli(args: argparse.Namespace) -> dict:
         "vec_dropout":      args.vec_dropout,
         "norm":             args.norm,
         "seq_pairing":      args.seq_pairing,
+        "pair_embed_dim":   args.pair_embed_dim,
         "seq_pool":         args.seq_pool,
         "use_conservation": not args.no_conservation,
         "use_eclip":        not args.no_eclip,
@@ -1513,11 +1559,16 @@ def main() -> int:
     tr.add_argument("--vec-dropout",     type=float, default=0.15, dest="vec_dropout",
                     help="Dropout in the 1D vector branch blocks.")
     tr.add_argument("--norm", choices=["batch", "layer"], default="batch")
-    tr.add_argument("--seq-pairing", choices=["binary", "multi", "multi4"],
+    tr.add_argument("--seq-pairing", choices=["binary", "multi", "multi4", "embed"],
                     default="multi", dest="seq_pairing",
                     help="2D pairing matrix encoding: single WC(+wobble) channel "
                          "(binary), separate WC/wobble/mismatch channels (multi), "
-                         "or A·U/G·C/wobble/mismatch (multi4, WC split by strength).")
+                         "A·U/G·C/wobble/mismatch (multi4, WC split by strength), or "
+                         "a learnable chemistry-initialised dense embedding (embed).")
+    tr.add_argument("--pair-embed-dim", type=int, default=3, dest="pair_embed_dim",
+                    help="Channels of the learnable pairing embedding when "
+                         "--seq-pairing embed (ignored otherwise). Channel 0 is "
+                         "initialised to the graded pairing-strength prior.")
     tr.add_argument("--seq-pool", choices=["avg", "gem"], default="gem",
                     dest="seq_pool",
                     help="Global pooling for the 2D sequence branch.")

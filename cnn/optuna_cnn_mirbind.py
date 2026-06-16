@@ -190,6 +190,7 @@ def make_objective(
     use_tspot:        bool = True,
     use_energy:       bool = True,
     seq_pairing:      str  = "multi",
+    pair_embed_dim:   int  = 3,
 ):
     def objective(trial: optuna.Trial) -> float:
         # ── Sequence branch (2D miRBind CNN) ──────────────────────────────
@@ -226,7 +227,8 @@ def make_objective(
             energy_dim=energy_dim, norm=norm,
             # Fixed (not part of the search space, so existing studies still
             # resume); recorded so checkpoints reconstruct the right branch.
-            seq_pairing=seq_pairing, seq_pool="gem",
+            seq_pairing=seq_pairing, pair_embed_dim=pair_embed_dim,
+            seq_pool="gem",
             use_conservation=use_conservation,
             use_eclip=use_eclip,
             use_tspot=use_tspot,
@@ -355,12 +357,18 @@ def main() -> int:
                    help="Disable the tSpotProb branch for all trials.")
     p.add_argument("--no-energy",       action="store_true",
                    help="Disable the energy gate for all trials.")
-    p.add_argument("--seq-pairing", choices=["binary", "multi", "multi4"],
+    p.add_argument("--seq-pairing", choices=["binary", "multi", "multi4", "embed"],
                    default="multi", dest="seq_pairing",
                    help="2D pairing encoding fixed for ALL trials (not tuned): "
-                        "binary, multi (WC/wobble/mismatch), or multi4 "
-                        "(A·U/G·C/wobble/mismatch). Changing this does not alter "
-                        "the search space, so existing studies still resume.")
+                        "binary, multi (WC/wobble/mismatch), multi4 "
+                        "(A·U/G·C/wobble/mismatch), or embed (learnable "
+                        "chemistry-initialised dense embedding). Changing this "
+                        "does not alter the search space, so existing studies "
+                        "still resume.")
+    p.add_argument("--pair-embed-dim", type=int, default=3, dest="pair_embed_dim",
+                   help="Channels of the learnable pairing embedding when "
+                        "--seq-pairing embed (ignored otherwise). Fixed for all "
+                        "trials; not part of the search space.")
     p.add_argument("--test",          nargs="+", default=None, metavar="FILE",
                    help="Test CSV/TSV files to evaluate with the best checkpoint.")
     p.add_argument("--ckpt-dir",      default=None, dest="ckpt_dir",
@@ -442,6 +450,7 @@ def main() -> int:
         use_tspot=not args.no_tspot,
         use_energy=not args.no_energy,
         seq_pairing=args.seq_pairing,
+        pair_embed_dim=args.pair_embed_dim,
     )
 
     study.optimize(
