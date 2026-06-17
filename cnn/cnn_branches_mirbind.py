@@ -52,6 +52,11 @@ Usage
   python cnn_branches_mirbind.py predict \\
       --checkpoint checkpoints/cnn_mirbind.pt \\
       --input data/test.csv --output predictions.tsv
+
+  python cnn_branches_mirbind.py predict-ensemble \\
+      --checkpoints checkpoints/cnn_mirbind_fold*.pt \\
+      --inputs data/test1.csv data/test2.csv \\
+      --output-dir predictions/
 """
 
 from __future__ import annotations
@@ -1089,6 +1094,7 @@ def _train_one_run(
     if ema is not None:
         print(f"  weight EMA enabled (decay={args.ema_decay})")
 
+    no_val = getattr(args, "no_val", False)
     best_val = -float("inf")
     patience_counter = 0
 
@@ -1128,6 +1134,45 @@ def _train_one_run(
         train_loss    = running_loss / max(seen, 1)
         train_metrics = _binary_metrics(
             np.concatenate(train_logits_buf), np.concatenate(train_labels_buf))
+
+        # No-validation mode: train the full epoch budget on all data, never
+        # evaluate or early-stop, and save the (EMA, if enabled) weights at the
+        # final epoch. Used to refit on the entire training set after CV.
+        if no_val:
+            dt = time.time() - t0
+            print(f"[{epoch:03d}/{args.epochs}] "
+                  f"train_loss={train_loss:.4f}  "
+                  f"train_f1={train_metrics['f1']:.4f}  "
+                  f"train_acc={train_metrics['accuracy']:.4f}  ({dt:.1f}s)")
+            if HAS_WANDB and wandb.run is not None:
+                log_dict = {
+                    "epoch":          epoch,
+                    "lr":             sched.get_last_lr()[0],
+                    "train/loss":     train_loss,
+                    "train/f1":       train_metrics["f1"],
+                    "train/accuracy": train_metrics["accuracy"],
+                }
+                if "auroc" in train_metrics:
+                    log_dict["train/auroc"] = train_metrics["auroc"]
+                if "auprc" in train_metrics:
+                    log_dict["train/auprc"] = train_metrics["auprc"]
+                wandb.log(log_dict)
+            if epoch == args.epochs:
+                sel_variant = "ema" if ema is not None else "raw"
+                sel_state   = (ema.state_dict(model) if ema is not None
+                               else model.state_dict())
+                torch.save({
+                    "model_state":  sel_state,
+                    "model_args":   model_args,
+                    "energy_stats": train_ds.energy_stats,
+                    "val_metrics":  None,
+                    "epoch":        epoch,
+                    "weights":      sel_variant,
+                }, out_path)
+                print(f"  → checkpoint saved ({sel_variant}, final epoch, "
+                      f"no validation): {out_path}")
+            continue
+
         val_metrics   = evaluate(model, val_loader, device, pos_weight)
 
         def _ckpt_val(vm: dict) -> float:
@@ -1200,6 +1245,9 @@ def _train_one_run(
                 print(f"Early stopping after {patience_counter} epochs without improvement.")
                 break
 
+    if no_val:
+        print(f"\nTrained {args.epochs} epochs on the full set (no validation).")
+        return float("nan")
     print(f"\nBest {args.checkpoint_metric} = {best_val:.4f}")
     if HAS_WANDB and wandb.run is not None:
         wandb.run.summary[f"best_{args.checkpoint_metric}"] = best_val
@@ -1207,8 +1255,11 @@ def _train_one_run(
 
 
 def _run_single(args: argparse.Namespace, device: torch.device) -> None:
-    if not args.val:
-        sys.exit("ERROR: --val is required when --folds is not set.")
+    if not args.val and not args.no_val:
+        sys.exit("ERROR: --val is required when --folds is not set "
+                 "(or pass --no-val to train on the full set without validation).")
+    if args.val and args.no_val:
+        print("WARNING: --no-val is set; ignoring --val and training on the full set.")
 
     cache = not args.no_cache
     print("Loading training data ...")
@@ -1218,16 +1269,18 @@ def _run_single(args: argparse.Namespace, device: torch.device) -> None:
     print(f"  train samples : {len(train_ds)}")
     print(f"  positives     : {int(train_ds.labels.sum())} / {len(train_ds.labels)}")
 
-    print("Loading validation data ...")
-    val_ds = MiRNAInteractionDataset(
-        args.val, energy_stats=train_ds.energy_stats, has_labels=True,
-        mre_col=args.mre_col, mirna_col=args.mirna_col, cache=cache)
-    print(f"  val samples   : {len(val_ds)}")
+    val_loader = None
+    if not args.no_val:
+        print("Loading validation data ...")
+        val_ds = MiRNAInteractionDataset(
+            args.val, energy_stats=train_ds.energy_stats, has_labels=True,
+            mre_col=args.mre_col, mirna_col=args.mirna_col, cache=cache)
+        print(f"  val samples   : {len(val_ds)}")
+        val_loader = _make_loader(val_ds,   args.batch_size, shuffle=False,
+                                  num_workers=args.num_workers)
 
     train_loader = _make_loader(train_ds, args.batch_size, shuffle=True,
                                 num_workers=args.num_workers, balance=args.balance)
-    val_loader   = _make_loader(val_ds,   args.batch_size, shuffle=False,
-                                num_workers=args.num_workers)
 
     model_args = _model_args_from_cli(args)
     model = MiRBindCNN(**model_args).to(device)
@@ -1401,6 +1454,9 @@ def _run_kfold(args: argparse.Namespace, device: torch.device) -> None:
 def cmd_train(args: argparse.Namespace) -> None:
     device = torch.device(args.device)
     print(f"Device: {device}")
+    if args.folds and args.no_val:
+        sys.exit("ERROR: --no-val cannot be combined with --folds "
+                 "(cross-validation requires held-out folds).")
     if args.folds:
         _run_kfold(args, device)
     else:
@@ -1459,11 +1515,17 @@ def _write_error_dump(path: str | Path, df_in: pd.DataFrame,
               f"{adf['max_run'][m].mean():7.1f}")
 
 
-def cmd_predict(args: argparse.Namespace) -> None:
-    device = torch.device(args.device)
+def _load_ckpt_model(checkpoint: str | Path,
+                     device: torch.device) -> tuple[MiRBindCNN, dict, dict]:
+    """Load a trained checkpoint into an eval-mode model.
 
-    ckpt   = torch.load(args.checkpoint, map_location=device, weights_only=False)
-    margs  = ckpt["model_args"]
+    Returns ``(model, energy_stats, ckpt)``. Checkpoints are self-contained:
+    each stores its own ``model_args`` and ``energy_stats`` (the per-run energy
+    normalisation), so a single checkpoint — or one fold of a k-fold run — can
+    be applied to any input independently.
+    """
+    ckpt  = torch.load(checkpoint, map_location=device, weights_only=False)
+    margs = ckpt["model_args"]
     # backward-compat defaults: checkpoints predating these features used a
     # single WC(+wobble) channel with average pooling, so default to that when
     # the keys are absent (newer checkpoints carry their own values).
@@ -1471,11 +1533,16 @@ def cmd_predict(args: argparse.Namespace) -> None:
                      ("use_tspot", True), ("use_energy", True),
                      ("seq_pairing", "binary"), ("seq_pool", "avg")]:
         margs.setdefault(key, val)
-
-    energy_stats = ckpt["energy_stats"]
     model = MiRBindCNN(**margs).to(device)
     model.load_state_dict(ckpt["model_state"])
     model.eval()
+    return model, ckpt["energy_stats"], ckpt
+
+
+def cmd_predict(args: argparse.Namespace) -> None:
+    device = torch.device(args.device)
+
+    model, energy_stats, ckpt = _load_ckpt_model(args.checkpoint, device)
     print(f"Loaded checkpoint (epoch {ckpt.get('epoch')}, "
           f"val_metrics={ckpt.get('val_metrics')})")
 
@@ -1522,6 +1589,77 @@ def cmd_predict(args: argparse.Namespace) -> None:
                           np.array(all_labels, dtype=int))
 
 
+def cmd_predict_ensemble(args: argparse.Namespace) -> None:
+    """Average several fold checkpoints over one or more test sets.
+
+    For each test set, every checkpoint's probabilities are computed in a fixed
+    (shuffle=False) order and averaged element-wise, then scored once — the same
+    fold-ensembling done at the end of a k-fold training run, but applied to
+    already-trained checkpoints on new test sets. Each fold re-applies its own
+    energy normalisation before predicting. Writes a ``<name>_ensemble.tsv`` per
+    test set (per-fold probs + averaged probability + thresholded prediction).
+    """
+    device = torch.device(args.device)
+
+    models: list[tuple[str, MiRBindCNN, dict]] = []
+    for ckpt_path in args.checkpoints:
+        model, energy_stats, ckpt = _load_ckpt_model(ckpt_path, device)
+        name = Path(ckpt_path).stem
+        models.append((name, model, energy_stats))
+        print(f"Loaded {name} (epoch {ckpt.get('epoch')}, "
+              f"val_metrics={ckpt.get('val_metrics')})")
+    print(f"\nEnsembling {len(models)} checkpoint(s) over "
+          f"{len(args.inputs)} test set(s).")
+
+    out_dir = Path(args.output_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    for test_path in args.inputs:
+        test_name = Path(test_path).stem
+        print(f"\n{'='*60}\n[{test_name}]  {test_path}\n{'='*60}")
+        # Encode the test set once (raw arrays cached); each fold re-applies its
+        # own energy normalisation before its forward pass.
+        ds = MiRNAInteractionDataset(
+            test_path, energy_stats=None, has_labels=True,
+            mre_col=args.mre_col, mirna_col=args.mirna_col,
+            cache=not args.no_cache)
+
+        fold_probs: list[np.ndarray] = []
+        per_fold: list[tuple[str, dict]] = []
+        labels: Optional[np.ndarray] = None
+        for name, model, energy_stats in models:
+            ds._finalize_energy(energy_stats)
+            loader = DataLoader(
+                ds, batch_size=args.batch_size, shuffle=False,
+                num_workers=args.num_workers, pin_memory=True)
+            logits, labels = predict_logits(model, loader, device)
+            probs   = 1.0 / (1.0 + np.exp(-logits))
+            metrics = _metrics_from_probs(probs, labels, args.threshold)
+            fold_probs.append(probs)
+            per_fold.append((name, metrics))
+            row = "  ".join(f"{k}={v:.4f}" for k, v in metrics.items())
+            print(f"  {name:24s} {row}")
+
+        mean_probs = np.mean(np.stack(fold_probs), axis=0)
+        ens        = _metrics_from_probs(mean_probs, labels, args.threshold)
+
+        print(f"\n  Fold-ensemble ({len(models)} ckpts, prob. average):")
+        for metric_key, v in ens.items():
+            indiv      = [m[metric_key] for _, m in per_fold]
+            mean_indiv = float(np.mean(indiv))
+            print(f"    {metric_key:<20s} ensemble={v:.4f}  "
+                  f"(mean-of-folds={mean_indiv:.4f}, Δ={v - mean_indiv:+.4f})")
+
+        df_out = _read_table(test_path)
+        for name, probs in zip([n for n, _, _ in models], fold_probs):
+            df_out[f"prob_{name}"] = probs
+        df_out["interaction_probability"] = mean_probs
+        df_out["prediction"] = (mean_probs >= args.threshold).astype(int)
+        out_path = out_dir / f"{test_name}_ensemble.tsv"
+        df_out.to_csv(out_path, sep="\t", index=False)
+        print(f"  Wrote {len(df_out)} rows → {out_path}")
+
+
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
@@ -1537,6 +1675,11 @@ def main() -> int:
     tr = sub.add_parser("train", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     tr.add_argument("--train",      required=True)
     tr.add_argument("--val",        default=None)
+    tr.add_argument("--no-val",     action="store_true", dest="no_val",
+                    help="Train on the entire --train set with no validation: "
+                         "run the full --epochs budget (no early stopping) and "
+                         "save the EMA weights (if --ema, else raw) at the final "
+                         "epoch. Mutually exclusive with --folds.")
     tr.add_argument("--folds",      type=int, default=None)
     tr.add_argument("--family-col", default="mirna_family", dest="family_col")
     tr.add_argument("--test",       nargs="+", default=None, metavar="FILE")
@@ -1621,9 +1764,31 @@ def main() -> int:
     pr.add_argument("--device",
                     default="cuda" if torch.cuda.is_available() else "cpu")
 
+    # ----- predict-ensemble -------------------------------------------------
+    pe = sub.add_parser("predict-ensemble",
+                        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+                        help="Average several fold checkpoints over test set(s).")
+    pe.add_argument("--checkpoints", required=True, nargs="+", metavar="CKPT",
+                    help="Fold checkpoints to ensemble (e.g. *_fold1.pt ...).")
+    pe.add_argument("--inputs", required=True, nargs="+", metavar="FILE",
+                    help="Test CSV(s) to score; need a 'label' column for metrics.")
+    pe.add_argument("--output-dir", default="predictions", dest="output_dir",
+                    help="Directory for <testname>_ensemble.tsv outputs.")
+    pe.add_argument("--threshold",  type=float, default=0.5)
+    pe.add_argument("--batch-size", type=int,   default=256)
+    pe.add_argument("--num-workers", type=int,  default=4, dest="num_workers")
+    pe.add_argument("--mre-col",   default="mre_sequence",   dest="mre_col")
+    pe.add_argument("--mirna-col", default="mirna_sequence", dest="mirna_col")
+    pe.add_argument("--no-cache",  action="store_true", dest="no_cache",
+                    help="Disable the preprocessing .cnncache.npz sidecar files.")
+    pe.add_argument("--device",
+                    default="cuda" if torch.cuda.is_available() else "cpu")
+
     args = parser.parse_args()
     if args.command == "train":
         cmd_train(args)
+    elif args.command == "predict-ensemble":
+        cmd_predict_ensemble(args)
     else:
         cmd_predict(args)
     return 0
