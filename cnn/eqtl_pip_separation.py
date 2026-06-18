@@ -38,21 +38,23 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
-GROUP_COLS = ["gene", "snp_pos"]   # "same position of the same transcript"
+GROUP_COLS = ["gene", "variant"]   # transcript (ENSG) + mutation (variant id)
 VALUE_COL  = "delta_pred"
 BETA_COL   = "beta_marginal"
 
 
-def filter_max_abs_beta(df: pd.DataFrame, label: str) -> pd.DataFrame:
-    """Keep, per (gene, snp_pos), the single row with the largest |beta_marginal|.
+def filter_max_abs(df: pd.DataFrame, label: str, metric: str) -> pd.DataFrame:
+    """Keep, per (gene, snp_pos), the single row with the largest |metric|.
 
-    Rows lacking delta_pred or beta_marginal are dropped first."""
+    `metric` is the column whose absolute value selects the surviving row
+    (beta_marginal or delta_pred). Rows lacking delta_pred or beta_marginal are
+    dropped first."""
     before = len(df)
     df = df.dropna(subset=[VALUE_COL, BETA_COL]).copy()
-    df["_abs_beta"] = df[BETA_COL].abs()
-    idx = df.groupby(GROUP_COLS)["_abs_beta"].idxmax()
-    out = df.loc[idx].drop(columns="_abs_beta").sort_index()
-    print(f"  [{label}] {before:,} rows → {len(out):,} after max|beta| dedup "
+    df["_abs_metric"] = df[metric].abs()
+    idx = df.groupby(GROUP_COLS)["_abs_metric"].idxmax()
+    out = df.loc[idx].drop(columns="_abs_metric").sort_index()
+    print(f"  [{label}] {before:,} rows → {len(out):,} after max|{metric}| dedup "
           f"({df[GROUP_COLS].drop_duplicates().shape[0]:,} unique gene×pos)")
     return out
 
@@ -108,6 +110,11 @@ def main() -> int:
     ap.add_argument("--low",  required=True, help="delta_pred TSV for pip < 0.01")
     ap.add_argument("--out-dir", default="results/eqtl_pip_separation",
                     help="Directory for filtered TSVs + histogram.")
+    ap.add_argument("--dedup-by", choices=["beta_marginal", "delta_pred"],
+                    default="beta_marginal",
+                    help="Per (gene, position) group, keep the row with the "
+                         "largest absolute value of this metric (default: "
+                         "beta_marginal).")
     args = ap.parse_args()
 
     out_dir = Path(args.out_dir)
@@ -118,9 +125,9 @@ def main() -> int:
     low  = pd.read_csv(args.low,  sep="\t")
     print(f"  high (pip>0.9): {len(high):,} rows   low (pip<0.01): {len(low):,} rows")
 
-    print("\nFiltering (max |beta_marginal| per gene×position)...")
-    high_f = filter_max_abs_beta(high, "high")
-    low_f  = filter_max_abs_beta(low,  "low")
+    print(f"\nFiltering (max |{args.dedup_by}| per gene×position)...")
+    high_f = filter_max_abs(high, "high", args.dedup_by)
+    low_f  = filter_max_abs(low,  "low",  args.dedup_by)
 
     # Drop (gene, snp_pos) shared with the high-PIP set from the low-PIP set. --
     high_keys = set(map(tuple, high_f[GROUP_COLS].itertuples(index=False, name=None)))
@@ -130,10 +137,11 @@ def main() -> int:
     print(f"\n  Dropped {n_dropped:,} low-PIP rows overlapping high-PIP "
           f"(gene×position); low set now {len(low_f):,} rows.")
 
-    high_f.to_csv(out_dir / "high_pip_filtered.tsv", sep="\t", index=False,
-                  float_format="%.6f")
-    low_f.to_csv(out_dir / "low_pip_filtered.tsv", sep="\t", index=False,
-                 float_format="%.6f")
+    # Write filtered tables sorted by delta_pred, highest → lowest.
+    high_f.sort_values(VALUE_COL, ascending=False).to_csv(
+        out_dir / "high_pip_filtered.tsv", sep="\t", index=False, float_format="%.6f")
+    low_f.sort_values(VALUE_COL, ascending=False).to_csv(
+        out_dir / "low_pip_filtered.tsv", sep="\t", index=False, float_format="%.6f")
 
     # -- 3. Separation: Mann-Whitney + histogram on delta_pred ----------------
     hv = high_f[VALUE_COL].to_numpy()
