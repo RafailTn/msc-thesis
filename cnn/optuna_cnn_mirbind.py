@@ -197,6 +197,13 @@ def make_objective(
         seq_filters  = trial.suggest_categorical("seq_filters",  [32, 64, 128])
         seq_dim      = trial.suggest_categorical("seq_dim",      [64, 128, 256])
         seq_dropout  = trial.suggest_float("seq_dropout", 0.1, 0.5)
+        block_pool   = trial.suggest_categorical("block_pool", ["max", "gem"])
+        activation   = trial.suggest_categorical(
+            "activation", ["leaky_relu", "relu", "gelu", "silu", "elu", "selu"])
+        # The miRNA-axis height (30) only halves to 1 after 4 poolings, so cap
+        # n_pool_blocks at 4; conv depth then ranges from that up to 8.
+        n_pool_blocks = trial.suggest_int("n_pool_blocks", 2, 4)
+        n_conv_blocks = trial.suggest_int("n_conv_blocks", n_pool_blocks, 8)
 
         # ── Vector branches (1D dilated CNN) ──────────────────────────────
         # These params are shared across the conservation/eCLIP/tSpot branches,
@@ -231,6 +238,8 @@ def make_objective(
 
         model_args = dict(
             seq_filters=seq_filters, seq_dim=seq_dim, seq_dropout=seq_dropout,
+            n_conv_blocks=n_conv_blocks, n_pool_blocks=n_pool_blocks,
+            block_pool=block_pool, activation=activation,
             vec_channels=vec_channels, vec_blocks=vec_blocks,
             vec_kernel_size=vec_kernel_size, vec_dropout=vec_dropout,
             energy_dim=energy_dim, norm=norm,

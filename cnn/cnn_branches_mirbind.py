@@ -424,23 +424,74 @@ class MiRNAInteractionDataset(Dataset):
 # Model building blocks
 # ---------------------------------------------------------------------------
 
+# Activation factory for the 2D sequence branch (conv + dense blocks). The
+# vector branches keep their own GELU; only the miRBind branch is tunable here.
+_ACTIVATIONS = {
+    "leaky_relu": lambda: nn.LeakyReLU(0.1, inplace=True),
+    "relu":       lambda: nn.ReLU(inplace=True),
+    "gelu":       lambda: nn.GELU(),
+    "silu":       lambda: nn.SiLU(inplace=True),
+    "elu":        lambda: nn.ELU(inplace=True),
+    "selu":       lambda: nn.SELU(inplace=True),
+}
+
+
+def _make_activation(name: str) -> nn.Module:
+    try:
+        return _ACTIVATIONS[name]()
+    except KeyError:
+        raise ValueError(
+            f"activation must be one of {list(_ACTIVATIONS)}, got {name!r}")
+
+
+class GeMDownsample2d(nn.Module):
+    """GeM pooling as a fixed-stride 2D downsampler — a drop-in for MaxPool2d.
+
+    GeM(x) = ( mean_window x_i^p )^(1/p) over each kernel window: p=1 is average
+    pooling, p→∞ approaches max pooling, and p is learnable so the block tunes
+    how peaky its downsampling is. Inputs are clamped to ≥eps because the
+    mean-of-powers is only defined for non-negative values (standard GeM
+    assumption), so any negatives from the preceding activation are floored.
+    """
+
+    def __init__(self, kernel_size: int = 2, stride: int = 2,
+                 p: float = 3.0, eps: float = 1e-6) -> None:
+        super().__init__()
+        self.kernel_size = kernel_size
+        self.stride = stride
+        self.p = nn.Parameter(torch.tensor(float(p)))
+        self.eps = eps
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = x.clamp(min=self.eps).pow(self.p)
+        x = F.avg_pool2d(x, self.kernel_size, self.stride)
+        return x.pow(1.0 / self.p)
+
+
 class Conv2dBlock(nn.Module):
     """One miRBind-style 2D convolutional block.
 
-    Conv2d (5×5, same padding) → LeakyReLU → BatchNorm2d →
-    [MaxPool2d(2,2)] → Dropout.
+    Conv2d (5×5, same padding) → activation → BatchNorm2d →
+    [MaxPool2d / GeMDownsample2d (2,2)] → Dropout.
     """
 
     def __init__(self, in_ch: int, out_ch: int, dropout: float = 0.3,
-                 pool: bool = True) -> None:
+                 pool: bool = True, block_pool: str = "max",
+                 activation: str = "leaky_relu") -> None:
         super().__init__()
         layers: list[nn.Module] = [
             nn.Conv2d(in_ch, out_ch, kernel_size=5, padding=2),
-            nn.LeakyReLU(0.1, inplace=True),
+            _make_activation(activation),
             nn.BatchNorm2d(out_ch),
         ]
         if pool:
-            layers.append(nn.MaxPool2d(2, 2))
+            if block_pool == "gem":
+                layers.append(GeMDownsample2d(2, 2))
+            elif block_pool == "max":
+                layers.append(nn.MaxPool2d(2, 2))
+            else:
+                raise ValueError(
+                    f"block_pool must be 'max' or 'gem', got {block_pool!r}")
         layers.append(nn.Dropout2d(dropout))
         self.net = nn.Sequential(*layers)
 
@@ -449,13 +500,14 @@ class Conv2dBlock(nn.Module):
 
 
 class DenseBlock(nn.Module):
-    """One miRBind-style dense block: Linear → LeakyReLU → BatchNorm1d → Dropout."""
+    """One miRBind-style dense block: Linear → activation → BatchNorm1d → Dropout."""
 
-    def __init__(self, in_dim: int, out_dim: int, dropout: float = 0.3) -> None:
+    def __init__(self, in_dim: int, out_dim: int, dropout: float = 0.3,
+                 activation: str = "leaky_relu") -> None:
         super().__init__()
         self.net = nn.Sequential(
             nn.Linear(in_dim, out_dim),
-            nn.LeakyReLU(0.1, inplace=True),
+            _make_activation(activation),
             nn.BatchNorm1d(out_dim),
             nn.Dropout(dropout),
         )
@@ -494,15 +546,16 @@ class MiRBindSeqBranch(nn.Module):
     produces a fixed-size embedding of shape (B, out_dim).
 
     Architecture (mirroring Klimentova et al. 2022):
-      - 6 Conv2d blocks (5×5, LeakyReLU, BN2d, Dropout=0.3)
-        Blocks 0–3: include MaxPool2d(2,2) to downsample
-        Blocks 4–5: no pooling (spatial dims too small by this point)
-      - AdaptiveAvgPool2d((1,1)) → flatten
+      - n_conv_blocks Conv2d blocks (5×5, activation, BN2d, Dropout)
+        First n_pool_blocks blocks downsample (MaxPool2d or GeMDownsample2d 2×2)
+        Remaining blocks have no pooling (spatial dims small by this point)
+      - global pool (GeM or adaptive-avg) → flatten
       - 2 dense blocks → out_dim
-    """
 
-    N_CONV_BLOCKS  = 6
-    N_POOL_BLOCKS  = 4   # first 4 blocks have MaxPool2d
+    The 2D input height is MAX_MIRNA (30), which halves with each pooling block
+    (30→15→7→3→1), so n_pool_blocks must not exceed 4 — a 5th pool would reduce a
+    size-1 dimension to 0. n_pool_blocks is also capped at n_conv_blocks.
+    """
 
     def __init__(
         self,
@@ -511,14 +564,28 @@ class MiRBindSeqBranch(nn.Module):
         dropout:   float = 0.3,
         in_ch:     int = 1,
         pool:      str = "gem",
+        n_conv_blocks: int = 6,
+        n_pool_blocks: int = 4,
+        block_pool: str = "max",
+        activation: str = "leaky_relu",
     ) -> None:
         super().__init__()
+        if n_pool_blocks > n_conv_blocks:
+            raise ValueError(
+                f"n_pool_blocks ({n_pool_blocks}) must be <= n_conv_blocks "
+                f"({n_conv_blocks}).")
+        if n_pool_blocks > 4:
+            raise ValueError(
+                f"n_pool_blocks ({n_pool_blocks}) exceeds 4: the miRNA-axis "
+                f"height (30) only halves to 1 after 4 poolings.")
 
         conv_blocks: list[nn.Module] = []
         ch = in_ch
-        for i in range(self.N_CONV_BLOCKS):
-            pool_block = i < self.N_POOL_BLOCKS
-            conv_blocks.append(Conv2dBlock(ch, n_filters, dropout=dropout, pool=pool_block))
+        for i in range(n_conv_blocks):
+            pool_block = i < n_pool_blocks
+            conv_blocks.append(Conv2dBlock(
+                ch, n_filters, dropout=dropout, pool=pool_block,
+                block_pool=block_pool, activation=activation))
             ch = n_filters
         self.conv_blocks = nn.Sequential(*conv_blocks)
 
@@ -531,8 +598,8 @@ class MiRBindSeqBranch(nn.Module):
 
         hidden = max(n_filters * 2, out_dim)
         self.dense = nn.Sequential(
-            DenseBlock(n_filters, hidden, dropout=dropout),
-            DenseBlock(hidden,    out_dim, dropout=dropout),
+            DenseBlock(n_filters, hidden, dropout=dropout, activation=activation),
+            DenseBlock(hidden,    out_dim, dropout=dropout, activation=activation),
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -637,6 +704,10 @@ class MiRBindCNN(nn.Module):
         seq_pairing:      str   = "multi",
         pair_embed_dim:   int   = 3,
         seq_pool:         str   = "gem",
+        n_conv_blocks:    int   = 6,
+        n_pool_blocks:    int   = 4,
+        block_pool:       str   = "max",
+        activation:       str   = "leaky_relu",
         use_conservation: bool  = True,
         use_eclip:        bool  = True,
         use_tspot:        bool  = True,
@@ -688,7 +759,9 @@ class MiRBindCNN(nn.Module):
         # ── Branch 1: miRBind 2D sequence branch ─────────────────────────────
         self.seq_branch = MiRBindSeqBranch(
             n_filters=seq_filters, out_dim=seq_dim, dropout=seq_dropout,
-            in_ch=n_pair_ch, pool=seq_pool)
+            in_ch=n_pair_ch, pool=seq_pool,
+            n_conv_blocks=n_conv_blocks, n_pool_blocks=n_pool_blocks,
+            block_pool=block_pool, activation=activation)
 
         # ── Branches 2–4: 1D dilated CNN vector branches ─────────────────────
         def _make_vec_branch():
@@ -999,6 +1072,10 @@ def _model_args_from_cli(args: argparse.Namespace) -> dict:
         "seq_pairing":      args.seq_pairing,
         "pair_embed_dim":   args.pair_embed_dim,
         "seq_pool":         args.seq_pool,
+        "n_conv_blocks":    args.n_conv_blocks,
+        "n_pool_blocks":    args.n_pool_blocks,
+        "block_pool":       args.block_pool,
+        "activation":       args.activation,
         "use_conservation": not args.no_conservation,
         "use_eclip":        not args.no_eclip,
         "use_tspot":        not args.no_tspot,
@@ -1531,7 +1608,9 @@ def _load_ckpt_model(checkpoint: str | Path,
     # the keys are absent (newer checkpoints carry their own values).
     for key, val in [("use_conservation", True), ("use_eclip", True),
                      ("use_tspot", True), ("use_energy", True),
-                     ("seq_pairing", "binary"), ("seq_pool", "avg")]:
+                     ("seq_pairing", "binary"), ("seq_pool", "avg"),
+                     ("n_conv_blocks", 6), ("n_pool_blocks", 4),
+                     ("block_pool", "max"), ("activation", "leaky_relu")]:
         margs.setdefault(key, val)
     model = MiRBindCNN(**margs).to(device)
     model.load_state_dict(ckpt["model_state"])
@@ -1715,6 +1794,20 @@ def main() -> int:
     tr.add_argument("--seq-pool", choices=["avg", "gem"], default="gem",
                     dest="seq_pool",
                     help="Global pooling for the 2D sequence branch.")
+    tr.add_argument("--n-conv-blocks", type=int, default=6, dest="n_conv_blocks",
+                    help="Number of Conv2d blocks in the 2D sequence branch.")
+    tr.add_argument("--n-pool-blocks", type=int, default=4, dest="n_pool_blocks",
+                    help="How many of the first conv blocks downsample (2×2). "
+                         "Must be <= --n-conv-blocks and <= 4 (the miRNA-axis "
+                         "height of 30 only halves to 1 after 4 poolings).")
+    tr.add_argument("--block-pool", choices=["max", "gem"], default="max",
+                    dest="block_pool",
+                    help="Downsampling pool inside the conv blocks: max pooling "
+                         "or a strided learnable GeM.")
+    tr.add_argument("--activation",
+                    choices=["leaky_relu", "relu", "gelu", "silu", "elu", "selu"],
+                    default="leaky_relu",
+                    help="Activation for the 2D sequence branch conv/dense blocks.")
     tr.add_argument("--no-conservation", action="store_true")
     tr.add_argument("--no-eclip",        action="store_true")
     tr.add_argument("--no-tspot",        action="store_true")
