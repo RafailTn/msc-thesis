@@ -63,6 +63,8 @@ from __future__ import annotations
 
 import argparse
 import math
+import os
+import random
 import sys
 import time
 from pathlib import Path
@@ -204,9 +206,47 @@ def _encode_seqs(seqs: list[str], length: int) -> np.ndarray:
     return out
 
 
+def _set_global_seed(seed: int, deterministic: bool = False) -> None:
+    """Seed Python, NumPy and Torch RNGs for reproducible training.
+
+    Covers weight init, DataLoader shuffling, the WeightedRandomSampler and
+    dropout. Pass deterministic=True to also force cuDNN's deterministic
+    algorithms (slower, but removes the last source of run-to-run variation).
+    """
+    os.environ["PYTHONHASHSEED"] = str(seed)
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    if deterministic:
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+
+
 def _read_table(path: str | Path) -> pd.DataFrame:
     sep = "\t" if str(path).endswith(".tsv") else ","
     return pd.read_csv(path, sep=sep)
+
+
+def _dedup_pairs(df: pd.DataFrame, mirna_col: str, mre_col: str,
+                 mode: str) -> pd.DataFrame:
+    """Drop duplicate (miRNA, MRE) sequence pairs.
+
+    mode="first" keeps the first occurrence of each duplicated pair; mode="none"
+    drops every row belonging to a duplicated pair (so only pairs that appear
+    exactly once survive). Matching is on the raw (mirna_col, mre_col) strings.
+    """
+    subset  = [mirna_col, mre_col]
+    missing = [c for c in subset if c not in df.columns]
+    if missing:
+        sys.exit(f"ERROR: --dedup needs columns {subset}; missing {missing}. "
+                 f"Available: {list(df.columns)}")
+    keep   = "first" if mode == "first" else False
+    before = len(df)
+    out    = df.drop_duplicates(subset=subset, keep=keep).reset_index(drop=True)
+    print(f"  [dedup:{mode}] {before} -> {len(out)} rows "
+          f"({before - len(out)} dropped on ({mirna_col}, {mre_col}))")
+    return out
 
 
 def _parse_vector(raw, length: int) -> np.ndarray:
@@ -1349,9 +1389,18 @@ def _run_single(args: argparse.Namespace, device: torch.device) -> None:
 
     cache = not args.no_cache
     print("Loading training data ...")
-    train_ds = MiRNAInteractionDataset(
-        args.train, energy_stats=None, has_labels=True,
-        mre_col=args.mre_col, mirna_col=args.mirna_col, cache=cache)
+    if args.dedup:
+        # Dedup mutates the frame, so the path-keyed cache would be stale;
+        # read + dedup + build from the deduped DataFrame instead.
+        train_df = _dedup_pairs(_read_table(args.train),
+                                args.mirna_col, args.mre_col, args.dedup)
+        train_ds = MiRNAInteractionDataset.from_df(
+            train_df, energy_stats=None, has_labels=True,
+            mre_col=args.mre_col, mirna_col=args.mirna_col)
+    else:
+        train_ds = MiRNAInteractionDataset(
+            args.train, energy_stats=None, has_labels=True,
+            mre_col=args.mre_col, mirna_col=args.mirna_col, cache=cache)
     print(f"  train samples : {len(train_ds)}")
     print(f"  positives     : {int(train_ds.labels.sum())} / {len(train_ds.labels)}")
 
@@ -1398,6 +1447,8 @@ def _run_kfold(args: argparse.Namespace, device: torch.device) -> None:
     print(f"Loading data for {args.folds}-fold stratified group cross-validation ...")
     df = _read_table(args.train)
     print(f"  {len(df)} rows")
+    if args.dedup:
+        df = _dedup_pairs(df, args.mirna_col, args.mre_col, args.dedup)
 
     if args.family_col not in df.columns:
         sys.exit(f"ERROR: --family-col '{args.family_col}' not found. "
@@ -1410,7 +1461,11 @@ def _run_kfold(args: argparse.Namespace, device: torch.device) -> None:
     out_path   = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     model_args = _model_args_from_cli(args)
-    gkf        = StratifiedGroupKFold(n_splits=args.folds)
+    # shuffle=True + a fixed random_state makes the fold assignment reproducible
+    # across runs (random_state is ignored by StratifiedGroupKFold unless shuffle).
+    gkf        = StratifiedGroupKFold(
+        n_splits=args.folds, shuffle=True, random_state=args.seed)
+    print(f"  split seed: {args.seed}")
     fold_scores: list[float] = []
     test_paths  = args.test or []
     fold_test_metrics: dict[str, list[dict]] = {Path(p).stem: [] for p in test_paths}
@@ -1540,6 +1595,9 @@ def _run_kfold(args: argparse.Namespace, device: torch.device) -> None:
 def cmd_train(args: argparse.Namespace) -> None:
     device = torch.device(args.device)
     print(f"Device: {device}")
+    _set_global_seed(args.seed, deterministic=args.deterministic)
+    print(f"Global seed: {args.seed}"
+          f"{' (deterministic cuDNN)' if args.deterministic else ''}")
     if args.folds and args.no_val:
         sys.exit("ERROR: --no-val cannot be combined with --folds "
                  "(cross-validation requires held-out folds).")
@@ -1769,6 +1827,20 @@ def main() -> int:
                          "save the EMA weights (if --ema, else raw) at the final "
                          "epoch. Mutually exclusive with --folds.")
     tr.add_argument("--folds",      type=int, default=None)
+    tr.add_argument("--seed",       type=int, default=42,
+                    help="Global RNG seed (Python/NumPy/Torch): seeds the "
+                         "StratifiedGroupKFold split, weight init, DataLoader "
+                         "shuffling, the sampler and dropout. Same seed + same "
+                         "data -> reproducible run.")
+    tr.add_argument("--deterministic", action="store_true",
+                    help="Also force cuDNN deterministic algorithms (slower, "
+                         "but removes the last run-to-run variation on GPU).")
+    tr.add_argument("--dedup",      choices=["first", "none"], default=None,
+                    help="Drop duplicate (miRNA, MRE) sequence pairs from the "
+                         "--train data before training. 'first' keeps the first "
+                         "occurrence of each duplicated pair; 'none' drops every "
+                         "row of a duplicated pair (keeps only unique pairs). "
+                         "--val/--test inputs are left untouched.")
     tr.add_argument("--family-col", default="mirna_family", dest="family_col")
     tr.add_argument("--test",       nargs="+", default=None, metavar="FILE")
     tr.add_argument("--out",        default="checkpoints/cnn_mirbind.pt")
