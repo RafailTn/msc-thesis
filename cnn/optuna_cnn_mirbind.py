@@ -36,6 +36,7 @@ Usage
 from __future__ import annotations
 
 import argparse
+import gc
 import json
 import sys
 import time
@@ -131,6 +132,15 @@ def _train_trial(
             logits = model(mi, ti, cons, eclip, tspot, energy)
             loss   = F.binary_cross_entropy_with_logits(
                 logits, labels, pos_weight=pos_weight)
+
+            # Some sampled configs (e.g. GeM pooling with a large learnable p,
+            # or an aggressive lr) diverge to NaN/inf.  Prune the trial instead
+            # of letting the non-finite logits reach the metric functions, where
+            # sklearn would raise "Input contains NaN" and fail the trial.
+            if not torch.isfinite(loss):
+                print(f"  trial={trial.number}  epoch={epoch:03d}: "
+                      f"non-finite loss ({loss.item()}); pruning trial.")
+                raise optuna.TrialPruned()
 
             optim.zero_grad(set_to_none=True)
             loss.backward()
@@ -255,23 +265,34 @@ def make_objective(
 
         model = MiRBindCNN(**model_args).to(device)
 
+        # persistent_workers=False: this objective rebuilds loaders every trial,
+        # and pruned trials abandon them mid-iteration.  Persistent workers would
+        # leave a live worker iterator that the next trial's forked workers can
+        # inherit -> "AssertionError: can only test a child process".
         train_loader = _make_loader(
             train_ds, batch_size, shuffle=True,
-            num_workers=num_workers, balance=balance)
+            num_workers=num_workers, balance=balance,
+            persistent_workers=False)
         val_loader = _make_loader(
             val_ds, batch_size, shuffle=False,
-            num_workers=num_workers)
+            num_workers=num_workers, persistent_workers=False)
 
         n_params = sum(p.numel() for p in model.parameters()) / 1e6
         print(f"\n[Trial {trial.number}] params={n_params:.2f}M  "
               + "  ".join(f"{k}={v}" for k, v in {**model_args, **hparams}.items()))
 
-        best_auprc = _train_trial(
-            trial, model, train_loader, val_loader,
-            train_ds, hparams, device, epochs, patience,
-            checkpoint_path=ckpt_dir / f"trial_{trial.number}.pt",
-            model_args=model_args,
-        )
+        try:
+            best_auprc = _train_trial(
+                trial, model, train_loader, val_loader,
+                train_ds, hparams, device, epochs, patience,
+                checkpoint_path=ckpt_dir / f"trial_{trial.number}.pt",
+                model_args=model_args,
+            )
+        finally:
+            # Tear loaders (and their workers) down before the next trial forks
+            # new ones, even when this trial is pruned or raises.
+            del train_loader, val_loader
+            gc.collect()
         return best_auprc
 
     return objective

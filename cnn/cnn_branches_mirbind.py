@@ -915,7 +915,8 @@ def _metrics_from_probs(probs: np.ndarray, labels: np.ndarray,
 
 def _make_loader(dataset: MiRNAInteractionDataset, batch_size: int,
                  shuffle: bool, num_workers: int,
-                 balance: bool = False) -> DataLoader:
+                 balance: bool = False,
+                 persistent_workers: Optional[bool] = None) -> DataLoader:
     sampler = None
     if balance and shuffle and dataset.has_labels:
         labels  = dataset.labels
@@ -925,11 +926,19 @@ def _make_loader(dataset: MiRNAInteractionDataset, batch_size: int,
             torch.from_numpy(weights).double(),
             num_samples=len(weights), replacement=True)
         shuffle = False
+    # Default: keep workers alive across epochs.  Callers that rebuild loaders
+    # repeatedly (e.g. an Optuna study) should pass persistent_workers=False so a
+    # previous trial's live worker iterator is not inherited by the next trial's
+    # forked workers (-> "AssertionError: can only test a child process").
+    if persistent_workers is None:
+        persistent_workers = num_workers > 0
+    else:
+        persistent_workers = persistent_workers and num_workers > 0
     return DataLoader(
         dataset, batch_size=batch_size, shuffle=shuffle,
         sampler=sampler, num_workers=num_workers,
         pin_memory=True, drop_last=(shuffle and sampler is None),
-        persistent_workers=(num_workers > 0),
+        persistent_workers=persistent_workers,
     )
 
 
