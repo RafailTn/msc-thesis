@@ -76,10 +76,10 @@ def score_dataframe(
     required.
     """
     dev = torch.device(device)
-    model, energy_stats, ckpt = _load_ckpt_model(checkpoint, dev)
+    model, ckpt = _load_ckpt_model(checkpoint, dev)
 
     ds = MiRNAInteractionDataset.from_df(
-        df, energy_stats=energy_stats, has_labels=False,
+        df, has_labels=False,
         mre_col=mre_col, mirna_col=mirna_col)
     loader = DataLoader(ds, batch_size=batch_size, shuffle=False,
                         num_workers=num_workers, pin_memory=True)

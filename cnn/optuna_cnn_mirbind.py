@@ -120,16 +120,14 @@ def _train_trial(
         running_loss = 0.0
         seen = 0
 
-        for mi, ti, cons, eclip, tspot, energy, labels in train_loader:
+        for mi, ti, cons, eclip, labels in train_loader:
             mi     = mi.to(device,     non_blocking=True)
             ti     = ti.to(device,     non_blocking=True)
             cons   = cons.to(device,   non_blocking=True)
             eclip  = eclip.to(device,  non_blocking=True)
-            tspot  = tspot.to(device,  non_blocking=True)
-            energy = energy.to(device, non_blocking=True)
             labels = labels.to(device, non_blocking=True).float()
 
-            logits = model(mi, ti, cons, eclip, tspot, energy)
+            logits = model(mi, ti, cons, eclip)
             loss   = F.binary_cross_entropy_with_logits(
                 logits, labels, pos_weight=pos_weight)
 
@@ -170,7 +168,6 @@ def _train_trial(
             torch.save({
                 "model_state":  model.state_dict(),
                 "model_args":   model_args,
-                "energy_stats": train_ds.energy_stats,
                 "trial":        trial.number,
                 "val_auprc":    best_auprc,
             }, checkpoint_path)
@@ -197,8 +194,6 @@ def make_objective(
     ckpt_dir: Path,
     use_conservation: bool = True,
     use_eclip:        bool = True,
-    use_tspot:        bool = True,
-    use_energy:       bool = True,
     seq_pairing:      str  = "multi",
     pair_embed_dim:   int  = 3,
 ):
@@ -216,10 +211,10 @@ def make_objective(
         n_conv_blocks = trial.suggest_int("n_conv_blocks", n_pool_blocks, 8)
 
         # ── Vector branches (1D dilated CNN) ──────────────────────────────
-        # These params are shared across the conservation/eCLIP/tSpot branches,
-        # so they only enter the search space if at least one of them is active;
+        # These params are shared across the conservation/eCLIP branches, so
+        # they only enter the search space if at least one of them is active;
         # otherwise they would be dead "noise dimensions" for the sampler.
-        any_vec = use_conservation or use_eclip or use_tspot
+        any_vec = use_conservation or use_eclip
         if any_vec:
             vec_channels    = trial.suggest_categorical("vec_channels",    [32, 64, 128])
             vec_blocks      = trial.suggest_int("vec_blocks", 1, 5)
@@ -229,10 +224,6 @@ def make_objective(
         else:
             vec_channels, vec_blocks, vec_kernel_size = 64, 1, 3
             vec_dropout, norm = 0.15, "batch"
-
-        # ── Energy gate ───────────────────────────────────────────────────
-        energy_dim = (trial.suggest_categorical("energy_dim", [4, 8, 16, 32, 64])
-                      if use_energy else 0)
 
         # ── Training ──────────────────────────────────────────────────────
         lr           = trial.suggest_float("lr", 1e-5, 5e-3, log=True)
@@ -252,15 +243,13 @@ def make_objective(
             block_pool=block_pool, activation=activation,
             vec_channels=vec_channels, vec_blocks=vec_blocks,
             vec_kernel_size=vec_kernel_size, vec_dropout=vec_dropout,
-            energy_dim=energy_dim, norm=norm,
+            norm=norm,
             # Fixed (not part of the search space, so existing studies still
             # resume); recorded so checkpoints reconstruct the right branch.
             seq_pairing=seq_pairing, pair_embed_dim=pair_embed_dim,
             seq_pool="gem",
             use_conservation=use_conservation,
             use_eclip=use_eclip,
-            use_tspot=use_tspot,
-            use_energy=use_energy,
         )
 
         model = MiRBindCNN(**model_args).to(device)
@@ -330,13 +319,12 @@ def _load_and_test(
         shutil.copy2(ckpt_path, out_path)
         print(f"  Copied → {out_path}")
 
-    energy_stats = ckpt["energy_stats"]
     batch_size   = study.best_params["batch_size"]
 
     print(f"\nTest-set evaluation (trial #{ckpt['trial']}, val_auprc={ckpt['val_auprc']:.4f}):")
     for test_path in args.test:
         test_ds = MiRNAInteractionDataset(
-            test_path, energy_stats=energy_stats, has_labels=True,
+            test_path, has_labels=True,
             mre_col=args.mre_col, mirna_col=args.mirna_col)
         test_loader = _make_loader(test_ds, batch_size, shuffle=False,
                                    num_workers=args.num_workers)
@@ -392,10 +380,6 @@ def main() -> int:
                    help="Disable the conservation branch for all trials.")
     p.add_argument("--no-eclip",        action="store_true",
                    help="Disable the eCLIP branch for all trials.")
-    p.add_argument("--no-tspot",        action="store_true",
-                   help="Disable the tSpotProb branch for all trials.")
-    p.add_argument("--no-energy",       action="store_true",
-                   help="Disable the energy gate for all trials.")
     p.add_argument("--seq-pairing", choices=["binary", "multi", "multi4", "embed"],
                    default="multi", dest="seq_pairing",
                    help="2D pairing encoding fixed for ALL trials (not tuned): "
@@ -430,10 +414,10 @@ def main() -> int:
     print("Loading datasets ...")
     if args.val:
         train_ds = MiRNAInteractionDataset(
-            args.train, energy_stats=None, has_labels=True,
+            args.train, has_labels=True,
             mre_col=args.mre_col, mirna_col=args.mirna_col, cache=not args.no_cache)
         val_ds = MiRNAInteractionDataset(
-            args.val, energy_stats=train_ds.energy_stats, has_labels=True,
+            args.val, has_labels=True,
             mre_col=args.mre_col, mirna_col=args.mirna_col, cache=not args.no_cache)
         print(f"  train={len(train_ds)}  val={len(val_ds)}")
     else:
@@ -452,10 +436,10 @@ def main() -> int:
         train_df = df.iloc[train_idx].reset_index(drop=True)
         val_df   = df.iloc[val_idx].reset_index(drop=True)
         train_ds = MiRNAInteractionDataset.from_df(
-            train_df, energy_stats=None, has_labels=True,
+            train_df, has_labels=True,
             mre_col=args.mre_col, mirna_col=args.mirna_col)
         val_ds = MiRNAInteractionDataset.from_df(
-            val_df, energy_stats=train_ds.energy_stats, has_labels=True,
+            val_df, has_labels=True,
             mre_col=args.mre_col, mirna_col=args.mirna_col)
         print(f"  StratifiedGroupKFold: fold {args.val_fold}/{args.val_folds}  "
               f"train={len(train_ds)}  val={len(val_ds)}")
@@ -486,8 +470,6 @@ def main() -> int:
         ckpt_dir=ckpt_dir,
         use_conservation=not args.no_conservation,
         use_eclip=not args.no_eclip,
-        use_tspot=not args.no_tspot,
-        use_energy=not args.no_energy,
         seq_pairing=args.seq_pairing,
         pair_embed_dim=args.pair_embed_dim,
     )

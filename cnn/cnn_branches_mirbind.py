@@ -24,12 +24,6 @@ Branch 2 – Conservation
 Branch 3 – eCLIP
     Per-base AGO2-eCLIP probability vector processed by the same architecture.
 
-Branch 4 – IntaRNA tSpotProb
-    Per-base interaction probability vector from IntaRNA ensemble mode.
-
-Energy gate
-    Two IntaRNA scalars (Eall, P_E) gated multiplicatively onto the fused embedding.
-
 Expected CSV columns
 --------------------
 Required:
@@ -38,10 +32,7 @@ Required:
     label              – 0 or 1  (omit for inference)
 
 Optional vector columns (zero-filled when missing):
-    conservation_vector, eclip_probs, tspot_probs
-
-Optional scalars (zero-filled when missing):
-    Eall, P_E
+    conservation_vector, eclip_probs
 
 Usage
 -----
@@ -97,9 +88,6 @@ except ImportError:
 
 MRE_LEN   = 50
 MAX_MIRNA = 30
-
-ENERGY_COLS = ["Eall", "P_E"]
-N_ENERGY    = len(ENERGY_COLS)
 
 # Watson-Crick + G·U wobble complementarity (RNA)
 _WC_PAIRS: set[tuple[str, str]] = {
@@ -183,7 +171,8 @@ _ASCII_IDX[ord("T")] = _NUC_IDX["U"]
 _ASCII_IDX[ord("t")] = _NUC_IDX["U"]
 
 # Bump when the on-disk preprocessing cache format changes.
-_CACHE_VERSION = 1
+# v2: dropped the tspot and energy arrays (tspot/energy branches removed).
+_CACHE_VERSION = 2
 
 
 def _norm_seq(seq: str) -> str:
@@ -296,8 +285,6 @@ def _save_cache(path: str | Path, mre_col: str, mirna_col: str,
             mre_idx=ds.mre_idx,
             cons=ds.cons_mat,
             eclip=ds.eclip_mat,
-            tspot=ds.tspot_mat,
-            energy_raw=ds.energy_raw,
             labels=ds.labels,
         )
         print(f"  [cache] wrote {cp.name}")
@@ -324,8 +311,6 @@ def _load_cache(path: str | Path, mre_col: str, mirna_col: str) -> Optional[dict
             "mre_idx":    z["mre_idx"],
             "cons":       z["cons"],
             "eclip":      z["eclip"],
-            "tspot":      z["tspot"],
-            "energy_raw": z["energy_raw"],
             "labels":     z["labels"],
         }
         z.close()
@@ -343,7 +328,6 @@ class MiRNAInteractionDataset(Dataset):
     def __init__(
         self,
         path: str | Path,
-        energy_stats: Optional[dict] = None,
         has_labels: bool = True,
         mre_col: str = "mre_sequence",
         mirna_col: str = "mirna_sequence",
@@ -354,9 +338,8 @@ class MiRNAInteractionDataset(Dataset):
             print(f"  [cache] loaded {_cache_path(path).name}")
             self.has_labels = has_labels
             self._set_arrays(**cached)
-            self._finalize_energy(energy_stats)
         else:
-            self._init(_read_table(path), energy_stats, has_labels, mre_col, mirna_col)
+            self._init(_read_table(path), has_labels, mre_col, mirna_col)
             if cache:
                 _save_cache(path, mre_col, mirna_col, self)
 
@@ -364,26 +347,23 @@ class MiRNAInteractionDataset(Dataset):
     def from_df(
         cls,
         df: pd.DataFrame,
-        energy_stats: Optional[dict] = None,
         has_labels: bool = True,
         mre_col: str = "mre_sequence",
         mirna_col: str = "mirna_sequence",
     ) -> "MiRNAInteractionDataset":
         obj = cls.__new__(cls)
-        obj._init(df, energy_stats, has_labels, mre_col, mirna_col)
+        obj._init(df, has_labels, mre_col, mirna_col)
         return obj
 
     def _init(
         self,
         df: pd.DataFrame,
-        energy_stats: Optional[dict],
         has_labels: bool,
         mre_col: str,
         mirna_col: str,
     ) -> None:
         self.has_labels = has_labels
         self._build_arrays(df, has_labels, mre_col, mirna_col)
-        self._finalize_energy(energy_stats)
 
     def _build_arrays(
         self,
@@ -400,16 +380,8 @@ class MiRNAInteractionDataset(Dataset):
         # Pre-parse vector columns once so __getitem__ only does array indexing.
         raw_cons  = df["conservation_vector"].tolist() if "conservation_vector" in df.columns else [None] * len(df)
         raw_eclip = df["eclip_probs"].tolist()         if "eclip_probs"         in df.columns else [None] * len(df)
-        raw_tspot = df["tspot_probs"].tolist()         if "tspot_probs"         in df.columns else [None] * len(df)
         self.cons_mat  = np.stack([_parse_vector(v, MRE_LEN) for v in raw_cons])   # (N, MRE_LEN)
         self.eclip_mat = np.stack([_parse_vector(v, MRE_LEN) for v in raw_eclip])
-        self.tspot_mat = np.stack([_parse_vector(v, MRE_LEN) for v in raw_tspot])
-
-        energy_mat = np.zeros((len(df), N_ENERGY), dtype=np.float32)
-        for j, col in enumerate(ENERGY_COLS):
-            if col in df.columns:
-                energy_mat[:, j] = pd.to_numeric(df[col], errors="coerce").fillna(0.0).values
-        self.energy_raw = energy_mat
 
         if has_labels and "label" in df.columns:
             self.labels = df["label"].astype(int).values
@@ -422,28 +394,14 @@ class MiRNAInteractionDataset(Dataset):
         mre_idx: np.ndarray,
         cons: np.ndarray,
         eclip: np.ndarray,
-        tspot: np.ndarray,
-        energy_raw: np.ndarray,
         labels: np.ndarray,
     ) -> None:
-        """Populate arrays from a loaded cache (energy is finalised separately)."""
+        """Populate arrays from a loaded cache."""
         self.mirna_idx  = mirna_idx
         self.mre_idx    = mre_idx
         self.cons_mat   = cons
         self.eclip_mat  = eclip
-        self.tspot_mat  = tspot
-        self.energy_raw = energy_raw
         self.labels = labels if self.has_labels else np.zeros(len(mirna_idx), dtype=np.int64)
-
-    def _finalize_energy(self, energy_stats: Optional[dict]) -> None:
-        if energy_stats is None:
-            mean = self.energy_raw.mean(axis=0)
-            std  = self.energy_raw.std(axis=0)
-            std[std < 1e-8] = 1.0
-            self.energy_stats = {"mean": mean, "std": std}
-        else:
-            self.energy_stats = energy_stats
-        self.energy = (self.energy_raw - self.energy_stats["mean"]) / self.energy_stats["std"]
 
     def __len__(self) -> int:
         return len(self.mirna_idx)
@@ -454,8 +412,6 @@ class MiRNAInteractionDataset(Dataset):
             torch.from_numpy(self.mre_idx[idx]),            # (MRE_LEN,)   int8
             torch.from_numpy(self.cons_mat[idx][None, :]),  # (1, MRE_LEN)
             torch.from_numpy(self.eclip_mat[idx][None, :]),
-            torch.from_numpy(self.tspot_mat[idx][None, :]),
-            torch.from_numpy(self.energy[idx]),
             int(self.labels[idx]),
         )
 
@@ -697,16 +653,13 @@ class AttentionPool(nn.Module):
 # ---------------------------------------------------------------------------
 
 class MiRBindCNN(nn.Module):
-    """Four-branch CNN with miRBind-style 2D sequence branch.
+    """Multi-branch CNN with miRBind-style 2D sequence branch.
 
     Branch 1 — Sequence (miRBind)
         2D WC-complementarity matrix → 6 Conv2d blocks → dense → seq_dim embedding.
 
-    Branches 2–4 — Conservation / eCLIP / tSpotProb
+    Branches 2–3 — Conservation / eCLIP
         Per-base 1D vectors → dilated residual CNN → attention pooling.
-
-    Energy gate
-        Two IntaRNA scalars (Eall, P_E) multiplicatively gate the fused embedding.
 
     Parameters
     ----------
@@ -715,11 +668,9 @@ class MiRBindCNN(nn.Module):
     seq_dim : int
         Output embedding size of the sequence branch (after dense layers).
     vec_channels : int
-        Channel width of the three 1D vector branches.
+        Channel width of the 1D vector branches.
     vec_blocks : int
         Dilated residual blocks per vector branch.
-    energy_dim : int
-        Hidden size of the energy MLP / gate.
     vec_kernel_size : int
         Stem kernel size for the vector branches.
     seq_dropout : float
@@ -736,7 +687,6 @@ class MiRBindCNN(nn.Module):
         seq_dim:          int   = 128,
         vec_channels:     int   = 64,
         vec_blocks:       int   = 3,
-        energy_dim:       int   = 64,
         vec_kernel_size:  int   = 7,
         seq_dropout:      float = 0.3,
         vec_dropout:      float = 0.15,
@@ -750,14 +700,10 @@ class MiRBindCNN(nn.Module):
         activation:       str   = "leaky_relu",
         use_conservation: bool  = True,
         use_eclip:        bool  = True,
-        use_tspot:        bool  = True,
-        use_energy:       bool  = True,
     ) -> None:
         super().__init__()
         self.use_conservation = use_conservation
         self.use_eclip  = use_eclip
-        self.use_tspot  = use_tspot
-        self.use_energy = use_energy
 
         # On-device pairing-matrix lookup, gathered in forward() on the same
         # device as the model.  "binary" = single WC(+wobble) channel (legacy);
@@ -803,7 +749,7 @@ class MiRBindCNN(nn.Module):
             n_conv_blocks=n_conv_blocks, n_pool_blocks=n_pool_blocks,
             block_pool=block_pool, activation=activation)
 
-        # ── Branches 2–4: 1D dilated CNN vector branches ─────────────────────
+        # ── Branches 2–3: 1D dilated CNN vector branches ─────────────────────
         def _make_vec_branch():
             stem  = nn.Conv1d(1, vec_channels, vec_kernel_size, padding="same")
             tower = nn.ModuleList([
@@ -818,10 +764,8 @@ class MiRBindCNN(nn.Module):
             self.cons_stem,  self.cons_tower,  self.cons_pool  = _make_vec_branch()
         if use_eclip:
             self.eclip_stem, self.eclip_tower, self.eclip_pool = _make_vec_branch()
-        if use_tspot:
-            self.tspot_stem, self.tspot_tower, self.tspot_pool = _make_vec_branch()
 
-        n_vec = sum([use_conservation, use_eclip, use_tspot])
+        n_vec = sum([use_conservation, use_eclip])
         if n_vec > 0:
             self.vec_proj = nn.Sequential(
                 nn.LayerNorm(vec_channels),
@@ -829,24 +773,7 @@ class MiRBindCNN(nn.Module):
                 nn.Linear(vec_channels, vec_channels),
             )
 
-        combined_dim = seq_dim + n_vec * vec_channels
-
-        # ── Energy gate ───────────────────────────────────────────────────────
-        if use_energy:
-            self.energy_embed = nn.Sequential(
-                nn.Linear(N_ENERGY, energy_dim),
-                nn.LayerNorm(energy_dim),
-                nn.GELU(),
-                nn.Linear(energy_dim, energy_dim),
-                nn.GELU(),
-            )
-            self.energy_gate = nn.Sequential(
-                nn.Linear(energy_dim, combined_dim),
-                nn.Sigmoid(),
-            )
-            fused_dim = combined_dim + energy_dim
-        else:
-            fused_dim = combined_dim
+        fused_dim = seq_dim + n_vec * vec_channels
 
         # ── Classifier ────────────────────────────────────────────────────────
         self.classifier = nn.Sequential(
@@ -870,8 +797,6 @@ class MiRBindCNN(nn.Module):
         ti:     torch.Tensor,   # (B, MRE_LEN)    int nucleotide indices
         cons:   torch.Tensor,   # (B, 1, MRE_LEN)
         eclip:  torch.Tensor,   # (B, 1, MRE_LEN)
-        tspot:  torch.Tensor,   # (B, 1, MRE_LEN)
-        energy: torch.Tensor,   # (B, N_ENERGY)
     ) -> torch.Tensor:          # (B,) logits
 
         # ── Branch 1: miRBind 2D sequence branch ─────────────────────────────
@@ -890,7 +815,7 @@ class MiRBindCNN(nn.Module):
             wc_mat = wc_mat * valid.unsqueeze(1).to(wc_mat.dtype)
         h_seq = self.seq_branch(wc_mat)         # (B, seq_dim)
 
-        # ── Branches 2–4 ─────────────────────────────────────────────────────
+        # ── Branches 2–3 ─────────────────────────────────────────────────────
         parts = [h_seq]
 
         if self.use_conservation:
@@ -901,19 +826,7 @@ class MiRBindCNN(nn.Module):
             h = self._run_tower(self.eclip_stem(eclip), self.eclip_tower)
             parts.append(self.vec_proj(self.eclip_pool(h)))
 
-        if self.use_tspot:
-            h = self._run_tower(self.tspot_stem(tspot), self.tspot_tower)
-            parts.append(self.vec_proj(self.tspot_pool(h)))
-
-        combined = torch.cat(parts, dim=1)      # (B, combined_dim)
-
-        # ── Energy gate ───────────────────────────────────────────────────────
-        if self.use_energy:
-            e_emb = self.energy_embed(energy)
-            gate  = self.energy_gate(e_emb)
-            fused = torch.cat([combined * gate, e_emb], dim=1)
-        else:
-            fused = combined
+        fused = torch.cat(parts, dim=1)         # (B, fused_dim)
 
         return self.classifier(fused).squeeze(-1)
 
@@ -994,16 +907,14 @@ def evaluate(model: MiRBindCNN, loader: DataLoader,
     all_logits, all_labels = [], []
     total_loss, n_batches  = 0.0, 0
 
-    for mi, ti, cons, eclip, tspot, energy, labels in loader:
+    for mi, ti, cons, eclip, labels in loader:
         mi     = mi.to(device,     non_blocking=True)
         ti     = ti.to(device,     non_blocking=True)
         cons   = cons.to(device,   non_blocking=True)
         eclip  = eclip.to(device,  non_blocking=True)
-        tspot  = tspot.to(device,  non_blocking=True)
-        energy = energy.to(device, non_blocking=True)
         labels = labels.to(device, non_blocking=True).float()
 
-        logits = model(mi, ti, cons, eclip, tspot, energy)
+        logits = model(mi, ti, cons, eclip)
         loss   = F.binary_cross_entropy_with_logits(logits, labels,
                                                      pos_weight=pos_weight)
         total_loss += loss.item()
@@ -1029,14 +940,12 @@ def predict_logits(model: MiRBindCNN, loader: DataLoader,
     """
     model.eval()
     all_logits, all_labels = [], []
-    for mi, ti, cons, eclip, tspot, energy, labels in loader:
+    for mi, ti, cons, eclip, labels in loader:
         mi     = mi.to(device,     non_blocking=True)
         ti     = ti.to(device,     non_blocking=True)
         cons   = cons.to(device,   non_blocking=True)
         eclip  = eclip.to(device,  non_blocking=True)
-        tspot  = tspot.to(device,  non_blocking=True)
-        energy = energy.to(device, non_blocking=True)
-        logits = model(mi, ti, cons, eclip, tspot, energy)
+        logits = model(mi, ti, cons, eclip)
         all_logits.append(logits.cpu().numpy())
         all_labels.append(labels.numpy())
     return np.concatenate(all_logits), np.concatenate(all_labels).astype(int)
@@ -1113,7 +1022,6 @@ def _model_args_from_cli(args: argparse.Namespace) -> dict:
         "seq_dim":          args.seq_dim,
         "vec_channels":     args.vec_channels,
         "vec_blocks":       args.vec_blocks,
-        "energy_dim":       args.energy_dim,
         "vec_kernel_size":  args.vec_kernel_size,
         "seq_dropout":      args.seq_dropout,
         "vec_dropout":      args.vec_dropout,
@@ -1127,8 +1035,6 @@ def _model_args_from_cli(args: argparse.Namespace) -> dict:
         "activation":       args.activation,
         "use_conservation": not args.no_conservation,
         "use_eclip":        not args.no_eclip,
-        "use_tspot":        not args.no_tspot,
-        "use_energy":       not args.no_energy,
     }
 
 
@@ -1231,16 +1137,14 @@ def _train_one_run(
         seen = 0
         train_logits_buf, train_labels_buf = [], []
 
-        for mi, ti, cons, eclip, tspot, energy, labels in train_loader:
+        for mi, ti, cons, eclip, labels in train_loader:
             mi     = mi.to(device,     non_blocking=True)
             ti     = ti.to(device,     non_blocking=True)
             cons   = cons.to(device,   non_blocking=True)
             eclip  = eclip.to(device,  non_blocking=True)
-            tspot  = tspot.to(device,  non_blocking=True)
-            energy = energy.to(device, non_blocking=True)
             labels = labels.to(device, non_blocking=True).float()
 
-            logits = model(mi, ti, cons, eclip, tspot, energy)
+            logits = model(mi, ti, cons, eclip)
             loss   = F.binary_cross_entropy_with_logits(
                 logits, labels, pos_weight=pos_weight)
 
@@ -1290,7 +1194,6 @@ def _train_one_run(
                 torch.save({
                     "model_state":  sel_state,
                     "model_args":   model_args,
-                    "energy_stats": train_ds.energy_stats,
                     "val_metrics":  None,
                     "epoch":        epoch,
                     "weights":      sel_variant,
@@ -1359,7 +1262,6 @@ def _train_one_run(
             torch.save({
                 "model_state":  sel_state,
                 "model_args":   model_args,
-                "energy_stats": train_ds.energy_stats,
                 "val_metrics":  sel_metrics,
                 "epoch":        epoch,
                 "weights":      sel_variant,
@@ -1395,11 +1297,11 @@ def _run_single(args: argparse.Namespace, device: torch.device) -> None:
         train_df = _dedup_pairs(_read_table(args.train),
                                 args.mirna_col, args.mre_col, args.dedup)
         train_ds = MiRNAInteractionDataset.from_df(
-            train_df, energy_stats=None, has_labels=True,
+            train_df, has_labels=True,
             mre_col=args.mre_col, mirna_col=args.mirna_col)
     else:
         train_ds = MiRNAInteractionDataset(
-            args.train, energy_stats=None, has_labels=True,
+            args.train, has_labels=True,
             mre_col=args.mre_col, mirna_col=args.mirna_col, cache=cache)
     print(f"  train samples : {len(train_ds)}")
     print(f"  positives     : {int(train_ds.labels.sum())} / {len(train_ds.labels)}")
@@ -1408,7 +1310,7 @@ def _run_single(args: argparse.Namespace, device: torch.device) -> None:
     if not args.no_val:
         print("Loading validation data ...")
         val_ds = MiRNAInteractionDataset(
-            args.val, energy_stats=train_ds.energy_stats, has_labels=True,
+            args.val, has_labels=True,
             mre_col=args.mre_col, mirna_col=args.mirna_col, cache=cache)
         print(f"  val samples   : {len(val_ds)}")
         val_loader = _make_loader(val_ds,   args.batch_size, shuffle=False,
@@ -1489,10 +1391,10 @@ def _run_kfold(args: argparse.Namespace, device: torch.device) -> None:
         val_df   = df.iloc[val_idx].reset_index(drop=True)
 
         train_ds = MiRNAInteractionDataset.from_df(
-            train_df, energy_stats=None, has_labels=True,
+            train_df, has_labels=True,
             mre_col=args.mre_col, mirna_col=args.mirna_col)
         val_ds   = MiRNAInteractionDataset.from_df(
-            val_df, energy_stats=train_ds.energy_stats, has_labels=True,
+            val_df, has_labels=True,
             mre_col=args.mre_col, mirna_col=args.mirna_col)
 
         print(f"  train positives: {int(train_ds.labels.sum())} / {len(train_ds.labels)}")
@@ -1533,7 +1435,7 @@ def _run_kfold(args: argparse.Namespace, device: torch.device) -> None:
                 test_name = Path(test_path).stem
                 test_ds   = MiRNAInteractionDataset.from_df(
                     _read_table(test_path),
-                    energy_stats=train_ds.energy_stats, has_labels=True,
+                    has_labels=True,
                     mre_col=args.mre_col, mirna_col=args.mirna_col)
                 test_loader = _make_loader(
                     test_ds, args.batch_size, shuffle=False,
@@ -1635,13 +1537,10 @@ def _write_error_dump(path: str | Path, df_in: pd.DataFrame,
     # Summaries of the per-position auxiliary vectors over the real MRE region.
     real = ds.mre_idx != 4
     with np.errstate(invalid="ignore"):
-        for name, mat in (("cons", ds.cons_mat), ("eclip", ds.eclip_mat),
-                          ("tspot", ds.tspot_mat)):
+        for name, mat in (("cons", ds.cons_mat), ("eclip", ds.eclip_mat)):
             adf[f"{name}_mean"] = np.nansum(np.where(real, mat, 0.0), axis=1) / \
                                   np.maximum(real.sum(axis=1), 1)
             adf[f"{name}_max"]  = np.where(real, mat, -np.inf).max(axis=1)
-    for j, col in enumerate(ENERGY_COLS):
-        adf[f"energy_{col}"] = ds.energy_raw[:, j]
 
     out_path = Path(path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1660,54 +1559,55 @@ def _write_error_dump(path: str | Path, df_in: pd.DataFrame,
 
 
 def _load_ckpt_model(checkpoint: str | Path,
-                     device: torch.device) -> tuple[MiRBindCNN, dict, dict]:
+                     device: torch.device) -> tuple[MiRBindCNN, dict]:
     """Load a trained checkpoint into an eval-mode model.
 
-    Returns ``(model, energy_stats, ckpt)``. Checkpoints are self-contained:
-    each stores its own ``model_args`` and ``energy_stats`` (the per-run energy
-    normalisation), so a single checkpoint — or one fold of a k-fold run — can
-    be applied to any input independently.
+    Returns ``(model, ckpt)``. Checkpoints are self-contained: each stores its
+    own ``model_args``, so a single checkpoint — or one fold of a k-fold run —
+    can be applied to any input independently.
     """
     ckpt  = torch.load(checkpoint, map_location=device, weights_only=False)
-    margs = ckpt["model_args"]
+    margs = dict(ckpt["model_args"])
     # backward-compat defaults: checkpoints predating these features used a
     # single WC(+wobble) channel with average pooling, so default to that when
     # the keys are absent (newer checkpoints carry their own values).
     for key, val in [("use_conservation", True), ("use_eclip", True),
-                     ("use_tspot", True), ("use_energy", True),
                      ("seq_pairing", "binary"), ("seq_pool", "avg"),
                      ("n_conv_blocks", 6), ("n_pool_blocks", 4),
                      ("block_pool", "max"), ("activation", "leaky_relu")]:
         margs.setdefault(key, val)
+    # Drop keys for the removed tspot / energy branches so checkpoints trained
+    # before their removal still reconstruct (their saved weights for those
+    # branches, if any, are ignored — such checkpoints must be retrained).
+    for dead in ("use_tspot", "use_energy", "energy_dim"):
+        margs.pop(dead, None)
     model = MiRBindCNN(**margs).to(device)
     model.load_state_dict(ckpt["model_state"])
     model.eval()
-    return model, ckpt["energy_stats"], ckpt
+    return model, ckpt
 
 
 def cmd_predict(args: argparse.Namespace) -> None:
     device = torch.device(args.device)
 
-    model, energy_stats, ckpt = _load_ckpt_model(args.checkpoint, device)
+    model, ckpt = _load_ckpt_model(args.checkpoint, device)
     print(f"Loaded checkpoint (epoch {ckpt.get('epoch')}, "
           f"val_metrics={ckpt.get('val_metrics')})")
 
     ds = MiRNAInteractionDataset(
-        args.input, energy_stats=energy_stats, has_labels=True,
+        args.input, has_labels=True,
         mre_col=args.mre_col, mirna_col=args.mirna_col, cache=not args.no_cache)
     loader = DataLoader(ds, batch_size=args.batch_size, shuffle=False,
                         num_workers=args.num_workers, pin_memory=True)
 
     all_probs, all_preds, all_labels = [], [], []
     with torch.no_grad():
-        for mi, ti, cons, eclip, tspot, energy, labels in loader:
+        for mi, ti, cons, eclip, labels in loader:
             mi     = mi.to(device)
             ti     = ti.to(device)
             cons   = cons.to(device)
             eclip  = eclip.to(device)
-            tspot  = tspot.to(device)
-            energy = energy.to(device)
-            logits = model(mi, ti, cons, eclip, tspot, energy)
+            logits = model(mi, ti, cons, eclip)
             probs  = torch.sigmoid(logits).cpu().numpy()
             all_probs.extend(probs.tolist())
             all_preds.extend((probs >= args.threshold).astype(int).tolist())
@@ -1741,17 +1641,16 @@ def cmd_predict_ensemble(args: argparse.Namespace) -> None:
     For each test set, every checkpoint's probabilities are computed in a fixed
     (shuffle=False) order and averaged element-wise, then scored once — the same
     fold-ensembling done at the end of a k-fold training run, but applied to
-    already-trained checkpoints on new test sets. Each fold re-applies its own
-    energy normalisation before predicting. Writes a ``<name>_ensemble.tsv`` per
-    test set (per-fold probs + averaged probability + thresholded prediction).
+    already-trained checkpoints on new test sets. Writes a ``<name>_ensemble.tsv``
+    per test set (per-fold probs + averaged probability + thresholded prediction).
     """
     device = torch.device(args.device)
 
-    models: list[tuple[str, MiRBindCNN, dict]] = []
+    models: list[tuple[str, MiRBindCNN]] = []
     for ckpt_path in args.checkpoints:
-        model, energy_stats, ckpt = _load_ckpt_model(ckpt_path, device)
+        model, ckpt = _load_ckpt_model(ckpt_path, device)
         name = Path(ckpt_path).stem
-        models.append((name, model, energy_stats))
+        models.append((name, model))
         print(f"Loaded {name} (epoch {ckpt.get('epoch')}, "
               f"val_metrics={ckpt.get('val_metrics')})")
     print(f"\nEnsembling {len(models)} checkpoint(s) over "
@@ -1763,18 +1662,16 @@ def cmd_predict_ensemble(args: argparse.Namespace) -> None:
     for test_path in args.inputs:
         test_name = Path(test_path).stem
         print(f"\n{'='*60}\n[{test_name}]  {test_path}\n{'='*60}")
-        # Encode the test set once (raw arrays cached); each fold re-applies its
-        # own energy normalisation before its forward pass.
+        # Encode the test set once (arrays cached); all folds share it.
         ds = MiRNAInteractionDataset(
-            test_path, energy_stats=None, has_labels=True,
+            test_path, has_labels=True,
             mre_col=args.mre_col, mirna_col=args.mirna_col,
             cache=not args.no_cache)
 
         fold_probs: list[np.ndarray] = []
         per_fold: list[tuple[str, dict]] = []
         labels: Optional[np.ndarray] = None
-        for name, model, energy_stats in models:
-            ds._finalize_energy(energy_stats)
+        for name, model in models:
             loader = DataLoader(
                 ds, batch_size=args.batch_size, shuffle=False,
                 num_workers=args.num_workers, pin_memory=True)
@@ -1797,7 +1694,7 @@ def cmd_predict_ensemble(args: argparse.Namespace) -> None:
                   f"(mean-of-folds={mean_indiv:.4f}, Δ={v - mean_indiv:+.4f})")
 
         df_out = _read_table(test_path)
-        for name, probs in zip([n for n, _, _ in models], fold_probs):
+        for name, probs in zip([n for n, _ in models], fold_probs):
             df_out[f"prob_{name}"] = probs
         df_out["interaction_probability"] = mean_probs
         df_out["prediction"] = (mean_probs >= args.threshold).astype(int)
@@ -1855,7 +1752,6 @@ def main() -> int:
                     help="Output embedding size of the sequence branch.")
     tr.add_argument("--vec-channels",    type=int,   default=64,  dest="vec_channels")
     tr.add_argument("--vec-blocks",      type=int,   default=3,   dest="vec_blocks")
-    tr.add_argument("--energy-dim",      type=int,   default=64,  dest="energy_dim")
     tr.add_argument("--vec-kernel-size", type=int,   default=7,   dest="vec_kernel_size")
     tr.add_argument("--seq-dropout",     type=float, default=0.3, dest="seq_dropout",
                     help="Dropout in the 2D miRBind conv blocks.")
@@ -1891,8 +1787,6 @@ def main() -> int:
                     help="Activation for the 2D sequence branch conv/dense blocks.")
     tr.add_argument("--no-conservation", action="store_true")
     tr.add_argument("--no-eclip",        action="store_true")
-    tr.add_argument("--no-tspot",        action="store_true")
-    tr.add_argument("--no-energy",       action="store_true")
     # Training
     tr.add_argument("--epochs",       type=int,   default=40)
     tr.add_argument("--batch-size",   type=int,   default=256)
