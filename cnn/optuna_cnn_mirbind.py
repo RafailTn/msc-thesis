@@ -120,14 +120,12 @@ def _train_trial(
         running_loss = 0.0
         seen = 0
 
-        for mi, ti, cons, eclip, labels in train_loader:
+        for mi, ti, labels in train_loader:
             mi     = mi.to(device,     non_blocking=True)
             ti     = ti.to(device,     non_blocking=True)
-            cons   = cons.to(device,   non_blocking=True)
-            eclip  = eclip.to(device,  non_blocking=True)
             labels = labels.to(device, non_blocking=True).float()
 
-            logits = model(mi, ti, cons, eclip)
+            logits = model(mi, ti)
             loss   = F.binary_cross_entropy_with_logits(
                 logits, labels, pos_weight=pos_weight)
 
@@ -192,8 +190,6 @@ def make_objective(
     patience: int,
     num_workers: int,
     ckpt_dir: Path,
-    use_conservation: bool = True,
-    use_eclip:        bool = True,
     seq_pairing:      str  = "multi",
     pair_embed_dim:   int  = 3,
 ):
@@ -209,21 +205,6 @@ def make_objective(
         # n_pool_blocks at 4; conv depth then ranges from that up to 8.
         n_pool_blocks = trial.suggest_int("n_pool_blocks", 2, 4)
         n_conv_blocks = trial.suggest_int("n_conv_blocks", n_pool_blocks, 8)
-
-        # ── Vector branches (1D dilated CNN) ──────────────────────────────
-        # These params are shared across the conservation/eCLIP branches, so
-        # they only enter the search space if at least one of them is active;
-        # otherwise they would be dead "noise dimensions" for the sampler.
-        any_vec = use_conservation or use_eclip
-        if any_vec:
-            vec_channels    = trial.suggest_categorical("vec_channels",    [32, 64, 128])
-            vec_blocks      = trial.suggest_int("vec_blocks", 1, 5)
-            vec_kernel_size = trial.suggest_categorical("vec_kernel_size", [3, 5, 7, 9])
-            vec_dropout     = trial.suggest_float("vec_dropout", 0.05, 0.4)
-            norm            = trial.suggest_categorical("norm", ["batch", "layer"])
-        else:
-            vec_channels, vec_blocks, vec_kernel_size = 64, 1, 3
-            vec_dropout, norm = 0.15, "batch"
 
         # ── Training ──────────────────────────────────────────────────────
         lr           = trial.suggest_float("lr", 1e-5, 5e-3, log=True)
@@ -241,15 +222,10 @@ def make_objective(
             seq_filters=seq_filters, seq_dim=seq_dim, seq_dropout=seq_dropout,
             n_conv_blocks=n_conv_blocks, n_pool_blocks=n_pool_blocks,
             block_pool=block_pool, activation=activation,
-            vec_channels=vec_channels, vec_blocks=vec_blocks,
-            vec_kernel_size=vec_kernel_size, vec_dropout=vec_dropout,
-            norm=norm,
             # Fixed (not part of the search space, so existing studies still
             # resume); recorded so checkpoints reconstruct the right branch.
             seq_pairing=seq_pairing, pair_embed_dim=pair_embed_dim,
             seq_pool="gem",
-            use_conservation=use_conservation,
-            use_eclip=use_eclip,
         )
 
         model = MiRBindCNN(**model_args).to(device)
@@ -376,10 +352,6 @@ def main() -> int:
                    help="Random trials before TPE kicks in.")
     p.add_argument("--pruner-warmup", type=int, default=5, dest="pruner_warmup",
                    help="Epochs before MedianPruner is allowed to prune.")
-    p.add_argument("--no-conservation", action="store_true",
-                   help="Disable the conservation branch for all trials.")
-    p.add_argument("--no-eclip",        action="store_true",
-                   help="Disable the eCLIP branch for all trials.")
     p.add_argument("--seq-pairing", choices=["binary", "multi", "multi4", "embed"],
                    default="multi", dest="seq_pairing",
                    help="2D pairing encoding fixed for ALL trials (not tuned): "
@@ -468,8 +440,6 @@ def main() -> int:
         patience=args.patience,
         num_workers=args.num_workers,
         ckpt_dir=ckpt_dir,
-        use_conservation=not args.no_conservation,
-        use_eclip=not args.no_eclip,
         seq_pairing=args.seq_pairing,
         pair_embed_dim=args.pair_embed_dim,
     )

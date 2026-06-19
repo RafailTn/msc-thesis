@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Three-branch CNN for miRNA–MRE interaction classification.
+Single-branch CNN for miRNA–MRE interaction classification.
 Sequence branch uses miRBind-style 2D Watson-Crick complementarity matrix + 2D CNN.
 
 Architecture
 ------------
 
-Branch 1 – Sequence (miRBind-style)
+Sequence branch (miRBind-style)
     Build a 2D binary matrix M of shape (MAX_MIRNA × MRE_LEN) where M[i,j]=1 if
     miRNA position i and MRE position j can form a Watson–Crick (or G·U wobble)
     base pair, 0 otherwise.  A 2D CNN of 6 convolutional blocks (5×5 kernels,
@@ -16,13 +16,7 @@ Branch 1 – Sequence (miRBind-style)
     the core idea from:
         Klimentova et al. (2022). miRBind: A Deep Learning Method for miRNA
         Binding Classification. Genes, 13(12), 2323.
-
-Branch 2 – Conservation
-    PhastCons per-base scores (mre_len values in [0,1]) processed through a
-    smaller dilated CNN tower with attention pooling.
-
-Branch 3 – eCLIP
-    Per-base AGO2-eCLIP probability vector processed by the same architecture.
+    The embedding is fed straight into the classifier head.
 
 Expected CSV columns
 --------------------
@@ -30,9 +24,6 @@ Required:
     mre_sequence       – nucleotide string (≤50 nt)
     mirna_sequence     – nucleotide string (≤30 nt)
     label              – 0 or 1  (omit for inference)
-
-Optional vector columns (zero-filled when missing):
-    conservation_vector, eclip_probs
 
 Usage
 -----
@@ -172,7 +163,8 @@ _ASCII_IDX[ord("t")] = _NUC_IDX["U"]
 
 # Bump when the on-disk preprocessing cache format changes.
 # v2: dropped the tspot and energy arrays (tspot/energy branches removed).
-_CACHE_VERSION = 2
+# v3: dropped the conservation and eclip arrays (those branches removed).
+_CACHE_VERSION = 3
 
 
 def _norm_seq(seq: str) -> str:
@@ -283,8 +275,6 @@ def _save_cache(path: str | Path, mre_col: str, mirna_col: str,
             dims=np.array([MAX_MIRNA, MRE_LEN]),
             mirna_idx=ds.mirna_idx,
             mre_idx=ds.mre_idx,
-            cons=ds.cons_mat,
-            eclip=ds.eclip_mat,
             labels=ds.labels,
         )
         print(f"  [cache] wrote {cp.name}")
@@ -309,8 +299,6 @@ def _load_cache(path: str | Path, mre_col: str, mirna_col: str) -> Optional[dict
         data = {
             "mirna_idx":  z["mirna_idx"],
             "mre_idx":    z["mre_idx"],
-            "cons":       z["cons"],
-            "eclip":      z["eclip"],
             "labels":     z["labels"],
         }
         z.close()
@@ -377,12 +365,6 @@ class MiRNAInteractionDataset(Dataset):
         self.mirna_idx = _encode_seqs(df[mirna_col].astype(str).tolist(), MAX_MIRNA)  # (N, 30)
         self.mre_idx   = _encode_seqs(df[mre_col].astype(str).tolist(),   MRE_LEN)    # (N, 50)
 
-        # Pre-parse vector columns once so __getitem__ only does array indexing.
-        raw_cons  = df["conservation_vector"].tolist() if "conservation_vector" in df.columns else [None] * len(df)
-        raw_eclip = df["eclip_probs"].tolist()         if "eclip_probs"         in df.columns else [None] * len(df)
-        self.cons_mat  = np.stack([_parse_vector(v, MRE_LEN) for v in raw_cons])   # (N, MRE_LEN)
-        self.eclip_mat = np.stack([_parse_vector(v, MRE_LEN) for v in raw_eclip])
-
         if has_labels and "label" in df.columns:
             self.labels = df["label"].astype(int).values
         else:
@@ -392,15 +374,11 @@ class MiRNAInteractionDataset(Dataset):
         self,
         mirna_idx: np.ndarray,
         mre_idx: np.ndarray,
-        cons: np.ndarray,
-        eclip: np.ndarray,
         labels: np.ndarray,
     ) -> None:
         """Populate arrays from a loaded cache."""
         self.mirna_idx  = mirna_idx
         self.mre_idx    = mre_idx
-        self.cons_mat   = cons
-        self.eclip_mat  = eclip
         self.labels = labels if self.has_labels else np.zeros(len(mirna_idx), dtype=np.int64)
 
     def __len__(self) -> int:
@@ -410,8 +388,6 @@ class MiRNAInteractionDataset(Dataset):
         return (
             torch.from_numpy(self.mirna_idx[idx]),          # (MAX_MIRNA,) int8
             torch.from_numpy(self.mre_idx[idx]),            # (MRE_LEN,)   int8
-            torch.from_numpy(self.cons_mat[idx][None, :]),  # (1, MRE_LEN)
-            torch.from_numpy(self.eclip_mat[idx][None, :]),
             int(self.labels[idx]),
         )
 
@@ -606,60 +582,15 @@ class MiRBindSeqBranch(nn.Module):
 
 
 # ---------------------------------------------------------------------------
-# 1D dilated CNN blocks for the vector branches (unchanged from original)
-# ---------------------------------------------------------------------------
-
-class _LayerNorm1d(nn.Module):
-    def __init__(self, channels: int) -> None:
-        super().__init__()
-        self.norm = nn.LayerNorm(channels)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.norm(x.transpose(1, 2)).transpose(1, 2)
-
-
-class DilatedResBlock(nn.Module):
-    def __init__(self, channels: int, dilation: int, kernel_size: int = 3,
-                 dropout: float = 0.1, norm: str = "batch") -> None:
-        super().__init__()
-        pad = dilation * (kernel_size - 1) // 2
-        norm_cls = _LayerNorm1d if norm == "layer" else nn.BatchNorm1d
-        self.net = nn.Sequential(
-            norm_cls(channels),
-            nn.GELU(),
-            nn.Conv1d(channels, channels, kernel_size, padding=pad, dilation=dilation),
-            norm_cls(channels),
-            nn.GELU(),
-            nn.Conv1d(channels, channels, 1),
-            nn.Dropout(dropout),
-        )
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return x + self.net(x)
-
-
-class AttentionPool(nn.Module):
-    def __init__(self, channels: int) -> None:
-        super().__init__()
-        self.score = nn.Conv1d(channels, 1, 1)
-
-    def forward(self, h: torch.Tensor) -> torch.Tensor:
-        w = self.score(h).squeeze(1).softmax(dim=-1)
-        return (h * w.unsqueeze(1)).sum(dim=-1)
-
-
-# ---------------------------------------------------------------------------
 # Main model
 # ---------------------------------------------------------------------------
 
 class MiRBindCNN(nn.Module):
-    """Multi-branch CNN with miRBind-style 2D sequence branch.
+    """Single-branch CNN with a miRBind-style 2D sequence branch.
 
-    Branch 1 — Sequence (miRBind)
-        2D WC-complementarity matrix → 6 Conv2d blocks → dense → seq_dim embedding.
-
-    Branches 2–3 — Conservation / eCLIP
-        Per-base 1D vectors → dilated residual CNN → attention pooling.
+    Sequence branch (miRBind)
+        2D WC-complementarity matrix → 6 Conv2d blocks → dense → seq_dim
+        embedding, fed directly into the classifier head.
 
     Parameters
     ----------
@@ -667,30 +598,15 @@ class MiRBindCNN(nn.Module):
         Number of 2D conv filters in the miRBind sequence branch.
     seq_dim : int
         Output embedding size of the sequence branch (after dense layers).
-    vec_channels : int
-        Channel width of the 1D vector branches.
-    vec_blocks : int
-        Dilated residual blocks per vector branch.
-    vec_kernel_size : int
-        Stem kernel size for the vector branches.
     seq_dropout : float
-        Dropout inside the miRBind 2D CNN blocks.
-    vec_dropout : float
-        Dropout inside the 1D dilated blocks.
-    norm : str
-        "batch" or "layer" for the 1D vector branches.
+        Dropout inside the miRBind 2D CNN blocks and the classifier head.
     """
 
     def __init__(
         self,
         seq_filters:      int   = 64,
         seq_dim:          int   = 128,
-        vec_channels:     int   = 64,
-        vec_blocks:       int   = 3,
-        vec_kernel_size:  int   = 7,
         seq_dropout:      float = 0.3,
-        vec_dropout:      float = 0.15,
-        norm:             str   = "batch",
         seq_pairing:      str   = "multi",
         pair_embed_dim:   int   = 3,
         seq_pool:         str   = "gem",
@@ -698,12 +614,8 @@ class MiRBindCNN(nn.Module):
         n_pool_blocks:    int   = 4,
         block_pool:       str   = "max",
         activation:       str   = "leaky_relu",
-        use_conservation: bool  = True,
-        use_eclip:        bool  = True,
     ) -> None:
         super().__init__()
-        self.use_conservation = use_conservation
-        self.use_eclip  = use_eclip
 
         # On-device pairing-matrix lookup, gathered in forward() on the same
         # device as the model.  "binary" = single WC(+wobble) channel (legacy);
@@ -742,64 +654,31 @@ class MiRBindCNN(nn.Module):
                 persistent=False)
             n_pair_ch = pair_table.shape[0]
 
-        # ── Branch 1: miRBind 2D sequence branch ─────────────────────────────
+        # ── miRBind 2D sequence branch ───────────────────────────────────────
         self.seq_branch = MiRBindSeqBranch(
             n_filters=seq_filters, out_dim=seq_dim, dropout=seq_dropout,
             in_ch=n_pair_ch, pool=seq_pool,
             n_conv_blocks=n_conv_blocks, n_pool_blocks=n_pool_blocks,
             block_pool=block_pool, activation=activation)
 
-        # ── Branches 2–3: 1D dilated CNN vector branches ─────────────────────
-        def _make_vec_branch():
-            stem  = nn.Conv1d(1, vec_channels, vec_kernel_size, padding="same")
-            tower = nn.ModuleList([
-                DilatedResBlock(vec_channels, dilation=2**i,
-                                kernel_size=3, dropout=vec_dropout, norm=norm)
-                for i in range(vec_blocks)
-            ])
-            pool  = AttentionPool(vec_channels)
-            return stem, tower, pool
-
-        if use_conservation:
-            self.cons_stem,  self.cons_tower,  self.cons_pool  = _make_vec_branch()
-        if use_eclip:
-            self.eclip_stem, self.eclip_tower, self.eclip_pool = _make_vec_branch()
-
-        n_vec = sum([use_conservation, use_eclip])
-        if n_vec > 0:
-            self.vec_proj = nn.Sequential(
-                nn.LayerNorm(vec_channels),
-                nn.GELU(),
-                nn.Linear(vec_channels, vec_channels),
-            )
-
-        fused_dim = seq_dim + n_vec * vec_channels
-
         # ── Classifier ────────────────────────────────────────────────────────
         self.classifier = nn.Sequential(
-            nn.LayerNorm(fused_dim),
+            nn.LayerNorm(seq_dim),
             nn.GELU(),
-            nn.Dropout(vec_dropout),
-            nn.Linear(fused_dim, fused_dim // 2),
+            nn.Dropout(seq_dropout),
+            nn.Linear(seq_dim, seq_dim // 2),
             nn.GELU(),
-            nn.Dropout(vec_dropout),
-            nn.Linear(fused_dim // 2, 1),
+            nn.Dropout(seq_dropout),
+            nn.Linear(seq_dim // 2, 1),
         )
-
-    def _run_tower(self, x, tower):
-        for block in tower:
-            x = block(x)
-        return x
 
     def forward(
         self,
         mi:     torch.Tensor,   # (B, MAX_MIRNA)  int nucleotide indices
         ti:     torch.Tensor,   # (B, MRE_LEN)    int nucleotide indices
-        cons:   torch.Tensor,   # (B, 1, MRE_LEN)
-        eclip:  torch.Tensor,   # (B, 1, MRE_LEN)
     ) -> torch.Tensor:          # (B,) logits
 
-        # ── Branch 1: miRBind 2D sequence branch ─────────────────────────────
+        # ── miRBind 2D sequence branch ───────────────────────────────────────
         # Assemble the pairing matrix on-device from the nucleotide-index
         # vectors: a broadcasted gather into pair_table giving one channel per
         # pairing type, (B, C_pair, MAX_MIRNA, MRE_LEN).  This keeps the
@@ -815,20 +694,7 @@ class MiRBindCNN(nn.Module):
             wc_mat = wc_mat * valid.unsqueeze(1).to(wc_mat.dtype)
         h_seq = self.seq_branch(wc_mat)         # (B, seq_dim)
 
-        # ── Branches 2–3 ─────────────────────────────────────────────────────
-        parts = [h_seq]
-
-        if self.use_conservation:
-            h = self._run_tower(self.cons_stem(cons), self.cons_tower)
-            parts.append(self.vec_proj(self.cons_pool(h)))
-
-        if self.use_eclip:
-            h = self._run_tower(self.eclip_stem(eclip), self.eclip_tower)
-            parts.append(self.vec_proj(self.eclip_pool(h)))
-
-        fused = torch.cat(parts, dim=1)         # (B, fused_dim)
-
-        return self.classifier(fused).squeeze(-1)
+        return self.classifier(h_seq).squeeze(-1)
 
 
 # ---------------------------------------------------------------------------
@@ -907,14 +773,12 @@ def evaluate(model: MiRBindCNN, loader: DataLoader,
     all_logits, all_labels = [], []
     total_loss, n_batches  = 0.0, 0
 
-    for mi, ti, cons, eclip, labels in loader:
+    for mi, ti, labels in loader:
         mi     = mi.to(device,     non_blocking=True)
         ti     = ti.to(device,     non_blocking=True)
-        cons   = cons.to(device,   non_blocking=True)
-        eclip  = eclip.to(device,  non_blocking=True)
         labels = labels.to(device, non_blocking=True).float()
 
-        logits = model(mi, ti, cons, eclip)
+        logits = model(mi, ti)
         loss   = F.binary_cross_entropy_with_logits(logits, labels,
                                                      pos_weight=pos_weight)
         total_loss += loss.item()
@@ -940,12 +804,10 @@ def predict_logits(model: MiRBindCNN, loader: DataLoader,
     """
     model.eval()
     all_logits, all_labels = [], []
-    for mi, ti, cons, eclip, labels in loader:
+    for mi, ti, labels in loader:
         mi     = mi.to(device,     non_blocking=True)
         ti     = ti.to(device,     non_blocking=True)
-        cons   = cons.to(device,   non_blocking=True)
-        eclip  = eclip.to(device,  non_blocking=True)
-        logits = model(mi, ti, cons, eclip)
+        logits = model(mi, ti)
         all_logits.append(logits.cpu().numpy())
         all_labels.append(labels.numpy())
     return np.concatenate(all_logits), np.concatenate(all_labels).astype(int)
@@ -1020,12 +882,7 @@ def _model_args_from_cli(args: argparse.Namespace) -> dict:
     return {
         "seq_filters":      args.seq_filters,
         "seq_dim":          args.seq_dim,
-        "vec_channels":     args.vec_channels,
-        "vec_blocks":       args.vec_blocks,
-        "vec_kernel_size":  args.vec_kernel_size,
         "seq_dropout":      args.seq_dropout,
-        "vec_dropout":      args.vec_dropout,
-        "norm":             args.norm,
         "seq_pairing":      args.seq_pairing,
         "pair_embed_dim":   args.pair_embed_dim,
         "seq_pool":         args.seq_pool,
@@ -1033,8 +890,6 @@ def _model_args_from_cli(args: argparse.Namespace) -> dict:
         "n_pool_blocks":    args.n_pool_blocks,
         "block_pool":       args.block_pool,
         "activation":       args.activation,
-        "use_conservation": not args.no_conservation,
-        "use_eclip":        not args.no_eclip,
     }
 
 
@@ -1137,14 +992,12 @@ def _train_one_run(
         seen = 0
         train_logits_buf, train_labels_buf = [], []
 
-        for mi, ti, cons, eclip, labels in train_loader:
+        for mi, ti, labels in train_loader:
             mi     = mi.to(device,     non_blocking=True)
             ti     = ti.to(device,     non_blocking=True)
-            cons   = cons.to(device,   non_blocking=True)
-            eclip  = eclip.to(device,  non_blocking=True)
             labels = labels.to(device, non_blocking=True).float()
 
-            logits = model(mi, ti, cons, eclip)
+            logits = model(mi, ti)
             loss   = F.binary_cross_entropy_with_logits(
                 logits, labels, pos_weight=pos_weight)
 
@@ -1515,8 +1368,8 @@ def _write_error_dump(path: str | Path, df_in: pd.DataFrame,
     """Write a per-sample TSV for error analysis and print a quick breakdown.
 
     Loader order is preserved (shuffle=False), so rows align with `df_in` and
-    the dataset arrays. Adds prediction columns, a TP/TN/FP/FN tag, deterministic
-    duplex stats, and per-sample summaries of the auxiliary feature vectors.
+    the dataset arrays. Adds prediction columns, a TP/TN/FP/FN tag, and
+    deterministic duplex stats.
     """
     adf = df_in.copy()
     adf["prob"]    = probs
@@ -1533,14 +1386,6 @@ def _write_error_dump(path: str | Path, df_in: pd.DataFrame,
 
     for k, v in _duplex_stats(ds.mirna_idx, ds.mre_idx).items():
         adf[k] = v
-
-    # Summaries of the per-position auxiliary vectors over the real MRE region.
-    real = ds.mre_idx != 4
-    with np.errstate(invalid="ignore"):
-        for name, mat in (("cons", ds.cons_mat), ("eclip", ds.eclip_mat)):
-            adf[f"{name}_mean"] = np.nansum(np.where(real, mat, 0.0), axis=1) / \
-                                  np.maximum(real.sum(axis=1), 1)
-            adf[f"{name}_max"]  = np.where(real, mat, -np.inf).max(axis=1)
 
     out_path = Path(path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1571,15 +1416,18 @@ def _load_ckpt_model(checkpoint: str | Path,
     # backward-compat defaults: checkpoints predating these features used a
     # single WC(+wobble) channel with average pooling, so default to that when
     # the keys are absent (newer checkpoints carry their own values).
-    for key, val in [("use_conservation", True), ("use_eclip", True),
-                     ("seq_pairing", "binary"), ("seq_pool", "avg"),
+    for key, val in [("seq_pairing", "binary"), ("seq_pool", "avg"),
                      ("n_conv_blocks", 6), ("n_pool_blocks", 4),
                      ("block_pool", "max"), ("activation", "leaky_relu")]:
         margs.setdefault(key, val)
-    # Drop keys for the removed tspot / energy branches so checkpoints trained
-    # before their removal still reconstruct (their saved weights for those
-    # branches, if any, are ignored — such checkpoints must be retrained).
-    for dead in ("use_tspot", "use_energy", "energy_dim"):
+    # Drop keys for removed branches (tspot / energy, and the conservation /
+    # eclip vector branches) so older checkpoints still reconstruct — their
+    # saved weights for those branches, if any, are ignored and such
+    # checkpoints must be retrained.
+    for dead in ("use_tspot", "use_energy", "energy_dim",
+                 "use_conservation", "use_eclip",
+                 "vec_channels", "vec_blocks", "vec_kernel_size",
+                 "vec_dropout", "norm"):
         margs.pop(dead, None)
     model = MiRBindCNN(**margs).to(device)
     model.load_state_dict(ckpt["model_state"])
@@ -1602,12 +1450,10 @@ def cmd_predict(args: argparse.Namespace) -> None:
 
     all_probs, all_preds, all_labels = [], [], []
     with torch.no_grad():
-        for mi, ti, cons, eclip, labels in loader:
+        for mi, ti, labels in loader:
             mi     = mi.to(device)
             ti     = ti.to(device)
-            cons   = cons.to(device)
-            eclip  = eclip.to(device)
-            logits = model(mi, ti, cons, eclip)
+            logits = model(mi, ti)
             probs  = torch.sigmoid(logits).cpu().numpy()
             all_probs.extend(probs.tolist())
             all_preds.extend((probs >= args.threshold).astype(int).tolist())
@@ -1750,14 +1596,8 @@ def main() -> int:
     tr.add_argument("--seq-dim",         type=int,   default=128,
                     dest="seq_dim",
                     help="Output embedding size of the sequence branch.")
-    tr.add_argument("--vec-channels",    type=int,   default=64,  dest="vec_channels")
-    tr.add_argument("--vec-blocks",      type=int,   default=3,   dest="vec_blocks")
-    tr.add_argument("--vec-kernel-size", type=int,   default=7,   dest="vec_kernel_size")
     tr.add_argument("--seq-dropout",     type=float, default=0.3, dest="seq_dropout",
-                    help="Dropout in the 2D miRBind conv blocks.")
-    tr.add_argument("--vec-dropout",     type=float, default=0.15, dest="vec_dropout",
-                    help="Dropout in the 1D vector branch blocks.")
-    tr.add_argument("--norm", choices=["batch", "layer"], default="batch")
+                    help="Dropout in the 2D miRBind conv blocks and classifier head.")
     tr.add_argument("--seq-pairing", choices=["binary", "multi", "multi4", "embed"],
                     default="multi", dest="seq_pairing",
                     help="2D pairing matrix encoding: single WC(+wobble) channel "
@@ -1785,8 +1625,6 @@ def main() -> int:
                     choices=["leaky_relu", "relu", "gelu", "silu", "elu", "selu"],
                     default="leaky_relu",
                     help="Activation for the 2D sequence branch conv/dense blocks.")
-    tr.add_argument("--no-conservation", action="store_true")
-    tr.add_argument("--no-eclip",        action="store_true")
     # Training
     tr.add_argument("--epochs",       type=int,   default=40)
     tr.add_argument("--batch-size",   type=int,   default=256)
