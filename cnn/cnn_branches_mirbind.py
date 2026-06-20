@@ -765,10 +765,31 @@ def _make_loader(dataset: MiRNAInteractionDataset, batch_size: int,
 # Evaluation
 # ---------------------------------------------------------------------------
 
+def _compute_loss(logits: torch.Tensor, labels: torch.Tensor,
+                  pos_weight: Optional[torch.Tensor],
+                  gamma: float) -> torch.Tensor:
+    """BCE with optional focal modulation.
+
+    gamma=0  → standard BCEWithLogitsLoss (identical to before).
+    gamma>0  → focal loss: (1-pt)^gamma * BCE per sample, then mean.
+               Compatible with pos_weight: the class weight is applied
+               inside BCE before the focal factor scales each sample.
+    """
+    if gamma == 0.0:
+        return F.binary_cross_entropy_with_logits(
+            logits, labels, pos_weight=pos_weight)
+    bce = F.binary_cross_entropy_with_logits(
+        logits, labels, pos_weight=pos_weight, reduction="none")
+    pt  = torch.sigmoid(logits)
+    pt  = torch.where(labels == 1, pt, 1.0 - pt)   # prob of the correct class
+    return ((1.0 - pt) ** gamma * bce).mean()
+
+
 @torch.no_grad()
 def evaluate(model: MiRBindCNN, loader: DataLoader,
              device: torch.device,
-             pos_weight: Optional[torch.Tensor] = None) -> dict:
+             pos_weight: Optional[torch.Tensor] = None,
+             gamma: float = 0.0) -> dict:
     model.eval()
     all_logits, all_labels = [], []
     total_loss, n_batches  = 0.0, 0
@@ -779,8 +800,7 @@ def evaluate(model: MiRBindCNN, loader: DataLoader,
         labels = labels.to(device, non_blocking=True).float()
 
         logits = model(mi, ti)
-        loss   = F.binary_cross_entropy_with_logits(logits, labels,
-                                                     pos_weight=pos_weight)
+        loss   = _compute_loss(logits, labels, pos_weight, gamma)
         total_loss += loss.item()
         n_batches  += 1
         all_logits.append(logits.cpu().numpy())
@@ -958,6 +978,10 @@ def _train_one_run(
             pos_weight = torch.tensor([pw], device=device)
             print(f"  BCEWithLogitsLoss pos_weight = {pw:.3f}")
 
+    gamma = getattr(args, "focal_gamma", 0.0)
+    if gamma > 0.0:
+        print(f"  Focal loss enabled (gamma={gamma})")
+
     optim = torch.optim.AdamW(
         model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     total_steps  = args.epochs * max(1, len(train_loader))
@@ -998,8 +1022,7 @@ def _train_one_run(
             labels = labels.to(device, non_blocking=True).float()
 
             logits = model(mi, ti)
-            loss   = F.binary_cross_entropy_with_logits(
-                logits, labels, pos_weight=pos_weight)
+            loss   = _compute_loss(logits, labels, pos_weight, gamma)
 
             optim.zero_grad(set_to_none=True)
             loss.backward()
@@ -1055,7 +1078,7 @@ def _train_one_run(
                       f"no validation): {out_path}")
             continue
 
-        val_metrics   = evaluate(model, val_loader, device, pos_weight)
+        val_metrics   = evaluate(model, val_loader, device, pos_weight, gamma)
 
         def _ckpt_val(vm: dict) -> float:
             return vm.get(args.checkpoint_metric, -vm["loss"])
@@ -1066,7 +1089,7 @@ def _train_one_run(
         val_metrics_ema = None
         if ema is not None:
             ema.apply_to(model)
-            val_metrics_ema = evaluate(model, val_loader, device, pos_weight)
+            val_metrics_ema = evaluate(model, val_loader, device, pos_weight, gamma)
             ema.restore(model)
             if _ckpt_val(val_metrics_ema) > _ckpt_val(val_metrics):
                 sel_variant, sel_metrics = "ema", val_metrics_ema
@@ -1639,6 +1662,11 @@ def main() -> int:
     tr.add_argument("--ema-decay",    type=float, default=0.999, dest="ema_decay",
                     help="EMA decay; effective horizon ~1/(1-decay) steps. Lower "
                          "it (e.g. 0.99) for short runs so the average keeps up.")
+    tr.add_argument("--focal-gamma",  type=float, default=0.0, dest="focal_gamma",
+                    help="Focal loss gamma (default: 0 = standard BCE). "
+                         "gamma=2 is the standard choice; higher values (3-4) "
+                         "concentrate more gradient on hard examples. "
+                         "Compatible with --balance and pos_weight.")
     tr.add_argument("--balance",      action="store_true")
     tr.add_argument("--no-cache",     action="store_true", dest="no_cache",
                     help="Disable the preprocessing .cnncache.npz sidecar files.")
