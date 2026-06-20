@@ -511,6 +511,42 @@ class GeM2d(nn.Module):
         return x.pow(1.0 / self.p)
 
 
+class AttentionPool2d(nn.Module):
+    """Content-based attention pooling over a 2D feature map: (B,C,H,W) -> (B, heads*C).
+
+    A 1×1 scoring conv produces ``heads`` score maps; each is softmaxed over the
+    H·W spatial cells and used to take a weighted sum of the C-dim feature
+    vectors, yielding one pooled vector per head (concatenated on output).
+
+    Unlike GeM (a fixed power-mean that collapses to the single strongest
+    region), the weights are learned and content-dependent, so the softmax can
+    place mass on several disjoint regions at once.  With multiple heads each can
+    specialise — e.g. one to the seed block and one to the 3′-supplementary
+    block — so both paired regions of a 3′-compensatory duplex reach the
+    classifier instead of being averaged away.
+
+    The scores are derived from features alone (no positional encoding) and the
+    pooling is a weighted sum over positions, so the output is permutation- /
+    translation-invariant, preserving the property that makes the 2D branch
+    generalise.  Note this only helps if the pre-pool map keeps spatial
+    resolution: with many pooling blocks the map is already ~1×k and there is
+    little to attend over, so pair attention pooling with fewer --n-pool-blocks.
+    """
+
+    def __init__(self, channels: int, heads: int = 1) -> None:
+        super().__init__()
+        if heads < 1:
+            raise ValueError(f"pool_heads must be >= 1, got {heads}")
+        self.heads = heads
+        self.score = nn.Conv2d(channels, heads, kernel_size=1)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        attn  = self.score(x).flatten(2).softmax(dim=-1)    # (B, heads, H*W)
+        feats = x.flatten(2)                                # (B, C,     H*W)
+        pooled = torch.einsum("bhn,bcn->bhc", attn, feats)  # (B, heads, C)
+        return pooled.flatten(1)                            # (B, heads*C)
+
+
 class MiRBindSeqBranch(nn.Module):
     """miRBind-style sequence branch.
 
@@ -521,12 +557,16 @@ class MiRBindSeqBranch(nn.Module):
       - n_conv_blocks Conv2d blocks (5×5, activation, BN2d, Dropout)
         First n_pool_blocks blocks downsample (MaxPool2d or GeMDownsample2d 2×2)
         Remaining blocks have no pooling (spatial dims small by this point)
-      - global pool (GeM or adaptive-avg) → flatten
+      - global pool (GeM, adaptive-avg, or multi-head attention) → flatten
       - 2 dense blocks → out_dim
 
     The 2D input height is MAX_MIRNA (30), which halves with each pooling block
     (30→15→7→3→1), so n_pool_blocks must not exceed 4 — a 5th pool would reduce a
     size-1 dimension to 0. n_pool_blocks is also capped at n_conv_blocks.
+
+    With pool="attention" the global pool is AttentionPool2d, which keeps
+    pool_heads weighted views of the feature map (so the pooled width feeding the
+    dense head is n_filters * pool_heads).
     """
 
     def __init__(
@@ -536,6 +576,7 @@ class MiRBindSeqBranch(nn.Module):
         dropout:   float = 0.3,
         in_ch:     int = 1,
         pool:      str = "gem",
+        pool_heads: int = 1,
         n_conv_blocks: int = 6,
         n_pool_blocks: int = 4,
         block_pool: str = "max",
@@ -563,14 +604,20 @@ class MiRBindSeqBranch(nn.Module):
 
         if pool == "gem":
             self.global_pool: nn.Module = GeM2d()
+            pooled_dim = n_filters
         elif pool == "avg":
             self.global_pool = nn.AdaptiveAvgPool2d((1, 1))
+            pooled_dim = n_filters
+        elif pool == "attention":
+            self.global_pool = AttentionPool2d(n_filters, heads=pool_heads)
+            pooled_dim = n_filters * pool_heads
         else:
-            raise ValueError(f"pool must be 'gem' or 'avg', got {pool!r}")
+            raise ValueError(
+                f"pool must be 'gem', 'avg' or 'attention', got {pool!r}")
 
         hidden = max(n_filters * 2, out_dim)
         self.dense = nn.Sequential(
-            DenseBlock(n_filters, hidden, dropout=dropout, activation=activation),
+            DenseBlock(pooled_dim, hidden, dropout=dropout, activation=activation),
             DenseBlock(hidden,    out_dim, dropout=dropout, activation=activation),
         )
 
@@ -600,6 +647,10 @@ class MiRBindCNN(nn.Module):
         Output embedding size of the sequence branch (after dense layers).
     seq_dropout : float
         Dropout inside the miRBind 2D CNN blocks and the classifier head.
+    seq_pool : str
+        Global pool for the sequence branch: "gem", "avg" or "attention".
+    pool_heads : int
+        Number of attention heads when seq_pool="attention" (ignored otherwise).
     """
 
     def __init__(
@@ -610,6 +661,7 @@ class MiRBindCNN(nn.Module):
         seq_pairing:      str   = "multi",
         pair_embed_dim:   int   = 3,
         seq_pool:         str   = "gem",
+        pool_heads:       int   = 1,
         n_conv_blocks:    int   = 6,
         n_pool_blocks:    int   = 4,
         block_pool:       str   = "max",
@@ -657,7 +709,7 @@ class MiRBindCNN(nn.Module):
         # ── miRBind 2D sequence branch ───────────────────────────────────────
         self.seq_branch = MiRBindSeqBranch(
             n_filters=seq_filters, out_dim=seq_dim, dropout=seq_dropout,
-            in_ch=n_pair_ch, pool=seq_pool,
+            in_ch=n_pair_ch, pool=seq_pool, pool_heads=pool_heads,
             n_conv_blocks=n_conv_blocks, n_pool_blocks=n_pool_blocks,
             block_pool=block_pool, activation=activation)
 
@@ -906,6 +958,7 @@ def _model_args_from_cli(args: argparse.Namespace) -> dict:
         "seq_pairing":      args.seq_pairing,
         "pair_embed_dim":   args.pair_embed_dim,
         "seq_pool":         args.seq_pool,
+        "pool_heads":       args.pool_heads,
         "n_conv_blocks":    args.n_conv_blocks,
         "n_pool_blocks":    args.n_pool_blocks,
         "block_pool":       args.block_pool,
@@ -1440,6 +1493,7 @@ def _load_ckpt_model(checkpoint: str | Path,
     # single WC(+wobble) channel with average pooling, so default to that when
     # the keys are absent (newer checkpoints carry their own values).
     for key, val in [("seq_pairing", "binary"), ("seq_pool", "avg"),
+                     ("pool_heads", 1),
                      ("n_conv_blocks", 6), ("n_pool_blocks", 4),
                      ("block_pool", "max"), ("activation", "leaky_relu")]:
         margs.setdefault(key, val)
@@ -1631,9 +1685,17 @@ def main() -> int:
                     help="Channels of the learnable pairing embedding when "
                          "--seq-pairing embed (ignored otherwise). Channel 0 is "
                          "initialised to the graded pairing-strength prior.")
-    tr.add_argument("--seq-pool", choices=["avg", "gem"], default="gem",
+    tr.add_argument("--seq-pool", choices=["avg", "gem", "attention"], default="gem",
                     dest="seq_pool",
-                    help="Global pooling for the 2D sequence branch.")
+                    help="Global pooling for the 2D sequence branch: average, "
+                         "GeM (learnable power-mean), or multi-head content-based "
+                         "attention pooling. Attention can aggregate disjoint "
+                         "paired regions (e.g. seed + 3′ supplementary), but needs "
+                         "spatial resolution — pair it with fewer --n-pool-blocks.")
+    tr.add_argument("--pool-heads", type=int, default=1, dest="pool_heads",
+                    help="Attention heads when --seq-pool attention (ignored "
+                         "otherwise). Each head can specialise to a different "
+                         "paired region; pooled width becomes seq_filters * heads.")
     tr.add_argument("--n-conv-blocks", type=int, default=6, dest="n_conv_blocks",
                     help="Number of Conv2d blocks in the 2D sequence branch.")
     tr.add_argument("--n-pool-blocks", type=int, default=4, dest="n_pool_blocks",
