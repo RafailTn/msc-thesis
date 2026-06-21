@@ -1022,8 +1022,10 @@ def _train_one_run(
     device: torch.device,
     out_path: Path,
 ) -> float:
+    gamma = getattr(args, "focal_gamma", 0.0)
+
     pos_weight: Optional[torch.Tensor] = None
-    if not args.balance:
+    if not args.balance and gamma == 0.0:
         n_pos = int(train_ds.labels.sum())
         n_neg = len(train_ds.labels) - n_pos
         if n_pos > 0 and n_neg > 0:
@@ -1031,9 +1033,8 @@ def _train_one_run(
             pos_weight = torch.tensor([pw], device=device)
             print(f"  BCEWithLogitsLoss pos_weight = {pw:.3f}")
 
-    gamma = getattr(args, "focal_gamma", 0.0)
     if gamma > 0.0:
-        print(f"  Focal loss enabled (gamma={gamma})")
+        print(f"  Focal loss enabled (gamma={gamma}, pos_weight disabled)")
 
     optim = torch.optim.AdamW(
         model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
@@ -1728,7 +1729,9 @@ def main() -> int:
                     help="Focal loss gamma (default: 0 = standard BCE). "
                          "gamma=2 is the standard choice; higher values (3-4) "
                          "concentrate more gradient on hard examples. "
-                         "Compatible with --balance and pos_weight.")
+                         "When gamma>0, the loss-level pos_weight is disabled "
+                         "(focal already handles imbalance); pass --balance to "
+                         "use sampler oversampling instead.")
     tr.add_argument("--balance",      action="store_true")
     tr.add_argument("--no-cache",     action="store_true", dest="no_cache",
                     help="Disable the preprocessing .cnncache.npz sidecar files.")
