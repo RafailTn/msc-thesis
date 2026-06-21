@@ -199,8 +199,16 @@ def make_objective(
         seq_dim      = trial.suggest_categorical("seq_dim",      [64, 128, 256])
         seq_dropout  = trial.suggest_float("seq_dropout", 0.1, 0.5)
         block_pool   = trial.suggest_categorical("block_pool", ["max", "gem"])
-        activation   = trial.suggest_categorical(
-            "activation", ["leaky_relu", "relu", "gelu", "silu", "elu", "selu"])
+        # GeM is a power-mean and assumes non-negative input.  The global pool is
+        # GeM (seq_pool below) and per-block pooling may be GeM too; the model now
+        # runs Conv/Linear -> BatchNorm -> activation, so the activation output
+        # (not the zero-centred BN output) is what feeds the pool.  Restrict the
+        # search to (near-)non-negative activations so GeM's assumption holds --
+        # leaky_relu/gelu/elu/selu would push negative values straight into GeM,
+        # re-introducing the clamp-to-eps loss the BN reorder removed.  relu is
+        # strictly >=0; silu has only a small bounded negative tail (~-0.28),
+        # negligible next to the pre-fix ~50% BN leak.
+        activation   = trial.suggest_categorical("activation", ["relu", "silu"])
         # The miRNA-axis height (30) only halves to 1 after 4 poolings, so cap
         # n_pool_blocks at 4; conv depth then ranges from that up to 8.
         n_pool_blocks = trial.suggest_int("n_pool_blocks", 2, 4)

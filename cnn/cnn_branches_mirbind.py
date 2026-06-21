@@ -10,7 +10,7 @@ Sequence branch (miRBind-style)
     Build a 2D binary matrix M of shape (MAX_MIRNA × MRE_LEN) where M[i,j]=1 if
     miRNA position i and MRE position j can form a Watson–Crick (or G·U wobble)
     base pair, 0 otherwise.  A 2D CNN of 6 convolutional blocks (5×5 kernels,
-    LeakyReLU, BatchNorm2d, optional MaxPool2d, Dropout) processes the matrix,
+    BatchNorm2d, LeakyReLU, optional MaxPool2d, Dropout) processes the matrix,
     followed by an AdaptiveAvgPool2d and two dense blocks to produce a fixed-size
     embedding.  This directly encodes base-pairing potential geometry, matching
     the core idea from:
@@ -465,8 +465,13 @@ class GeMDownsample2d(nn.Module):
 class Conv2dBlock(nn.Module):
     """One miRBind-style 2D convolutional block.
 
-    Conv2d (5×5, same padding) → activation → BatchNorm2d →
+    Conv2d (5×5, same padding) → BatchNorm2d → activation →
     [MaxPool2d / GeMDownsample2d (2,2)] → Dropout.
+
+    BatchNorm precedes the activation so the (non-negative) activation output —
+    not the zero-centred BN output — is what feeds the pool; this keeps GeM's
+    non-negativity assumption intact. The conv runs bias-free since the following
+    BatchNorm re-centres and makes a conv bias redundant.
     """
 
     def __init__(self, in_ch: int, out_ch: int, dropout: float = 0.3,
@@ -474,9 +479,9 @@ class Conv2dBlock(nn.Module):
                  activation: str = "leaky_relu") -> None:
         super().__init__()
         layers: list[nn.Module] = [
-            nn.Conv2d(in_ch, out_ch, kernel_size=5, padding=2),
-            _make_activation(activation),
+            nn.Conv2d(in_ch, out_ch, kernel_size=5, padding=2, bias=False),
             nn.BatchNorm2d(out_ch),
+            _make_activation(activation),
         ]
         if pool:
             if block_pool == "gem":
@@ -494,15 +499,19 @@ class Conv2dBlock(nn.Module):
 
 
 class DenseBlock(nn.Module):
-    """One miRBind-style dense block: Linear → activation → BatchNorm1d → Dropout."""
+    """One miRBind-style dense block: Linear → BatchNorm1d → activation → Dropout.
+
+    BatchNorm precedes the activation (mirroring Conv2dBlock); the linear runs
+    bias-free since the following BatchNorm makes its bias redundant.
+    """
 
     def __init__(self, in_dim: int, out_dim: int, dropout: float = 0.3,
                  activation: str = "leaky_relu") -> None:
         super().__init__()
         self.net = nn.Sequential(
-            nn.Linear(in_dim, out_dim),
-            _make_activation(activation),
+            nn.Linear(in_dim, out_dim, bias=False),
             nn.BatchNorm1d(out_dim),
+            _make_activation(activation),
             nn.Dropout(dropout),
         )
 
@@ -576,7 +585,7 @@ class MiRBindSeqBranch(nn.Module):
     produces a fixed-size embedding of shape (B, out_dim).
 
     Architecture (mirroring Klimentova et al. 2022):
-      - n_conv_blocks Conv2d blocks (5×5, activation, BN2d, Dropout)
+      - n_conv_blocks Conv2d blocks (5×5, BN2d, activation, Dropout)
         First n_pool_blocks blocks downsample (MaxPool2d or GeMDownsample2d 2×2)
         Remaining blocks have no pooling (spatial dims small by this point)
       - global pool (GeM, adaptive-avg, or multi-head attention) → flatten
@@ -754,10 +763,12 @@ class MiRBindCNN(nn.Module):
             block_pool=block_pool, activation=activation)
 
         # ── Classifier ────────────────────────────────────────────────────────
+        # No dropout before the first Linear: the seq-branch's final DenseBlock
+        # already applies dropout, and only a LayerNorm+GELU (no linear) sits
+        # between it and here, so a second dropout would be redundant.
         self.classifier = nn.Sequential(
             nn.LayerNorm(seq_dim),
             nn.GELU(),
-            nn.Dropout(seq_dropout),
             nn.Linear(seq_dim, seq_dim // 2),
             nn.GELU(),
             nn.Dropout(seq_dropout),
