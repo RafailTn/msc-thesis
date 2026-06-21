@@ -151,6 +151,28 @@ def _chem_init_pair_embed(dim: int, seed: int = 0) -> np.ndarray:
     table[:, :, 4] = 0.0
     return np.ascontiguousarray(table)
 
+
+# miRNA-side positional channel for the 2D pairing map.  A Conv2d is
+# translation-invariant, so identical pairing in the seed band vs the 3′ band
+# produces the same response — this fixed plane breaks that invariance by
+# telling each cell *where* on the miRNA it sits, which is the axis the
+# 3′-compensatory motif (weak seed + strong 3′ supplementary) is defined on.
+# It is a soft prior: just a monotonic position ramp, so the network learns
+# which positions matter rather than having seed/3′ bands hard-coded.  MRE-side
+# position is intentionally excluded (the binding register slides, so absolute
+# MRE position is uninformative).  Constant along the MRE (column) axis,
+# broadcast across the batch.
+N_POS_CHANNELS = 1
+
+
+def _build_pos_planes() -> np.ndarray:
+    """Fixed (N_POS_CHANNELS, MAX_MIRNA, MRE_LEN) miRNA-side positional channel:
+    a position ramp i/(MAX_MIRNA-1), constant along the MRE axis."""
+    ramp   = np.arange(MAX_MIRNA, dtype=np.float32) / (MAX_MIRNA - 1)   # (30,)
+    planes = np.broadcast_to(ramp[None, :, None],
+                             (N_POS_CHANNELS, MAX_MIRNA, MRE_LEN))
+    return np.ascontiguousarray(planes)
+
 # ASCII byte → nucleotide index lookup (default 4 = unknown/padding).
 # Lets us tokenise whole sequences with a single vectorised gather instead of
 # a per-character Python loop.  Handles upper/lowercase and T→U.
@@ -651,6 +673,9 @@ class MiRBindCNN(nn.Module):
         Global pool for the sequence branch: "gem", "avg" or "attention".
     pool_heads : int
         Number of attention heads when seq_pool="attention" (ignored otherwise).
+    seq_pos_channels : bool
+        If True, append a fixed miRNA-position ramp channel to the pairing map so
+        the conv can condition on position (seed vs 3′). MRE position excluded.
     """
 
     def __init__(
@@ -662,6 +687,7 @@ class MiRBindCNN(nn.Module):
         pair_embed_dim:   int   = 3,
         seq_pool:         str   = "gem",
         pool_heads:       int   = 1,
+        seq_pos_channels: bool  = False,
         n_conv_blocks:    int   = 6,
         n_pool_blocks:    int   = 4,
         block_pool:       str   = "max",
@@ -706,10 +732,24 @@ class MiRBindCNN(nn.Module):
                 persistent=False)
             n_pair_ch = pair_table.shape[0]
 
+        # ── Fixed miRNA-position channel (CoordConv-style), appended to the
+        # pairing map in forward() so the otherwise translation-invariant conv
+        # can condition on miRNA position (seed vs 3′).  Constant → non-persistent
+        # buffer, kept out of the state_dict so checkpoints stay loadable.
+        self.seq_pos_channels = seq_pos_channels
+        if seq_pos_channels:
+            self.register_buffer(
+                "pos_planes",
+                torch.from_numpy(_build_pos_planes()),
+                persistent=False)
+            n_pos_ch = N_POS_CHANNELS
+        else:
+            n_pos_ch = 0
+
         # ── miRBind 2D sequence branch ───────────────────────────────────────
         self.seq_branch = MiRBindSeqBranch(
             n_filters=seq_filters, out_dim=seq_dim, dropout=seq_dropout,
-            in_ch=n_pair_ch, pool=seq_pool, pool_heads=pool_heads,
+            in_ch=n_pair_ch + n_pos_ch, pool=seq_pool, pool_heads=pool_heads,
             n_conv_blocks=n_conv_blocks, n_pool_blocks=n_pool_blocks,
             block_pool=block_pool, activation=activation)
 
@@ -739,11 +779,17 @@ class MiRBindCNN(nn.Module):
         ti = ti.long()
         pair = self.pair_table[:, mi[:, :, None], ti[:, None, :]]  # (C_pair, B, 30, 50)
         wc_mat = pair.movedim(0, 1).contiguous()                   # (B, C_pair, 30, 50)
-        if self._pair_learnable:
-            # Fixed tables zero pad rows/cols by construction; the learnable
-            # embedding does not, so mask any cell touching pad index 4 (mi/ti==4).
+        # Pad cells (mi/ti == index 4) must carry no signal.  Fixed tables zero
+        # them by construction; the learnable embedding and the positional planes
+        # do not, so build the valid-cell mask when either needs it.
+        if self._pair_learnable or self.seq_pos_channels:
             valid = ((mi < 4)[:, :, None] & (ti < 4)[:, None, :])  # (B, 30, 50)
-            wc_mat = wc_mat * valid.unsqueeze(1).to(wc_mat.dtype)
+            vmask = valid.unsqueeze(1).to(wc_mat.dtype)            # (B, 1, 30, 50)
+        if self._pair_learnable:
+            wc_mat = wc_mat * vmask
+        if self.seq_pos_channels:
+            pos = self.pos_planes.unsqueeze(0).expand(wc_mat.shape[0], -1, -1, -1)
+            wc_mat = torch.cat([wc_mat, pos * vmask], dim=1)       # (B, C_pair+N_POS, 30, 50)
         h_seq = self.seq_branch(wc_mat)         # (B, seq_dim)
 
         return self.classifier(h_seq).squeeze(-1)
@@ -959,6 +1005,7 @@ def _model_args_from_cli(args: argparse.Namespace) -> dict:
         "pair_embed_dim":   args.pair_embed_dim,
         "seq_pool":         args.seq_pool,
         "pool_heads":       args.pool_heads,
+        "seq_pos_channels": args.seq_pos_channels,
         "n_conv_blocks":    args.n_conv_blocks,
         "n_pool_blocks":    args.n_pool_blocks,
         "block_pool":       args.block_pool,
@@ -1494,7 +1541,7 @@ def _load_ckpt_model(checkpoint: str | Path,
     # single WC(+wobble) channel with average pooling, so default to that when
     # the keys are absent (newer checkpoints carry their own values).
     for key, val in [("seq_pairing", "binary"), ("seq_pool", "avg"),
-                     ("pool_heads", 1),
+                     ("pool_heads", 1), ("seq_pos_channels", False),
                      ("n_conv_blocks", 6), ("n_pool_blocks", 4),
                      ("block_pool", "max"), ("activation", "leaky_relu")]:
         margs.setdefault(key, val)
@@ -1697,6 +1744,11 @@ def main() -> int:
                     help="Attention heads when --seq-pool attention (ignored "
                          "otherwise). Each head can specialise to a different "
                          "paired region; pooled width becomes seq_filters * heads.")
+    tr.add_argument("--seq-pos-channels", action="store_true", dest="seq_pos_channels",
+                    help="Append a fixed miRNA-position ramp channel to the 2D "
+                         "pairing map (CoordConv-style) so the conv can condition "
+                         "on position (seed vs 3′ supplementary). MRE position is "
+                         "excluded. Off by default.")
     tr.add_argument("--n-conv-blocks", type=int, default=6, dest="n_conv_blocks",
                     help="Number of Conv2d blocks in the 2D sequence branch.")
     tr.add_argument("--n-pool-blocks", type=int, default=4, dest="n_pool_blocks",
