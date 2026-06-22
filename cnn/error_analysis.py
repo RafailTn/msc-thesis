@@ -51,14 +51,89 @@ def _primary_feature(feat: str) -> str:
     return feat.split(",")[0].strip()
 
 
+def _effect_magnitude(d: float) -> str:
+    """Verbal label for a |rank-biserial| / |Cliff's delta| effect size.
+
+    Thresholds follow Romano et al. (2006), the conventional cut-offs for
+    Cliff's delta: negligible < 0.147, small < 0.33, medium < 0.474, else large.
+    """
+    d = abs(d)
+    if d < 0.147:
+        return "negligible"
+    if d < 0.33:
+        return "small"
+    if d < 0.474:
+        return "medium"
+    return "large"
+
+
 def _mw(a: pd.Series, b: pd.Series, label_a: str, label_b: str) -> str:
-    """Mann-Whitney U test; returns formatted summary line."""
+    """Mann-Whitney U test with rank-biserial effect size; formatted summary.
+
+    rb (rank-biserial correlation, == Cliff's delta for two groups) = the
+    probability that a random a exceeds a random b, minus the reverse, rescaled
+    to [-1, +1].  It is derived directly from the U statistic:
+        rb = 2*U / (n_a * n_b) - 1
+    Sign is relative to `a`: rb > 0 means values in group `a` tend to be larger
+    than in `b`.  Unlike the p-value it does NOT grow with sample size, so it
+    separates "real but tiny" from "real and large" — exactly the failure mode
+    of the huge manakov split where everything is significant.
+    """
     a, b = a.dropna(), b.dropna()
     if len(a) < 5 or len(b) < 5:
         return "(too few samples)"
     u, p = stats.mannwhitneyu(a, b, alternative="two-sided")
+    rb = 2 * u / (len(a) * len(b)) - 1
     return (f"median {label_a}={a.median():.3f}  {label_b}={b.median():.3f}  "
-            f"MWU p={p:.2e}")
+            f"MWU p={p:.2e}  rb={rb:+.3f} ({_effect_magnitude(rb)})")
+
+
+def _load_expression(path: Path, value_col: str = "Mean_RPM") -> dict[str, float]:
+    """
+    Load the miRNA expression panel (media-2.xlsx) into a {miRNA_name: value}
+    map.  The sheet has one row per miRNA with a 'Symbol_miRNA' key (e.g.
+    'hsa-miR-16-5p') and several quantification columns; `value_col` selects
+    which one to use (default Mean_RPM, library-size normalised).
+    """
+    expr = pd.read_excel(path)
+    name_col = next((c for c in ("Symbol_miRNA", "miRNA", "noncodingRNA_name")
+                     if c in expr.columns), None)
+    if name_col is None:
+        raise ValueError(f"No miRNA-name column found in {path}; "
+                         f"columns are {list(expr.columns)}")
+    if value_col not in expr.columns:
+        raise ValueError(f"Value column {value_col!r} not in {path}; "
+                         f"columns are {list(expr.columns)}")
+    expr = expr[[name_col, value_col]].dropna()
+    return dict(zip(expr[name_col].astype(str), expr[value_col].astype(float)))
+
+
+def _attach_expression(df: pd.DataFrame, expr_map: dict[str, float]) -> pd.DataFrame:
+    """
+    Add `mirna_expr` (raw value) and `log10_expr` columns to df, keyed off the
+    `noncodingRNA_name` column.  Many names are pipe-delimited ambiguous-mapping
+    sets ('hsa-miR-23b-3p|hsa-miR-23c|hsa-miR-23a-3p'); for those we average the
+    expression of whichever member names are present in the panel.  miRNAs with
+    no panel entry stay NaN (silently ignored by the downstream MWU/median code).
+    """
+    name_col = next((c for c in ("noncodingRNA_name", "mirna_name")
+                     if c in df.columns), None)
+    if name_col is None:
+        return df
+
+    def _lookup(name: object) -> float:
+        if not isinstance(name, str):
+            return float("nan")
+        vals = [expr_map[t] for t in name.split("|") if t in expr_map]
+        return float(np.mean(vals)) if vals else float("nan")
+
+    df = df.copy()
+    df["mirna_expr"] = df[name_col].map(_lookup)
+    df["log10_expr"] = np.log10(df["mirna_expr"].clip(lower=0) + 1.0)
+    cov = 100 * df["mirna_expr"].notna().mean()
+    print(f"    Expression attached: {cov:.1f}% of rows matched the panel.",
+          file=sys.stderr)
+    return df
 
 
 def _chi2_pval(ct: pd.DataFrame) -> float:
@@ -132,7 +207,8 @@ def _enrichment_table(df: pd.DataFrame, col: str,
 # Per-file analysis
 # ---------------------------------------------------------------------------
 
-def analyse(df: pd.DataFrame, name: str, out=sys.stdout) -> None:
+def analyse(df: pd.DataFrame, name: str, out=sys.stdout,
+            expr_map: dict[str, float] | None = None) -> None:
     print(f"\n{_SEP}", file=out)
     print(f"FILE: {name}", file=out)
     print(_SEP, file=out)
@@ -141,6 +217,9 @@ def analyse(df: pd.DataFrame, name: str, out=sys.stdout) -> None:
     if "error_type" not in df.columns:
         print("ERROR: 'error_type' column not found.", file=out)
         return
+
+    if expr_map is not None:
+        df = _attach_expression(df, expr_map)
 
     present = [t for t in ("TP", "FN", "FP", "TN") if t in df["error_type"].values]
     counts  = df["error_type"].value_counts()
@@ -269,7 +348,8 @@ def analyse(df: pd.DataFrame, name: str, out=sys.stdout) -> None:
     # ── 6. Numeric feature separability ──────────────────────────────────────
     numeric_cols = [c for c in ("n_wc", "n_gu", "n_mm", "max_run", "seed_pairs",
                                  "mirna_len", "mre_len", "prob",
-                                 "interaction_probability")
+                                 "interaction_probability",
+                                 "mirna_expr", "log10_expr")
                     if c in df.columns]
     if numeric_cols:
         tp_mask = df["error_type"] == "TP"
@@ -309,6 +389,55 @@ def analyse(df: pd.DataFrame, name: str, out=sys.stdout) -> None:
                 line = _mw(df.loc[fn_mask, col], df.loc[fp_mask, col], "FN", "FP")
                 print(f"    {col:<30s} {line}", file=out)
 
+    # ── 7. miRNA expression × binding type × outcome ─────────────────────────
+    # Directly tests the hypothesis that highly-expressed miRNAs in specific
+    # binding types (e.g. 3prime.compensatory) are over-represented among FN
+    # (model misses real, abundant interactions) and under-represented among FP.
+    if "mirna_expr" in df.columns and df["mirna_expr"].notna().any():
+        print(f"\n[7] miRNA expression (log10 Mean_RPM) by binding type × outcome",
+              file=out)
+        print(f"    Per binding type: median log10-expr per outcome, plus "
+              f"Mann-Whitney U", file=out)
+        print(f"    for the two key contrasts (FN vs TP among positives, "
+              f"FP vs TN among negatives).", file=out)
+
+        focus_types = [t for t in ("TP", "FN", "TN", "FP") if t in present]
+        group_col = "binding_type" if "binding_type" in df.columns else None
+
+        # Overall expression by outcome first.
+        print(f"\n  ALL binding types:", file=out)
+        for t in focus_types:
+            s = df.loc[df["error_type"] == t, "log10_expr"].dropna()
+            if len(s):
+                print(f"    {t}: median log10-expr={s.median():.3f}  (n={len(s):,})",
+                      file=out)
+        if "FN" in focus_types and "TP" in focus_types:
+            print(f"    FN vs TP: {_mw(df.loc[df.error_type=='TP','log10_expr'], df.loc[df.error_type=='FN','log10_expr'], 'TP', 'FN')}", file=out)
+        if "FP" in focus_types and "TN" in focus_types:
+            print(f"    FP vs TN: {_mw(df.loc[df.error_type=='TN','log10_expr'], df.loc[df.error_type=='FP','log10_expr'], 'TN', 'FP')}", file=out)
+
+        if group_col:
+            # Largest binding types first; skip tiny groups.
+            order = df[group_col].value_counts()
+            for btype in order.index:
+                gsub = df[df[group_col] == btype]
+                if len(gsub) < 20:
+                    continue
+                print(f"\n  binding_type = {btype}  (n={len(gsub):,})", file=out)
+                for t in focus_types:
+                    s = gsub.loc[gsub["error_type"] == t, "log10_expr"].dropna()
+                    if len(s):
+                        print(f"    {t}: median log10-expr={s.median():.3f}  "
+                              f"(n={len(s):,})", file=out)
+                if "FN" in focus_types and "TP" in focus_types:
+                    print(f"    FN vs TP: "
+                          f"{_mw(gsub.loc[gsub.error_type=='TP','log10_expr'], gsub.loc[gsub.error_type=='FN','log10_expr'], 'TP', 'FN')}",
+                          file=out)
+                if "FP" in focus_types and "TN" in focus_types:
+                    print(f"    FP vs TN: "
+                          f"{_mw(gsub.loc[gsub.error_type=='TN','log10_expr'], gsub.loc[gsub.error_type=='FP','log10_expr'], 'TN', 'FP')}",
+                          file=out)
+
     print(f"\n{_SEP}", file=out)
 
 
@@ -333,7 +462,34 @@ def main() -> int:
         "--out", default=None,
         help="Write report to this file in addition to stdout.",
     )
+    parser.add_argument(
+        "--expression", default="../media-2.xlsx",
+        help="miRNA expression panel (xlsx) to join on noncodingRNA_name. "
+             "Adds mirna_expr/log10_expr to the numeric analysis and a "
+             "binding-type × expression × outcome section. "
+             "Pass '' to disable (default: ../media-2.xlsx).",
+    )
+    parser.add_argument(
+        "--expr-col", default="Mean_RPM",
+        help="Column in the expression panel to use (default: Mean_RPM).",
+    )
     args = parser.parse_args()
+
+    expr_map = None
+    if args.expression:
+        p_expr = Path(args.expression)
+        if p_expr.exists():
+            try:
+                expr_map = _load_expression(p_expr, value_col=args.expr_col)
+                print(f"Loaded expression panel {p_expr} "
+                      f"({len(expr_map):,} miRNAs, col={args.expr_col}).",
+                      file=sys.stderr)
+            except Exception as e:
+                print(f"WARNING: could not load expression panel {p_expr}: {e}",
+                      file=sys.stderr)
+        else:
+            print(f"WARNING: expression panel {p_expr} not found — "
+                  f"skipping expression analysis.", file=sys.stderr)
 
     outputs = [sys.stdout]
     fh = None
@@ -358,7 +514,7 @@ def main() -> int:
             continue
         print(f"Loading {p} ...", file=sys.stderr)
         df = pd.read_csv(p, sep="\t", low_memory=False)
-        analyse(df, p.name, out=tee)
+        analyse(df, p.name, out=tee, expr_map=expr_map)
 
     if fh:
         fh.close()
