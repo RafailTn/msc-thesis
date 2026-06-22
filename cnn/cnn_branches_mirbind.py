@@ -72,6 +72,14 @@ try:
 except ImportError:
     HAS_WANDB = False
 
+# Shared binding-type classifier (one definition across training undersampling
+# and error_analysis.py).  Imported flat when run as a script from cnn/,
+# package-style when imported as cnn.cnn_branches_mirbind.
+try:
+    import binding_types as _bt
+except ImportError:
+    from cnn import binding_types as _bt
+
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -844,9 +852,17 @@ def _metrics_from_probs(probs: np.ndarray, labels: np.ndarray,
 def _make_loader(dataset: MiRNAInteractionDataset, batch_size: int,
                  shuffle: bool, num_workers: int,
                  balance: bool = False,
+                 weights: Optional[np.ndarray] = None,
                  persistent_workers: Optional[bool] = None) -> DataLoader:
     sampler = None
-    if balance and shuffle and dataset.has_labels:
+    # Explicit per-sample weights (e.g. negative binding-type undersampling) take
+    # precedence over --balance: they already encode the desired class ratio.
+    if weights is not None and shuffle and dataset.has_labels:
+        sampler = WeightedRandomSampler(
+            torch.as_tensor(weights, dtype=torch.double),
+            num_samples=len(weights), replacement=True)
+        shuffle = False
+    elif balance and shuffle and dataset.has_labels:
         labels  = dataset.labels
         counts  = np.bincount(labels)
         weights = 1.0 / counts[labels]
@@ -1001,6 +1017,146 @@ def _duplex_stats(mirna_idx: np.ndarray, mre_idx: np.ndarray) -> dict:
         out["seed_pairs"][s] = int(
             ((_PAIR_WC[sp, ti[sq]] + _PAIR_GU[sp, ti[sq]]) > 0).sum())
     return out
+
+
+# ---------------------------------------------------------------------------
+# Negative binding-type undersampling
+#
+# Label each pair with the project's canonical binding type (the shared
+# binding_types classifier — same definition error_analysis.py uses), then build
+# WeightedRandomSampler weights that draw negatives of chosen types less often
+# while holding the positive:negative sampling ratio fixed — so the model sees
+# fewer of e.g. seedless / 3'-compensatory decoys without changing the class
+# balance it trains against.
+# ---------------------------------------------------------------------------
+
+# Targetable (non-canonical) categories, from the shared classifier.
+BINDING_TYPES = _bt.UNDERSAMPLE_CATEGORIES
+
+
+def _binding_types(mirna_idx: np.ndarray, mre_idx: np.ndarray,
+                   cache_path: str | Path | None = None) -> np.ndarray:
+    """Per-row canonical binding categories for the given token arrays.
+
+    Classification is pure-Python per row (slow on millions of rows), so when a
+    ``cache_path`` (the source file) is given the result is memoised to a
+    ``<path>.bindtype.npz`` sidecar, keyed on the classifier version, row count
+    and source mtime.  CV folds pass no path and are classified fresh.
+    """
+    if cache_path is not None:
+        cp = Path(str(cache_path) + ".bindtype.npz")
+        try:
+            if cp.exists() and cp.stat().st_mtime >= Path(cache_path).stat().st_mtime:
+                z = np.load(cp, allow_pickle=False)
+                if (int(z["version"][0]) == _bt.CLASSIFIER_VERSION
+                        and int(z["n"][0]) == len(mirna_idx)):
+                    types = z["types"]
+                    z.close()
+                    print(f"  [bindtype] loaded {cp.name}")
+                    return types
+                z.close()
+        except Exception as e:
+            print(f"  [bindtype] ignoring unreadable cache {cp.name}: {e}")
+
+    types = _bt.classify_index_arrays(mirna_idx, mre_idx)
+
+    if cache_path is not None:
+        try:
+            np.savez(cp, version=np.array([_bt.CLASSIFIER_VERSION]),
+                     n=np.array([len(mirna_idx)]), types=types)
+            print(f"  [bindtype] wrote {cp.name}")
+        except Exception as e:
+            print(f"  [bindtype] could not write {cp.name}: {e}")
+    return types
+
+
+def _parse_undersample_spec(tokens) -> dict:
+    """Parse ``--undersample-neg-type`` tokens into {category: factor}.
+
+    Each token is ``CATEGORY`` or ``CATEGORY:FACTOR``.  FACTOR is the
+    sampling-weight multiplier (0 = drop, 1 = no change); a bare ``CATEGORY``
+    defaults to 0.0.  Different factors per category are allowed (e.g. the
+    distribution-matching values differ by type).
+    """
+    spec: dict = {}
+    for tok in tokens:
+        cat, sep, raw = tok.partition(":")
+        if sep:
+            try:
+                factor = float(raw)
+            except ValueError:
+                sys.exit(f"ERROR: --undersample-neg-type {tok!r}: factor "
+                         f"{raw!r} is not a number.")
+        else:
+            factor = 0.0
+        if cat not in BINDING_TYPES:
+            sys.exit(f"ERROR: --undersample-neg-type {tok!r}: unknown category "
+                     f"{cat!r}; choose from {list(BINDING_TYPES)}.")
+        if factor < 0:
+            sys.exit(f"ERROR: --undersample-neg-type {tok!r}: factor must be "
+                     f">= 0, got {factor}.")
+        spec[cat] = factor
+    return spec
+
+
+def _undersample_weights(labels: np.ndarray, binding_types: np.ndarray,
+                         type_factors: dict,
+                         balance: bool) -> Optional[np.ndarray]:
+    """Per-sample WeightedRandomSampler weights that under-represent negatives by
+    a per-category factor (0 = effectively drop, 1 = no change) drawn from
+    ``type_factors`` ({category: factor}), holding the positive:negative sampling
+    ratio fixed.
+
+    The target neg:pos mass ratio is 1.0 when ``balance`` is set (class-balanced)
+    and the natural n_neg/n_pos otherwise.  Within negatives, each targeted
+    category is scaled by its factor and the rest absorb the freed mass, so the
+    overall class ratio is unchanged — only the *composition* of the negatives
+    shifts.
+    """
+    labels = np.asarray(labels)
+    is_pos = labels == 1
+    is_neg = ~is_pos
+    n_pos, n_neg = int(is_pos.sum()), int(is_neg.sum())
+    if n_pos == 0 or n_neg == 0:
+        return None
+
+    factor = np.ones(len(labels), dtype=np.float64)
+    for cat, a in type_factors.items():
+        factor[binding_types == cat] = a
+    factor[is_pos] = 1.0                       # never touch positives
+
+    raw_neg  = factor[is_neg]
+    neg_mass = raw_neg.sum()
+    if neg_mass <= 0:                          # every negative targeted with factor 0
+        print("  [undersample] all negatives targeted with factor 0; skipping "
+              "(would leave no negatives to sample)")
+        return None
+
+    R = 1.0 if balance else n_neg / n_pos      # target neg:pos mass ratio
+    w = np.empty(len(labels), dtype=np.float64)
+    w[is_pos] = 1.0 / n_pos                     # positive mass = 1
+    w[is_neg] = raw_neg * (R / neg_mass)        # negative mass = R
+    parts = [f"{cat}×{a}({int(((binding_types == cat) & is_neg).sum())})"
+             for cat, a in type_factors.items()]
+    print(f"  [undersample] {' '.join(parts)} of {n_neg} neg "
+          f"(target neg:pos mass = {R:.3f})")
+    return w
+
+
+def _train_sampler_weights(train_ds: "MiRNAInteractionDataset",
+                           args: argparse.Namespace,
+                           cache_path: str | Path | None = None
+                           ) -> Optional[np.ndarray]:
+    """Sampler weights for negative-binding-type undersampling, or None when the
+    feature (``--undersample-neg-type``) is disabled."""
+    tokens = getattr(args, "undersample_neg_type", None)
+    if not tokens:
+        return None
+    type_factors  = _parse_undersample_spec(tokens)
+    binding_types = _binding_types(train_ds.mirna_idx, train_ds.mre_idx,
+                                   cache_path=cache_path)
+    return _undersample_weights(
+        train_ds.labels, binding_types, type_factors, balance=args.balance)
 
 
 # ---------------------------------------------------------------------------
@@ -1304,8 +1460,13 @@ def _run_single(args: argparse.Namespace, device: torch.device) -> None:
         val_loader = _make_loader(val_ds,   args.batch_size, shuffle=False,
                                   num_workers=args.num_workers)
 
+    # Cache binding-type labels keyed to the source file, but not when --dedup is
+    # active (the deduped row set no longer matches the on-disk file).
+    bt_cache_path = args.train if (cache and not args.dedup) else None
+    train_weights = _train_sampler_weights(train_ds, args, cache_path=bt_cache_path)
     train_loader = _make_loader(train_ds, args.batch_size, shuffle=True,
-                                num_workers=args.num_workers, balance=args.balance)
+                                num_workers=args.num_workers, balance=args.balance,
+                                weights=train_weights)
 
     model_args = _model_args_from_cli(args)
     model = MiRBindCNN(**model_args).to(device)
@@ -1388,8 +1549,10 @@ def _run_kfold(args: argparse.Namespace, device: torch.device) -> None:
         print(f"  train positives: {int(train_ds.labels.sum())} / {len(train_ds.labels)}")
         print(f"  val   positives: {int(val_ds.labels.sum())} / {len(val_ds.labels)}")
 
+        train_weights = _train_sampler_weights(train_ds, args)
         train_loader = _make_loader(train_ds, args.batch_size, shuffle=True,
-                                    num_workers=args.num_workers, balance=args.balance)
+                                    num_workers=args.num_workers, balance=args.balance,
+                                    weights=train_weights)
         val_loader   = _make_loader(val_ds,   args.batch_size, shuffle=False,
                                     num_workers=args.num_workers)
 
@@ -1796,6 +1959,18 @@ def main() -> int:
                          "(focal already handles imbalance); pass --balance to "
                          "use sampler oversampling instead.")
     tr.add_argument("--balance",      action="store_true")
+    tr.add_argument("--undersample-neg-type", nargs="+", default=None,
+                    metavar="TYPE[:FACTOR]", dest="undersample_neg_type",
+                    help="Under-represent negatives of these canonical binding "
+                         "categories via the training sampler, keeping the "
+                         "positive:negative ratio fixed. Each token is CATEGORY "
+                         "or CATEGORY:FACTOR, where FACTOR is the sampling-weight "
+                         "multiplier (0 = drop, 1 = no change); a bare CATEGORY "
+                         "defaults to 0.0. Per-category factors may differ. "
+                         "Categories come from the shared binding_types classifier "
+                         f"(same one error_analysis uses): {', '.join(BINDING_TYPES)}. "
+                         "Example: --undersample-neg-type seedless:0.55 "
+                         "3prime.compensatory:0.8")
     tr.add_argument("--no-cache",     action="store_true", dest="no_cache",
                     help="Disable the preprocessing .cnncache.npz sidecar files.")
     tr.add_argument("--checkpoint-metric",
