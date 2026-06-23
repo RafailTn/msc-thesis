@@ -23,6 +23,12 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
+try:
+    from sklearn.metrics import average_precision_score
+    HAS_SKLEARN = True
+except ImportError:
+    HAS_SKLEARN = False
+
 # Binding-type classification lives in a shared, numpy-only module so this script
 # and cnn_branches_mirbind.py (negative undersampling) use one definition.
 # Imported flat when run as a script from cnn/, package-style when imported as
@@ -437,6 +443,45 @@ def analyse(df: pd.DataFrame, name: str, out=sys.stdout,
                     print(f"    FP vs TN: "
                           f"{_mw(gsub.loc[gsub.error_type=='TN','log10_expr'], gsub.loc[gsub.error_type=='FP','log10_expr'], 'TN', 'FP')}",
                           file=out)
+
+    # ── 8. Average precision (AP) by binding type ────────────────────────────
+    # AP is threshold-free and rank-based — the model-selection metric here.
+    # GLOBAL AP is the area under the pooled precision-recall curve; it is NOT
+    # the average of the per-type APs (it also depends on cross-type score
+    # comparability), so both are reported.  Each per-type AP is shown next to
+    # that type's positive prevalence — the AP of a random ranker — so the lift
+    # over chance (AP - prevalence) is directly visible.  Model-agnostic: runs
+    # the same on a base-CNN or FiLM error dump.
+    if HAS_SKLEARN and "label" in df.columns and "prob" in df.columns:
+        y  = pd.to_numeric(df["label"], errors="coerce")
+        p  = pd.to_numeric(df["prob"],  errors="coerce")
+        ok = y.notna() & p.notna()
+        y, p = y[ok].astype(int), p[ok]
+        if y.nunique() == 2:
+            print(f"\n[8] Average precision (AP) by binding type", file=out)
+            ap_all = average_precision_score(y, p)
+            print(f"    GLOBAL AP = {ap_all:.4f}   "
+                  f"(prevalence={y.mean():.3f}, n={len(y):,})", file=out)
+
+            if "binding_type" in df.columns:
+                sub = pd.DataFrame({"y": y.values, "p": p.values,
+                                    "bt": df.loc[ok, "binding_type"].values})
+                hdr = (f"  {'binding_type':<24}{'n':>9}{'prevalence':>12}"
+                       f"{'AP':>9}{'AP-prev':>10}")
+                print(hdr, file=out)
+                print("  " + "-" * (len(hdr) - 2), file=out)
+                rows = []
+                for cat, g in sub.groupby("bt"):
+                    if len(g) < 50 or g["y"].nunique() < 2:
+                        continue
+                    ap = average_precision_score(g["y"], g["p"])
+                    rows.append((len(g), str(cat), float(g["y"].mean()), ap))
+                for n, cat, prev, ap in sorted(rows, key=lambda r: -r[0]):
+                    print(f"  {cat:<24}{n:>9,}{prev:>12.3f}{ap:>9.3f}"
+                          f"{ap - prev:>+10.3f}", file=out)
+        elif y.nunique() < 2:
+            print(f"\n[8] Average precision: skipped (only one class present).",
+                  file=out)
 
     print(f"\n{_SEP}", file=out)
 
