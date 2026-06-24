@@ -45,6 +45,11 @@ except ImportError:
 
 _SEP = "=" * 72
 
+# Weak-seed binding categories: no strong canonical seed for the model to lean
+# on, so misclassifications there are the most informative about systematic
+# blind spots.  Must match classify_binding_type's output labels.
+_WEAK_SEED_CATS = ["seedless", "3prime.compensatory"]
+
 
 def _pct(n: int, total: int) -> str:
     return f"{n:>7,d}  ({100 * n / total if total else 0:.1f}%)"
@@ -209,12 +214,65 @@ def _enrichment_table(df: pd.DataFrame, col: str,
               f"{int(row['n_total']):>8,d}  {or_str}  {row['fisher_p']:.2e}", file=out)
 
 
+def _weak_seed_mirna_dist(df: pd.DataFrame, out=sys.stdout, top_n: int = 15,
+                          cats: list[str] | None = None) -> None:
+    """miRNA-name distribution across misclassified samples, by binding type.
+
+    For each selected binding category (default: the weak-seed ones, where the
+    model has no strong seed to rely on), reports — per category and per error
+    type (FN, FP) — which miRNAs the misclassifications fall on, each miRNA's
+    misclassification *rate* within that category (to separate "abundant" from
+    "intrinsically hard"), and how concentrated the errors are (top-k name
+    coverage).  Reuses the binding_type column computed in section [1].
+    """
+    cats = list(cats) if cats else list(_WEAK_SEED_CATS)
+    name_col = "noncodingRNA_name"
+    if "binding_type" not in df.columns or name_col not in df.columns:
+        print("\n[9] miRNA misclassification distribution by binding type: "
+              "skipped (needs binding_type and noncodingRNA_name).", file=out)
+        return
+
+    print(f"\n[9] miRNA misclassification distribution by binding type  "
+          f"(types: {', '.join(cats)})", file=out)
+    for cat in cats:
+        c = df[df["binding_type"] == cat]
+        if not len(c):
+            print(f"\n  {cat}: none in this file.", file=out)
+            continue
+        mis = c[c["error_type"].isin(["FN", "FP"])]
+        print(f"\n  {cat}:  total={len(c):,}  "
+              f"misclassified(FN+FP)={len(mis):,} ({100*len(mis)/len(c):.1f}%)  "
+              f"unique miRNAs(mis)={mis[name_col].nunique()}", file=out)
+
+        for et in ["FN", "FP"]:
+            sub = mis[mis["error_type"] == et]
+            if not len(sub):
+                continue
+            print(f"\n    --- {et}  (n={len(sub):,}, "
+                  f"{sub[name_col].nunique()} unique names) ---", file=out)
+            vc = sub[name_col].value_counts().head(top_n)
+            for nm, n in vc.items():
+                in_cat = int((c[name_col] == nm).sum())
+                rate = 100 * n / in_cat if in_cat else 0.0
+                print(f"      {str(nm):<55s} {n:>5,}  "
+                      f"({rate:>5.1f}% of its {in_cat:,} {cat})", file=out)
+
+        if len(mis):
+            vc_all = mis[name_col].value_counts()
+            for k in (5, 10, 20):
+                cover = 100 * vc_all.head(k).sum() / len(mis)
+                print(f"    top-{k} miRNA names cover {cover:.1f}% of misclassified",
+                      file=out)
+
+
 # ---------------------------------------------------------------------------
 # Per-file analysis
 # ---------------------------------------------------------------------------
 
 def analyse(df: pd.DataFrame, name: str, out=sys.stdout,
-            expr_map: dict[str, float] | None = None) -> None:
+            expr_map: dict[str, float] | None = None,
+            weak_seed_top_n: int = 15,
+            binding_types: list[str] | None = None) -> None:
     print(f"\n{_SEP}", file=out)
     print(f"FILE: {name}", file=out)
     print(_SEP, file=out)
@@ -483,6 +541,9 @@ def analyse(df: pd.DataFrame, name: str, out=sys.stdout,
             print(f"\n[8] Average precision: skipped (only one class present).",
                   file=out)
 
+    # ── 9. miRNA misclassification distribution by binding type ──────────────
+    _weak_seed_mirna_dist(df, out=out, top_n=weak_seed_top_n, cats=binding_types)
+
     print(f"\n{_SEP}", file=out)
 
 
@@ -517,6 +578,18 @@ def main() -> int:
     parser.add_argument(
         "--expr-col", default="Mean_RPM",
         help="Column in the expression panel to use (default: Mean_RPM).",
+    )
+    parser.add_argument(
+        "--weak-seed-top-n", type=int, default=15,
+        help="Top miRNA names to list per error type in the binding-type "
+             "misclassification distribution (section 9; default: 15).",
+    )
+    parser.add_argument(
+        "--binding-types", nargs="+", default=list(_WEAK_SEED_CATS),
+        metavar="TYPE",
+        help="Binding categories to break down in section 9 (e.g. seedless "
+             "3prime.compensatory 3prime centered 8mer 7mer 6mer). "
+             "Default: the weak-seed pair %(default)s.",
     )
     args = parser.parse_args()
 
@@ -559,7 +632,9 @@ def main() -> int:
             continue
         print(f"Loading {p} ...", file=sys.stderr)
         df = pd.read_csv(p, sep="\t", low_memory=False)
-        analyse(df, p.name, out=tee, expr_map=expr_map)
+        analyse(df, p.name, out=tee, expr_map=expr_map,
+                weak_seed_top_n=args.weak_seed_top_n,
+                binding_types=args.binding_types)
 
     if fh:
         fh.close()
