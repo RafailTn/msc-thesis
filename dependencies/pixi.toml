@@ -1,0 +1,32 @@
+[workspace]                                                                   
+channels = ["conda-forge", "bioconda"]                                                   
+name = "cnn"                  
+platforms = ["linux-64"]
+version = "0.1.0"                                                                                              
+                                                                                
+[tasks]                                                                         
+   
+[dependencies]
+cuda-nvcc = "=12.8"
+cuda-cudart-dev = "=12.8"
+python = "<3.14.0"
+polars = ">=1.35.1,<2"
+scikit-learn = ">=1.7.2,<2"
+python-dotenv = ">=1.2.2,<2"
+optuna-integration = ">=4.7.0,<5"
+matplotlib = ">=3.10.9,<4"
+pandas = ">=3.0.3,<4"
+transformers = ">=5.10.2,<6"
+intarna = ">=3.4.1,<4"
+pybigwig = ">=0.3.23,<0.4"
+pyfaidx = ">=0.9.0.4,<0.10"
+samtools = ">=1.23,<2"
+
+[pypi-dependencies]
+lightning = ">=2.5.6, <3"
+pyranges = ">=0.1.4,<0.2"
+fastexcel = ">=0.18.0, <0.19"
+ipykernel = ">=7.1.0, <8"
+pynvim = ">=0.6.0, <0.7"
+wandb = ">=0.25.0, <0.26"
+weave = ">=0.52.30, <0.53"

@@ -88,6 +88,9 @@ except ImportError:
 MRE_LEN   = 50
 MAX_MIRNA = 30
 
+# Shared zero accessibility vector for samples/files without a tAcc column.
+_ZERO_ACC = np.zeros(MRE_LEN, dtype=np.float32)
+
 # Watson-Crick + G·U wobble complementarity (RNA)
 _WC_PAIRS: set[tuple[str, str]] = {
     ("A", "U"), ("U", "A"),
@@ -194,7 +197,8 @@ _ASCII_IDX[ord("t")] = _NUC_IDX["U"]
 # Bump when the on-disk preprocessing cache format changes.
 # v2: dropped the tspot and energy arrays (tspot/energy branches removed).
 # v3: dropped the conservation and eclip arrays (those branches removed).
-_CACHE_VERSION = 3
+# v4: added the per-MRE accessibility vector (tAcc) for the MRE-axis channel.
+_CACHE_VERSION = 4
 
 
 def _norm_seq(seq: str) -> str:
@@ -297,16 +301,19 @@ def _save_cache(path: str | Path, mre_col: str, mirna_col: str,
                 ds: "MiRNAInteractionDataset") -> None:
     cp = _cache_path(path)
     try:
-        np.savez(
-            cp,
+        arrays = dict(
             version=np.array([_CACHE_VERSION]),
             mre_col=np.array([mre_col]),
             mirna_col=np.array([mirna_col]),
             dims=np.array([MAX_MIRNA, MRE_LEN]),
+            has_acc=np.array([ds.tacc is not None]),
             mirna_idx=ds.mirna_idx,
             mre_idx=ds.mre_idx,
             labels=ds.labels,
         )
+        if ds.tacc is not None:
+            arrays["tacc"] = ds.tacc
+        np.savez(cp, **arrays)
         print(f"  [cache] wrote {cp.name}")
     except Exception as e:   # caching is best-effort; never fail training over it
         print(f"  [cache] could not write {cp.name}: {e}")
@@ -330,6 +337,7 @@ def _load_cache(path: str | Path, mre_col: str, mirna_col: str) -> Optional[dict
             "mirna_idx":  z["mirna_idx"],
             "mre_idx":    z["mre_idx"],
             "labels":     z["labels"],
+            "tacc":       z["tacc"] if bool(z["has_acc"][0]) else None,
         }
         z.close()
         return data
@@ -349,6 +357,7 @@ class MiRNAInteractionDataset(Dataset):
         has_labels: bool = True,
         mre_col: str = "mre_sequence",
         mirna_col: str = "mirna_sequence",
+        acc_col: str = "tAcc",
         cache: bool = True,
     ) -> None:
         cached = _load_cache(path, mre_col, mirna_col) if cache else None
@@ -357,7 +366,7 @@ class MiRNAInteractionDataset(Dataset):
             self.has_labels = has_labels
             self._set_arrays(**cached)
         else:
-            self._init(_read_table(path), has_labels, mre_col, mirna_col)
+            self._init(_read_table(path), has_labels, mre_col, mirna_col, acc_col)
             if cache:
                 _save_cache(path, mre_col, mirna_col, self)
 
@@ -368,9 +377,10 @@ class MiRNAInteractionDataset(Dataset):
         has_labels: bool = True,
         mre_col: str = "mre_sequence",
         mirna_col: str = "mirna_sequence",
+        acc_col: str = "tAcc",
     ) -> "MiRNAInteractionDataset":
         obj = cls.__new__(cls)
-        obj._init(df, has_labels, mre_col, mirna_col)
+        obj._init(df, has_labels, mre_col, mirna_col, acc_col)
         return obj
 
     def _init(
@@ -379,9 +389,10 @@ class MiRNAInteractionDataset(Dataset):
         has_labels: bool,
         mre_col: str,
         mirna_col: str,
+        acc_col: str = "tAcc",
     ) -> None:
         self.has_labels = has_labels
-        self._build_arrays(df, has_labels, mre_col, mirna_col)
+        self._build_arrays(df, has_labels, mre_col, mirna_col, acc_col)
 
     def _build_arrays(
         self,
@@ -389,11 +400,22 @@ class MiRNAInteractionDataset(Dataset):
         has_labels: bool,
         mre_col: str,
         mirna_col: str,
+        acc_col: str = "tAcc",
     ) -> None:
         # Tokenise sequences once into int8 index matrices; the Watson–Crick
         # matrix is assembled on-device in the model forward pass.
         self.mirna_idx = _encode_seqs(df[mirna_col].astype(str).tolist(), MAX_MIRNA)  # (N, 30)
         self.mre_idx   = _encode_seqs(df[mre_col].astype(str).tolist(),   MRE_LEN)    # (N, 50)
+
+        # Per-MRE accessibility (unpaired probability), one value per MRE base.
+        # Parsed only when the column is present; otherwise the channel, if the
+        # model requests it, sees zeros.  Stored as (N, MRE_LEN) float32.
+        if acc_col and acc_col in df.columns:
+            self.tacc = np.stack(
+                [_parse_vector(v, MRE_LEN) for v in df[acc_col].tolist()]
+            ).astype(np.float32)
+        else:
+            self.tacc = None
 
         if has_labels and "label" in df.columns:
             self.labels = df["label"].astype(int).values
@@ -405,19 +427,24 @@ class MiRNAInteractionDataset(Dataset):
         mirna_idx: np.ndarray,
         mre_idx: np.ndarray,
         labels: np.ndarray,
+        tacc: Optional[np.ndarray] = None,
     ) -> None:
         """Populate arrays from a loaded cache."""
         self.mirna_idx  = mirna_idx
         self.mre_idx    = mre_idx
+        self.tacc       = tacc
         self.labels = labels if self.has_labels else np.zeros(len(mirna_idx), dtype=np.int64)
 
     def __len__(self) -> int:
         return len(self.mirna_idx)
 
     def __getitem__(self, idx: int):
+        acc = (self.tacc[idx] if self.tacc is not None
+               else _ZERO_ACC)                              # (MRE_LEN,) float32
         return (
             torch.from_numpy(self.mirna_idx[idx]),          # (MAX_MIRNA,) int8
             torch.from_numpy(self.mre_idx[idx]),            # (MRE_LEN,)   int8
+            torch.from_numpy(acc),                          # (MRE_LEN,)   float32
             int(self.labels[idx]),
         )
 
@@ -705,6 +732,7 @@ class MiRBindCNN(nn.Module):
         seq_pool:         str   = "gem",
         pool_heads:       int   = 1,
         seq_pos_channels: bool  = False,
+        seq_acc_channel:  bool  = False,
         n_conv_blocks:    int   = 6,
         n_pool_blocks:    int   = 4,
         block_pool:       str   = "max",
@@ -763,10 +791,17 @@ class MiRBindCNN(nn.Module):
         else:
             n_pos_ch = 0
 
+        # ── Per-MRE accessibility channel (dual of the positional channel):
+        # the unpaired probability of each MRE base, constant along the miRNA
+        # axis and varying along the MRE axis.  Data-driven (passed per sample
+        # in forward), so nothing to register here — just the channel count.
+        self.seq_acc_channel = seq_acc_channel
+        n_acc_ch = 1 if seq_acc_channel else 0
+
         # ── miRBind 2D sequence branch ───────────────────────────────────────
         self.seq_branch = MiRBindSeqBranch(
             n_filters=seq_filters, out_dim=seq_dim, dropout=seq_dropout,
-            in_ch=n_pair_ch + n_pos_ch, pool=seq_pool, pool_heads=pool_heads,
+            in_ch=n_pair_ch + n_pos_ch + n_acc_ch, pool=seq_pool, pool_heads=pool_heads,
             n_conv_blocks=n_conv_blocks, n_pool_blocks=n_pool_blocks,
             block_pool=block_pool, activation=activation)
 
@@ -785,8 +820,9 @@ class MiRBindCNN(nn.Module):
 
     def forward(
         self,
-        mi:     torch.Tensor,   # (B, MAX_MIRNA)  int nucleotide indices
-        ti:     torch.Tensor,   # (B, MRE_LEN)    int nucleotide indices
+        mi:     torch.Tensor,            # (B, MAX_MIRNA)  int nucleotide indices
+        ti:     torch.Tensor,            # (B, MRE_LEN)    int nucleotide indices
+        acc:    Optional[torch.Tensor] = None,  # (B, MRE_LEN) float accessibility
     ) -> torch.Tensor:          # (B,) logits
 
         # ── miRBind 2D sequence branch ───────────────────────────────────────
@@ -801,7 +837,7 @@ class MiRBindCNN(nn.Module):
         # Pad cells (mi/ti == index 4) must carry no signal.  Fixed tables zero
         # them by construction; the learnable embedding and the positional planes
         # do not, so build the valid-cell mask when either needs it.
-        if self._pair_learnable or self.seq_pos_channels:
+        if self._pair_learnable or self.seq_pos_channels or self.seq_acc_channel:
             valid = ((mi < 4)[:, :, None] & (ti < 4)[:, None, :])  # (B, 30, 50)
             vmask = valid.unsqueeze(1).to(wc_mat.dtype)            # (B, 1, 30, 50)
         if self._pair_learnable:
@@ -809,6 +845,14 @@ class MiRBindCNN(nn.Module):
         if self.seq_pos_channels:
             pos = self.pos_planes.unsqueeze(0).expand(wc_mat.shape[0], -1, -1, -1)
             wc_mat = torch.cat([wc_mat, pos * vmask], dim=1)       # (B, C_pair+N_POS, 30, 50)
+        if self.seq_acc_channel:
+            if acc is None:
+                acc = wc_mat.new_zeros(wc_mat.shape[0], MRE_LEN)
+            # broadcast the per-MRE-base accessibility across the miRNA axis:
+            # constant along rows (miRNA), varies along columns (MRE).
+            acc_plane = acc.to(wc_mat.dtype)[:, None, None, :].expand(
+                -1, 1, MAX_MIRNA, -1)                             # (B, 1, 30, 50)
+            wc_mat = torch.cat([wc_mat, acc_plane * vmask], dim=1)  # (B, ..+1, 30, 50)
         h_seq = self.seq_branch(wc_mat)         # (B, seq_dim)
 
         return self.classifier(h_seq).squeeze(-1)
@@ -919,12 +963,13 @@ def evaluate(model: MiRBindCNN, loader: DataLoader,
     all_logits, all_labels = [], []
     total_loss, n_batches  = 0.0, 0
 
-    for mi, ti, labels in loader:
+    for mi, ti, acc, labels in loader:
         mi     = mi.to(device,     non_blocking=True)
         ti     = ti.to(device,     non_blocking=True)
+        acc    = acc.to(device,    non_blocking=True)
         labels = labels.to(device, non_blocking=True).float()
 
-        logits = model(mi, ti)
+        logits = model(mi, ti, acc)
         loss   = _compute_loss(logits, labels, pos_weight, gamma)
         total_loss += loss.item()
         n_batches  += 1
@@ -949,10 +994,11 @@ def predict_logits(model: MiRBindCNN, loader: DataLoader,
     """
     model.eval()
     all_logits, all_labels = [], []
-    for mi, ti, labels in loader:
+    for mi, ti, acc, labels in loader:
         mi     = mi.to(device,     non_blocking=True)
         ti     = ti.to(device,     non_blocking=True)
-        logits = model(mi, ti)
+        acc    = acc.to(device,    non_blocking=True)
+        logits = model(mi, ti, acc)
         all_logits.append(logits.cpu().numpy())
         all_labels.append(labels.numpy())
     return np.concatenate(all_logits), np.concatenate(all_labels).astype(int)
@@ -1173,6 +1219,7 @@ def _model_args_from_cli(args: argparse.Namespace) -> dict:
         "seq_pool":         args.seq_pool,
         "pool_heads":       args.pool_heads,
         "seq_pos_channels": args.seq_pos_channels,
+        "seq_acc_channel":  args.seq_acc_channel,
         "n_conv_blocks":    args.n_conv_blocks,
         "n_pool_blocks":    args.n_pool_blocks,
         "block_pool":       args.block_pool,
@@ -1284,12 +1331,13 @@ def _train_one_run(
         seen = 0
         train_logits_buf, train_labels_buf = [], []
 
-        for mi, ti, labels in train_loader:
+        for mi, ti, acc, labels in train_loader:
             mi     = mi.to(device,     non_blocking=True)
             ti     = ti.to(device,     non_blocking=True)
+            acc    = acc.to(device,    non_blocking=True)
             labels = labels.to(device, non_blocking=True).float()
 
-            logits = model(mi, ti)
+            logits = model(mi, ti, acc)
             loss   = _compute_loss(logits, labels, pos_weight, gamma)
 
             optim.zero_grad(set_to_none=True)
@@ -1442,20 +1490,25 @@ def _run_single(args: argparse.Namespace, device: torch.device) -> None:
                                 args.mirna_col, args.mre_col, args.dedup)
         train_ds = MiRNAInteractionDataset.from_df(
             train_df, has_labels=True,
-            mre_col=args.mre_col, mirna_col=args.mirna_col)
+            mre_col=args.mre_col, mirna_col=args.mirna_col, acc_col=args.acc_col)
     else:
         train_ds = MiRNAInteractionDataset(
             args.train, has_labels=True,
-            mre_col=args.mre_col, mirna_col=args.mirna_col, cache=cache)
+            mre_col=args.mre_col, mirna_col=args.mirna_col, acc_col=args.acc_col, cache=cache)
     print(f"  train samples : {len(train_ds)}")
     print(f"  positives     : {int(train_ds.labels.sum())} / {len(train_ds.labels)}")
+    if args.seq_acc_channel and train_ds.tacc is None:
+        print(f"  WARNING: --seq-acc-channel set but column {args.acc_col!r} not "
+              f"found in {args.train}; the accessibility channel will be all "
+              f"zeros. Add the column (see cnn/compute_accessibility.py) or drop "
+              f"the flag.")
 
     val_loader = None
     if not args.no_val:
         print("Loading validation data ...")
         val_ds = MiRNAInteractionDataset(
             args.val, has_labels=True,
-            mre_col=args.mre_col, mirna_col=args.mirna_col, cache=cache)
+            mre_col=args.mre_col, mirna_col=args.mirna_col, acc_col=args.acc_col, cache=cache)
         print(f"  val samples   : {len(val_ds)}")
         val_loader = _make_loader(val_ds,   args.batch_size, shuffle=False,
                                   num_workers=args.num_workers)
@@ -1541,10 +1594,10 @@ def _run_kfold(args: argparse.Namespace, device: torch.device) -> None:
 
         train_ds = MiRNAInteractionDataset.from_df(
             train_df, has_labels=True,
-            mre_col=args.mre_col, mirna_col=args.mirna_col)
+            mre_col=args.mre_col, mirna_col=args.mirna_col, acc_col=args.acc_col)
         val_ds   = MiRNAInteractionDataset.from_df(
             val_df, has_labels=True,
-            mre_col=args.mre_col, mirna_col=args.mirna_col)
+            mre_col=args.mre_col, mirna_col=args.mirna_col, acc_col=args.acc_col)
 
         print(f"  train positives: {int(train_ds.labels.sum())} / {len(train_ds.labels)}")
         print(f"  val   positives: {int(val_ds.labels.sum())} / {len(val_ds.labels)}")
@@ -1587,7 +1640,7 @@ def _run_kfold(args: argparse.Namespace, device: torch.device) -> None:
                 test_ds   = MiRNAInteractionDataset.from_df(
                     _read_table(test_path),
                     has_labels=True,
-                    mre_col=args.mre_col, mirna_col=args.mirna_col)
+                    mre_col=args.mre_col, mirna_col=args.mirna_col, acc_col=args.acc_col)
                 test_loader = _make_loader(
                     test_ds, args.batch_size, shuffle=False,
                     num_workers=args.num_workers)
@@ -1716,6 +1769,7 @@ def _load_ckpt_model(checkpoint: str | Path,
     # the keys are absent (newer checkpoints carry their own values).
     for key, val in [("seq_pairing", "binary"), ("seq_pool", "avg"),
                      ("pool_heads", 1), ("seq_pos_channels", False),
+                     ("seq_acc_channel", False),
                      ("n_conv_blocks", 6), ("n_pool_blocks", 4),
                      ("block_pool", "max"), ("activation", "leaky_relu")]:
         margs.setdefault(key, val)
@@ -1743,16 +1797,17 @@ def cmd_predict(args: argparse.Namespace) -> None:
 
     ds = MiRNAInteractionDataset(
         args.input, has_labels=True,
-        mre_col=args.mre_col, mirna_col=args.mirna_col, cache=not args.no_cache)
+        mre_col=args.mre_col, mirna_col=args.mirna_col, acc_col=args.acc_col, cache=not args.no_cache)
     loader = DataLoader(ds, batch_size=args.batch_size, shuffle=False,
                         num_workers=args.num_workers, pin_memory=True)
 
     all_probs, all_preds, all_labels = [], [], []
     with torch.no_grad():
-        for mi, ti, labels in loader:
+        for mi, ti, acc, labels in loader:
             mi     = mi.to(device)
             ti     = ti.to(device)
-            logits = model(mi, ti)
+            acc    = acc.to(device)
+            logits = model(mi, ti, acc)
             probs  = torch.sigmoid(logits).cpu().numpy()
             all_probs.extend(probs.tolist())
             all_preds.extend((probs >= args.threshold).astype(int).tolist())
@@ -1811,7 +1866,7 @@ def cmd_predict_ensemble(args: argparse.Namespace) -> None:
         ds = MiRNAInteractionDataset(
             test_path, has_labels=True,
             mre_col=args.mre_col, mirna_col=args.mirna_col,
-            cache=not args.no_cache)
+            acc_col=args.acc_col, cache=not args.no_cache)
 
         fold_probs: list[np.ndarray] = []
         per_fold: list[tuple[str, dict]] = []
@@ -1888,6 +1943,10 @@ def main() -> int:
     tr.add_argument("--out",        default="checkpoints/cnn_mirbind.pt")
     tr.add_argument("--mre-col",    default="mre_sequence",   dest="mre_col")
     tr.add_argument("--mirna-col",  default="mirna_sequence", dest="mirna_col")
+    tr.add_argument("--acc-col",    default="tAcc",           dest="acc_col",
+                    help="Column holding the per-MRE accessibility vector "
+                         "(comma-separated unpaired probabilities). Used only "
+                         "when --seq-acc-channel is set.")
     # Architecture
     tr.add_argument("--seq-filters",     type=int,   default=64,
                     dest="seq_filters",
@@ -1923,6 +1982,11 @@ def main() -> int:
                          "pairing map (CoordConv-style) so the conv can condition "
                          "on position (seed vs 3′ supplementary). MRE position is "
                          "excluded. Off by default.")
+    tr.add_argument("--seq-acc-channel", action="store_true", dest="seq_acc_channel",
+                    help="Append the per-MRE accessibility channel (unpaired "
+                         "probability per MRE base, from --acc-col) to the 2D "
+                         "pairing map: constant along the miRNA axis, varying "
+                         "along the MRE axis. Off by default.")
     tr.add_argument("--n-conv-blocks", type=int, default=6, dest="n_conv_blocks",
                     help="Number of Conv2d blocks in the 2D sequence branch.")
     tr.add_argument("--n-pool-blocks", type=int, default=4, dest="n_pool_blocks",
@@ -1996,6 +2060,9 @@ def main() -> int:
     pr.add_argument("--num-workers", type=int,  default=4, dest="num_workers")
     pr.add_argument("--mre-col",   default="mre_sequence",   dest="mre_col")
     pr.add_argument("--mirna-col", default="mirna_sequence", dest="mirna_col")
+    pr.add_argument("--acc-col",   default="tAcc",           dest="acc_col",
+                    help="Per-MRE accessibility column (used if the checkpoint "
+                         "was trained with the accessibility channel).")
     pr.add_argument("--no-cache",  action="store_true", dest="no_cache",
                     help="Disable the preprocessing .cnncache.npz sidecar files.")
     pr.add_argument("--device",
@@ -2016,6 +2083,9 @@ def main() -> int:
     pe.add_argument("--num-workers", type=int,  default=4, dest="num_workers")
     pe.add_argument("--mre-col",   default="mre_sequence",   dest="mre_col")
     pe.add_argument("--mirna-col", default="mirna_sequence", dest="mirna_col")
+    pe.add_argument("--acc-col",   default="tAcc",           dest="acc_col",
+                    help="Per-MRE accessibility column (used if the checkpoints "
+                         "were trained with the accessibility channel).")
     pe.add_argument("--no-cache",  action="store_true", dest="no_cache",
                     help="Disable the preprocessing .cnncache.npz sidecar files.")
     pe.add_argument("--device",
