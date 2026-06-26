@@ -88,8 +88,9 @@ except ImportError:
 MRE_LEN   = 50
 MAX_MIRNA = 30
 
-# Shared zero accessibility vector for samples/files without a tAcc column.
+# Shared zero vectors for samples/files without a tAcc / conservation column.
 _ZERO_ACC = np.zeros(MRE_LEN, dtype=np.float32)
+_ZERO_CON = np.zeros(MRE_LEN, dtype=np.float32)
 
 # Watson-Crick + G·U wobble complementarity (RNA)
 _WC_PAIRS: set[tuple[str, str]] = {
@@ -198,7 +199,8 @@ _ASCII_IDX[ord("t")] = _NUC_IDX["U"]
 # v2: dropped the tspot and energy arrays (tspot/energy branches removed).
 # v3: dropped the conservation and eclip arrays (those branches removed).
 # v4: added the per-MRE accessibility vector (tAcc) for the MRE-axis channel.
-_CACHE_VERSION = 4
+# v5: added the per-MRE conservation vector (phastCons/phyloP) MRE-axis channel.
+_CACHE_VERSION = 5
 
 
 def _norm_seq(seq: str) -> str:
@@ -298,6 +300,7 @@ def _cache_path(path: str | Path) -> Path:
 
 
 def _save_cache(path: str | Path, mre_col: str, mirna_col: str,
+                acc_col: str, con_col: str,
                 ds: "MiRNAInteractionDataset") -> None:
     cp = _cache_path(path)
     try:
@@ -305,21 +308,27 @@ def _save_cache(path: str | Path, mre_col: str, mirna_col: str,
             version=np.array([_CACHE_VERSION]),
             mre_col=np.array([mre_col]),
             mirna_col=np.array([mirna_col]),
+            acc_col=np.array([acc_col or ""]),
+            con_col=np.array([con_col or ""]),
             dims=np.array([MAX_MIRNA, MRE_LEN]),
             has_acc=np.array([ds.tacc is not None]),
+            has_con=np.array([ds.tcon is not None]),
             mirna_idx=ds.mirna_idx,
             mre_idx=ds.mre_idx,
             labels=ds.labels,
         )
         if ds.tacc is not None:
             arrays["tacc"] = ds.tacc
+        if ds.tcon is not None:
+            arrays["tcon"] = ds.tcon
         np.savez(cp, **arrays)
         print(f"  [cache] wrote {cp.name}")
     except Exception as e:   # caching is best-effort; never fail training over it
         print(f"  [cache] could not write {cp.name}: {e}")
 
 
-def _load_cache(path: str | Path, mre_col: str, mirna_col: str) -> Optional[dict]:
+def _load_cache(path: str | Path, mre_col: str, mirna_col: str,
+                acc_col: str, con_col: str) -> Optional[dict]:
     cp = _cache_path(path)
     if not cp.exists():
         return None
@@ -330,6 +339,8 @@ def _load_cache(path: str | Path, mre_col: str, mirna_col: str) -> Optional[dict
         if (int(z["version"][0]) != _CACHE_VERSION
                 or str(z["mre_col"][0]) != mre_col
                 or str(z["mirna_col"][0]) != mirna_col
+                or str(z["acc_col"][0]) != (acc_col or "")
+                or str(z["con_col"][0]) != (con_col or "")
                 or list(z["dims"]) != [MAX_MIRNA, MRE_LEN]):
             z.close()
             return None
@@ -338,6 +349,7 @@ def _load_cache(path: str | Path, mre_col: str, mirna_col: str) -> Optional[dict
             "mre_idx":    z["mre_idx"],
             "labels":     z["labels"],
             "tacc":       z["tacc"] if bool(z["has_acc"][0]) else None,
+            "tcon":       z["tcon"] if bool(z["has_con"][0]) else None,
         }
         z.close()
         return data
@@ -358,17 +370,20 @@ class MiRNAInteractionDataset(Dataset):
         mre_col: str = "mre_sequence",
         mirna_col: str = "mirna_sequence",
         acc_col: str = "tAcc",
+        con_col: str = "",
         cache: bool = True,
     ) -> None:
-        cached = _load_cache(path, mre_col, mirna_col) if cache else None
+        cached = (_load_cache(path, mre_col, mirna_col, acc_col, con_col)
+                  if cache else None)
         if cached is not None:
             print(f"  [cache] loaded {_cache_path(path).name}")
             self.has_labels = has_labels
             self._set_arrays(**cached)
         else:
-            self._init(_read_table(path), has_labels, mre_col, mirna_col, acc_col)
+            self._init(_read_table(path), has_labels, mre_col, mirna_col,
+                       acc_col, con_col)
             if cache:
-                _save_cache(path, mre_col, mirna_col, self)
+                _save_cache(path, mre_col, mirna_col, acc_col, con_col, self)
 
     @classmethod
     def from_df(
@@ -378,9 +393,10 @@ class MiRNAInteractionDataset(Dataset):
         mre_col: str = "mre_sequence",
         mirna_col: str = "mirna_sequence",
         acc_col: str = "tAcc",
+        con_col: str = "",
     ) -> "MiRNAInteractionDataset":
         obj = cls.__new__(cls)
-        obj._init(df, has_labels, mre_col, mirna_col, acc_col)
+        obj._init(df, has_labels, mre_col, mirna_col, acc_col, con_col)
         return obj
 
     def _init(
@@ -390,9 +406,10 @@ class MiRNAInteractionDataset(Dataset):
         mre_col: str,
         mirna_col: str,
         acc_col: str = "tAcc",
+        con_col: str = "",
     ) -> None:
         self.has_labels = has_labels
-        self._build_arrays(df, has_labels, mre_col, mirna_col, acc_col)
+        self._build_arrays(df, has_labels, mre_col, mirna_col, acc_col, con_col)
 
     def _build_arrays(
         self,
@@ -401,6 +418,7 @@ class MiRNAInteractionDataset(Dataset):
         mre_col: str,
         mirna_col: str,
         acc_col: str = "tAcc",
+        con_col: str = "",
     ) -> None:
         # Tokenise sequences once into int8 index matrices; the Watson–Crick
         # matrix is assembled on-device in the model forward pass.
@@ -417,6 +435,16 @@ class MiRNAInteractionDataset(Dataset):
         else:
             self.tacc = None
 
+        # Per-MRE conservation (phastCons in [0,1], or raw phyloP), one value per
+        # MRE base.  Stored raw; the model applies any transform/scale.  Off
+        # unless con_col names a present column.  Stored as (N, MRE_LEN) float32.
+        if con_col and con_col in df.columns:
+            self.tcon = np.stack(
+                [_parse_vector(v, MRE_LEN) for v in df[con_col].tolist()]
+            ).astype(np.float32)
+        else:
+            self.tcon = None
+
         if has_labels and "label" in df.columns:
             self.labels = df["label"].astype(int).values
         else:
@@ -428,11 +456,13 @@ class MiRNAInteractionDataset(Dataset):
         mre_idx: np.ndarray,
         labels: np.ndarray,
         tacc: Optional[np.ndarray] = None,
+        tcon: Optional[np.ndarray] = None,
     ) -> None:
         """Populate arrays from a loaded cache."""
         self.mirna_idx  = mirna_idx
         self.mre_idx    = mre_idx
         self.tacc       = tacc
+        self.tcon       = tcon
         self.labels = labels if self.has_labels else np.zeros(len(mirna_idx), dtype=np.int64)
 
     def __len__(self) -> int:
@@ -441,10 +471,13 @@ class MiRNAInteractionDataset(Dataset):
     def __getitem__(self, idx: int):
         acc = (self.tacc[idx] if self.tacc is not None
                else _ZERO_ACC)                              # (MRE_LEN,) float32
+        con = (self.tcon[idx] if self.tcon is not None
+               else _ZERO_CON)                              # (MRE_LEN,) float32
         return (
             torch.from_numpy(self.mirna_idx[idx]),          # (MAX_MIRNA,) int8
             torch.from_numpy(self.mre_idx[idx]),            # (MRE_LEN,)   int8
             torch.from_numpy(acc),                          # (MRE_LEN,)   float32
+            torch.from_numpy(con),                          # (MRE_LEN,)   float32
             int(self.labels[idx]),
         )
 
@@ -733,6 +766,11 @@ class MiRBindCNN(nn.Module):
         pool_heads:       int   = 1,
         seq_pos_channels: bool  = False,
         seq_acc_channel:  bool  = False,
+        seq_con_channel:  bool  = False,
+        con_transform:    str   = "none",
+        con_scale:        float = 1.0,
+        con_median:       float = 0.0,
+        con_iqr:          float = 1.0,
         n_conv_blocks:    int   = 6,
         n_pool_blocks:    int   = 4,
         block_pool:       str   = "max",
@@ -798,10 +836,38 @@ class MiRBindCNN(nn.Module):
         self.seq_acc_channel = seq_acc_channel
         n_acc_ch = 1 if seq_acc_channel else 0
 
+        # ── Per-MRE conservation channel (sibling of the accessibility channel):
+        # phastCons / phyloP per MRE base, constant along the miRNA axis.  Data
+        # driven (passed per sample in forward).  phastCons is already in [0,1];
+        # phyloP is unbounded, so an optional transform squashes/centres it into a
+        # comparable range:
+        #   "none"   — raw value (× con_scale); right for phastCons.
+        #   "tanh"   — tanh(con × con_scale); bounded, sign-preserving, saturates
+        #              the rare extreme bases (e.g. scale 0.2 ≈ tanh(phyloP/5)).
+        #   "robust" — (con − con_median) / con_iqr, then × con_scale; a
+        #              RobustScaler whose median/IQR are fit on the train set and
+        #              frozen into the checkpoint.  Linear (keeps magnitude info),
+        #              outlier-resistant, no saturation.
+        # con_transform/con_scale/con_median/con_iqr are saved with the checkpoint
+        # so inference reproduces training.
+        if con_transform not in ("none", "tanh", "robust"):
+            raise ValueError(
+                "con_transform must be 'none', 'tanh' or 'robust', got "
+                f"{con_transform!r}")
+        self.seq_con_channel = seq_con_channel
+        self.con_transform = con_transform
+        self.con_scale = float(con_scale)
+        self.con_median = float(con_median)
+        # Guard a degenerate IQR (e.g. a constant column) so the scaler can't
+        # divide by zero; a unit IQR then leaves the centred values unscaled.
+        self.con_iqr = float(con_iqr) if float(con_iqr) != 0.0 else 1.0
+        n_con_ch = 1 if seq_con_channel else 0
+
         # ── miRBind 2D sequence branch ───────────────────────────────────────
         self.seq_branch = MiRBindSeqBranch(
             n_filters=seq_filters, out_dim=seq_dim, dropout=seq_dropout,
-            in_ch=n_pair_ch + n_pos_ch + n_acc_ch, pool=seq_pool, pool_heads=pool_heads,
+            in_ch=n_pair_ch + n_pos_ch + n_acc_ch + n_con_ch,
+            pool=seq_pool, pool_heads=pool_heads,
             n_conv_blocks=n_conv_blocks, n_pool_blocks=n_pool_blocks,
             block_pool=block_pool, activation=activation)
 
@@ -823,6 +889,7 @@ class MiRBindCNN(nn.Module):
         mi:     torch.Tensor,            # (B, MAX_MIRNA)  int nucleotide indices
         ti:     torch.Tensor,            # (B, MRE_LEN)    int nucleotide indices
         acc:    Optional[torch.Tensor] = None,  # (B, MRE_LEN) float accessibility
+        con:    Optional[torch.Tensor] = None,  # (B, MRE_LEN) float conservation
     ) -> torch.Tensor:          # (B,) logits
 
         # ── miRBind 2D sequence branch ───────────────────────────────────────
@@ -837,7 +904,8 @@ class MiRBindCNN(nn.Module):
         # Pad cells (mi/ti == index 4) must carry no signal.  Fixed tables zero
         # them by construction; the learnable embedding and the positional planes
         # do not, so build the valid-cell mask when either needs it.
-        if self._pair_learnable or self.seq_pos_channels or self.seq_acc_channel:
+        if (self._pair_learnable or self.seq_pos_channels
+                or self.seq_acc_channel or self.seq_con_channel):
             valid = ((mi < 4)[:, :, None] & (ti < 4)[:, None, :])  # (B, 30, 50)
             vmask = valid.unsqueeze(1).to(wc_mat.dtype)            # (B, 1, 30, 50)
         if self._pair_learnable:
@@ -853,6 +921,19 @@ class MiRBindCNN(nn.Module):
             acc_plane = acc.to(wc_mat.dtype)[:, None, None, :].expand(
                 -1, 1, MAX_MIRNA, -1)                             # (B, 1, 30, 50)
             wc_mat = torch.cat([wc_mat, acc_plane * vmask], dim=1)  # (B, ..+1, 30, 50)
+        if self.seq_con_channel:
+            if con is None:
+                con = wc_mat.new_zeros(wc_mat.shape[0], MRE_LEN)
+            con = con.to(wc_mat.dtype)
+            if self.con_transform == "robust":
+                con = (con - self.con_median) / self.con_iqr
+            con = con * self.con_scale
+            if self.con_transform == "tanh":
+                con = torch.tanh(con)
+            # same MRE-axis broadcast as accessibility: constant along miRNA rows.
+            con_plane = con[:, None, None, :].expand(
+                -1, 1, MAX_MIRNA, -1)                             # (B, 1, 30, 50)
+            wc_mat = torch.cat([wc_mat, con_plane * vmask], dim=1)  # (B, ..+1, 30, 50)
         h_seq = self.seq_branch(wc_mat)         # (B, seq_dim)
 
         return self.classifier(h_seq).squeeze(-1)
@@ -963,13 +1044,14 @@ def evaluate(model: MiRBindCNN, loader: DataLoader,
     all_logits, all_labels = [], []
     total_loss, n_batches  = 0.0, 0
 
-    for mi, ti, acc, labels in loader:
+    for mi, ti, acc, con, labels in loader:
         mi     = mi.to(device,     non_blocking=True)
         ti     = ti.to(device,     non_blocking=True)
         acc    = acc.to(device,    non_blocking=True)
+        con    = con.to(device,    non_blocking=True)
         labels = labels.to(device, non_blocking=True).float()
 
-        logits = model(mi, ti, acc)
+        logits = model(mi, ti, acc, con)
         loss   = _compute_loss(logits, labels, pos_weight, gamma)
         total_loss += loss.item()
         n_batches  += 1
@@ -994,11 +1076,12 @@ def predict_logits(model: MiRBindCNN, loader: DataLoader,
     """
     model.eval()
     all_logits, all_labels = [], []
-    for mi, ti, acc, labels in loader:
+    for mi, ti, acc, con, labels in loader:
         mi     = mi.to(device,     non_blocking=True)
         ti     = ti.to(device,     non_blocking=True)
         acc    = acc.to(device,    non_blocking=True)
-        logits = model(mi, ti, acc)
+        con    = con.to(device,    non_blocking=True)
+        logits = model(mi, ti, acc, con)
         all_logits.append(logits.cpu().numpy())
         all_labels.append(labels.numpy())
     return np.concatenate(all_logits), np.concatenate(all_labels).astype(int)
@@ -1220,11 +1303,45 @@ def _model_args_from_cli(args: argparse.Namespace) -> dict:
         "pool_heads":       args.pool_heads,
         "seq_pos_channels": args.seq_pos_channels,
         "seq_acc_channel":  args.seq_acc_channel,
+        "seq_con_channel":  args.seq_con_channel,
+        "con_transform":    args.con_transform,
+        "con_scale":        args.con_scale,
+        # RobustScaler stats; placeholders here, filled by _fit_con_stats from the
+        # training data when --con-transform robust (identity 0/1 otherwise).
+        "con_median":       0.0,
+        "con_iqr":          1.0,
         "n_conv_blocks":    args.n_conv_blocks,
         "n_pool_blocks":    args.n_pool_blocks,
         "block_pool":       args.block_pool,
         "activation":       args.activation,
     }
+
+
+def _fit_con_stats(model_args: dict, train_ds: "MiRNAInteractionDataset") -> dict:
+    """Fit the conservation RobustScaler (median / IQR) on the training set and
+    write the stats into ``model_args`` in place.
+
+    No-op unless ``--con-transform robust`` is in effect and the dataset actually
+    carries a conservation vector. Stats are pooled over every MRE base of every
+    training sample (a single global median/IQR, matching the single-channel
+    transform), and frozen into ``model_args`` so they travel with the checkpoint
+    and are reproduced at inference. Heavy-tailed phyloP is the motivating case:
+    median centring + IQR scaling resists the rare ±20 spikes that a StandardScaler
+    would let dominate, without tanh's saturation of the mid-range signal."""
+    if model_args.get("con_transform") != "robust":
+        return model_args
+    if not model_args.get("seq_con_channel") or train_ds.tcon is None:
+        # Warning about the missing channel/column is emitted elsewhere; leave the
+        # identity 0/1 stats so the transform is a harmless pass-through.
+        return model_args
+    vals = train_ds.tcon.reshape(-1).astype(np.float64)
+    q25, median, q75 = np.percentile(vals, [25, 50, 75])
+    iqr = float(q75 - q25)
+    model_args["con_median"] = float(median)
+    model_args["con_iqr"]    = iqr if iqr != 0.0 else 1.0
+    print(f"  conservation RobustScaler: median={model_args['con_median']:.4f}  "
+          f"IQR={model_args['con_iqr']:.4f}  (fit on {vals.size} train values)")
+    return model_args
 
 
 class ModelEMA:
@@ -1331,13 +1448,14 @@ def _train_one_run(
         seen = 0
         train_logits_buf, train_labels_buf = [], []
 
-        for mi, ti, acc, labels in train_loader:
+        for mi, ti, acc, con, labels in train_loader:
             mi     = mi.to(device,     non_blocking=True)
             ti     = ti.to(device,     non_blocking=True)
             acc    = acc.to(device,    non_blocking=True)
+            con    = con.to(device,    non_blocking=True)
             labels = labels.to(device, non_blocking=True).float()
 
-            logits = model(mi, ti, acc)
+            logits = model(mi, ti, acc, con)
             loss   = _compute_loss(logits, labels, pos_weight, gamma)
 
             optim.zero_grad(set_to_none=True)
@@ -1490,11 +1608,13 @@ def _run_single(args: argparse.Namespace, device: torch.device) -> None:
                                 args.mirna_col, args.mre_col, args.dedup)
         train_ds = MiRNAInteractionDataset.from_df(
             train_df, has_labels=True,
-            mre_col=args.mre_col, mirna_col=args.mirna_col, acc_col=args.acc_col)
+            mre_col=args.mre_col, mirna_col=args.mirna_col, acc_col=args.acc_col,
+                con_col=args.con_col)
     else:
         train_ds = MiRNAInteractionDataset(
             args.train, has_labels=True,
-            mre_col=args.mre_col, mirna_col=args.mirna_col, acc_col=args.acc_col, cache=cache)
+            mre_col=args.mre_col, mirna_col=args.mirna_col, acc_col=args.acc_col,
+                con_col=args.con_col, cache=cache)
     print(f"  train samples : {len(train_ds)}")
     print(f"  positives     : {int(train_ds.labels.sum())} / {len(train_ds.labels)}")
     if args.seq_acc_channel and train_ds.tacc is None:
@@ -1502,13 +1622,19 @@ def _run_single(args: argparse.Namespace, device: torch.device) -> None:
               f"found in {args.train}; the accessibility channel will be all "
               f"zeros. Add the column (see cnn/compute_accessibility.py) or drop "
               f"the flag.")
+    if args.seq_con_channel and train_ds.tcon is None:
+        print(f"  WARNING: --seq-con-channel set but column {args.con_col!r} not "
+              f"found in {args.train}; the conservation channel will be all "
+              f"zeros. Pass --con-col gene_phastCons (or gene_phyloP) or drop "
+              f"the flag.")
 
     val_loader = None
     if not args.no_val:
         print("Loading validation data ...")
         val_ds = MiRNAInteractionDataset(
             args.val, has_labels=True,
-            mre_col=args.mre_col, mirna_col=args.mirna_col, acc_col=args.acc_col, cache=cache)
+            mre_col=args.mre_col, mirna_col=args.mirna_col, acc_col=args.acc_col,
+                con_col=args.con_col, cache=cache)
         print(f"  val samples   : {len(val_ds)}")
         val_loader = _make_loader(val_ds,   args.batch_size, shuffle=False,
                                   num_workers=args.num_workers)
@@ -1522,6 +1648,7 @@ def _run_single(args: argparse.Namespace, device: torch.device) -> None:
                                 weights=train_weights)
 
     model_args = _model_args_from_cli(args)
+    _fit_con_stats(model_args, train_ds)
     model = MiRBindCNN(**model_args).to(device)
     print(f"Model parameters: {sum(p.numel() for p in model.parameters()) / 1e6:.2f}M")
 
@@ -1594,10 +1721,12 @@ def _run_kfold(args: argparse.Namespace, device: torch.device) -> None:
 
         train_ds = MiRNAInteractionDataset.from_df(
             train_df, has_labels=True,
-            mre_col=args.mre_col, mirna_col=args.mirna_col, acc_col=args.acc_col)
+            mre_col=args.mre_col, mirna_col=args.mirna_col, acc_col=args.acc_col,
+                con_col=args.con_col)
         val_ds   = MiRNAInteractionDataset.from_df(
             val_df, has_labels=True,
-            mre_col=args.mre_col, mirna_col=args.mirna_col, acc_col=args.acc_col)
+            mre_col=args.mre_col, mirna_col=args.mirna_col, acc_col=args.acc_col,
+                con_col=args.con_col)
 
         print(f"  train positives: {int(train_ds.labels.sum())} / {len(train_ds.labels)}")
         print(f"  val   positives: {int(val_ds.labels.sum())} / {len(val_ds.labels)}")
@@ -1609,7 +1738,11 @@ def _run_kfold(args: argparse.Namespace, device: torch.device) -> None:
         val_loader   = _make_loader(val_ds,   args.batch_size, shuffle=False,
                                     num_workers=args.num_workers)
 
-        model = MiRBindCNN(**model_args).to(device)
+        # Fit the conservation RobustScaler on this fold's train split only, so
+        # the val/test folds don't leak into the centring/scaling stats.
+        fold_model_args = dict(model_args)
+        _fit_con_stats(fold_model_args, train_ds)
+        model = MiRBindCNN(**fold_model_args).to(device)
         if fold == 1:
             print(f"Model parameters: "
                   f"{sum(p.numel() for p in model.parameters()) / 1e6:.2f}M")
@@ -1621,14 +1754,14 @@ def _run_kfold(args: argparse.Namespace, device: torch.device) -> None:
             wandb.init(
                 project=args.wandb_project, entity=args.wandb_entity or None,
                 name=_name, group=_group,
-                config={**model_args, "fold": fold, "n_folds": args.folds,
+                config={**fold_model_args, "fold": fold, "n_folds": args.folds,
                         "epochs": args.epochs, "batch_size": args.batch_size,
                         "lr": args.lr, "weight_decay": args.weight_decay},
             )
 
         fold_out = out_path.parent / f"{out_path.stem}_fold{fold}{out_path.suffix}"
         score    = _train_one_run(model, train_loader, val_loader, train_ds,
-                                  model_args, args, device, fold_out)
+                                  fold_model_args, args, device, fold_out)
         fold_scores.append(score)
 
         if test_paths:
@@ -1640,7 +1773,8 @@ def _run_kfold(args: argparse.Namespace, device: torch.device) -> None:
                 test_ds   = MiRNAInteractionDataset.from_df(
                     _read_table(test_path),
                     has_labels=True,
-                    mre_col=args.mre_col, mirna_col=args.mirna_col, acc_col=args.acc_col)
+                    mre_col=args.mre_col, mirna_col=args.mirna_col, acc_col=args.acc_col,
+                con_col=args.con_col)
                 test_loader = _make_loader(
                     test_ds, args.batch_size, shuffle=False,
                     num_workers=args.num_workers)
@@ -1770,6 +1904,8 @@ def _load_ckpt_model(checkpoint: str | Path,
     for key, val in [("seq_pairing", "binary"), ("seq_pool", "avg"),
                      ("pool_heads", 1), ("seq_pos_channels", False),
                      ("seq_acc_channel", False),
+                     ("seq_con_channel", False), ("con_transform", "none"),
+                     ("con_scale", 1.0), ("con_median", 0.0), ("con_iqr", 1.0),
                      ("n_conv_blocks", 6), ("n_pool_blocks", 4),
                      ("block_pool", "max"), ("activation", "leaky_relu")]:
         margs.setdefault(key, val)
@@ -1797,17 +1933,19 @@ def cmd_predict(args: argparse.Namespace) -> None:
 
     ds = MiRNAInteractionDataset(
         args.input, has_labels=True,
-        mre_col=args.mre_col, mirna_col=args.mirna_col, acc_col=args.acc_col, cache=not args.no_cache)
+        mre_col=args.mre_col, mirna_col=args.mirna_col, acc_col=args.acc_col,
+                con_col=args.con_col, cache=not args.no_cache)
     loader = DataLoader(ds, batch_size=args.batch_size, shuffle=False,
                         num_workers=args.num_workers, pin_memory=True)
 
     all_probs, all_preds, all_labels = [], [], []
     with torch.no_grad():
-        for mi, ti, acc, labels in loader:
+        for mi, ti, acc, con, labels in loader:
             mi     = mi.to(device)
             ti     = ti.to(device)
             acc    = acc.to(device)
-            logits = model(mi, ti, acc)
+            con    = con.to(device)
+            logits = model(mi, ti, acc, con)
             probs  = torch.sigmoid(logits).cpu().numpy()
             all_probs.extend(probs.tolist())
             all_preds.extend((probs >= args.threshold).astype(int).tolist())
@@ -1866,7 +2004,7 @@ def cmd_predict_ensemble(args: argparse.Namespace) -> None:
         ds = MiRNAInteractionDataset(
             test_path, has_labels=True,
             mre_col=args.mre_col, mirna_col=args.mirna_col,
-            acc_col=args.acc_col, cache=not args.no_cache)
+            acc_col=args.acc_col, con_col=args.con_col, cache=not args.no_cache)
 
         fold_probs: list[np.ndarray] = []
         per_fold: list[tuple[str, dict]] = []
@@ -1947,6 +2085,11 @@ def main() -> int:
                     help="Column holding the per-MRE accessibility vector "
                          "(comma-separated unpaired probabilities). Used only "
                          "when --seq-acc-channel is set.")
+    tr.add_argument("--con-col",    default="",               dest="con_col",
+                    help="Column holding the per-MRE conservation vector "
+                         "(gene_phastCons or gene_phyloP; comma- or "
+                         "bracket-list-formatted). Used only when "
+                         "--seq-con-channel is set.")
     # Architecture
     tr.add_argument("--seq-filters",     type=int,   default=64,
                     dest="seq_filters",
@@ -1987,6 +2130,23 @@ def main() -> int:
                          "probability per MRE base, from --acc-col) to the 2D "
                          "pairing map: constant along the miRNA axis, varying "
                          "along the MRE axis. Off by default.")
+    tr.add_argument("--seq-con-channel", action="store_true", dest="seq_con_channel",
+                    help="Append the per-MRE conservation channel (from "
+                         "--con-col) to the 2D pairing map, broadcast like the "
+                         "accessibility channel. Off by default.")
+    tr.add_argument("--con-transform", choices=["none", "tanh", "robust"],
+                    default="none", dest="con_transform",
+                    help="Transform applied to the conservation values in the "
+                         "model: 'none' for phastCons ([0,1]); 'tanh' to squash "
+                         "unbounded phyloP into (-1,1); 'robust' for a RobustScaler "
+                         "((x-median)/IQR) whose stats are fit on the train set and "
+                         "frozen into the checkpoint (good for heavy-tailed phyloP, "
+                         "keeps magnitude info without saturating). Saved with the "
+                         "checkpoint.")
+    tr.add_argument("--con-scale", type=float, default=1.0, dest="con_scale",
+                    help="Multiplier applied to conservation values (after robust "
+                         "centring/scaling, before tanh). E.g. 0.2 with "
+                         "--con-transform tanh ~= tanh(phyloP/5). Default 1.0.")
     tr.add_argument("--n-conv-blocks", type=int, default=6, dest="n_conv_blocks",
                     help="Number of Conv2d blocks in the 2D sequence branch.")
     tr.add_argument("--n-pool-blocks", type=int, default=4, dest="n_pool_blocks",
@@ -2063,6 +2223,10 @@ def main() -> int:
     pr.add_argument("--acc-col",   default="tAcc",           dest="acc_col",
                     help="Per-MRE accessibility column (used if the checkpoint "
                          "was trained with the accessibility channel).")
+    pr.add_argument("--con-col",   default="",               dest="con_col",
+                    help="Per-MRE conservation column (must match what the "
+                         "checkpoint was trained on if the conservation channel "
+                         "is enabled, e.g. gene_phastCons or gene_phyloP).")
     pr.add_argument("--no-cache",  action="store_true", dest="no_cache",
                     help="Disable the preprocessing .cnncache.npz sidecar files.")
     pr.add_argument("--device",
@@ -2086,6 +2250,10 @@ def main() -> int:
     pe.add_argument("--acc-col",   default="tAcc",           dest="acc_col",
                     help="Per-MRE accessibility column (used if the checkpoints "
                          "were trained with the accessibility channel).")
+    pe.add_argument("--con-col",   default="",               dest="con_col",
+                    help="Per-MRE conservation column (must match what the "
+                         "checkpoints were trained on if the conservation "
+                         "channel is enabled, e.g. gene_phastCons/gene_phyloP).")
     pe.add_argument("--no-cache",  action="store_true", dest="no_cache",
                     help="Disable the preprocessing .cnncache.npz sidecar files.")
     pe.add_argument("--device",
