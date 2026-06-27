@@ -465,6 +465,22 @@ class MiRNAInteractionDataset(Dataset):
         self.tcon       = tcon
         self.labels = labels if self.has_labels else np.zeros(len(mirna_idx), dtype=np.int64)
 
+    def subset(self, mask: np.ndarray) -> None:
+        """Restrict the dataset in place to rows where ``mask`` is True.
+
+        Keeps every per-sample array (tokens, labels, optional accessibility /
+        conservation planes) aligned, so the dataset stays internally consistent
+        after e.g. binding-type filtering.
+        """
+        mask = np.asarray(mask, dtype=bool)
+        self.mirna_idx = self.mirna_idx[mask]
+        self.mre_idx   = self.mre_idx[mask]
+        self.labels    = self.labels[mask]
+        if self.tacc is not None:
+            self.tacc = self.tacc[mask]
+        if self.tcon is not None:
+            self.tcon = self.tcon[mask]
+
     def __len__(self) -> int:
         return len(self.mirna_idx)
 
@@ -1199,6 +1215,55 @@ def _binding_types(mirna_idx: np.ndarray, mre_idx: np.ndarray,
     return types
 
 
+def _keep_binding_mask(binding_types: np.ndarray,
+                       keep_cats: list[str]) -> np.ndarray:
+    """Boolean keep-mask for rows whose binding type matches one of ``keep_cats``.
+
+    A row matches a token when its classified type equals the token or is a
+    sub-type of it: ``label == token`` or ``label.startswith(token + ".")``.  So
+    ``seedless`` / ``3prime.compensatory`` match exactly, while a base canonical
+    token like ``8mer1A`` also keeps its suffixed variants (``8mer1A.GU``,
+    ``8mer1A.GU.3prime``).  Exits if a token matches no row (typo guard),
+    printing the binding types actually present.
+    """
+    bt = np.asarray(binding_types)
+    mask = np.zeros(len(bt), dtype=bool)
+    unmatched = []
+    for tok in keep_cats:
+        m = (bt == tok) | np.char.startswith(bt, tok + ".")
+        if not m.any():
+            unmatched.append(tok)
+        mask |= m
+    if unmatched:
+        present = sorted(set(bt.tolist()))
+        sys.exit(f"ERROR: --keep-binding-type: token(s) {unmatched} match no rows. "
+                 f"Binding types present: {present}")
+    return mask
+
+
+def _filter_binding_types(ds: "MiRNAInteractionDataset", keep_cats: list[str],
+                          split: str,
+                          cache_path: str | Path | None = None) -> None:
+    """Restrict ``ds`` in place to rows whose binding type is in ``keep_cats``.
+
+    Classifies every row with the shared binding_types classifier (memoised to
+    the ``<path>.bindtype.npz`` sidecar when ``cache_path`` is given, since the
+    full-set count still matches the source file at this point), then subsets the
+    dataset and logs the kept positive/negative split and per-type distribution.
+    ``split`` is only a label for the log line.
+    """
+    types  = _binding_types(ds.mirna_idx, ds.mre_idx, cache_path=cache_path)
+    mask   = _keep_binding_mask(types, keep_cats)
+    before = len(ds)
+    ds.subset(mask)
+    uniq, counts = np.unique(types[mask], return_counts=True)
+    dist = " ".join(f"{t}({c})" for t, c in
+                    sorted(zip(uniq.tolist(), counts.tolist()), key=lambda x: -x[1]))
+    pos = int(ds.labels.sum())
+    print(f"  [keep-binding-type:{split}] {before} -> {len(ds)} rows "
+          f"({pos} pos / {len(ds) - pos} neg); kept: {dist}")
+
+
 def _parse_undersample_spec(tokens) -> dict:
     """Parse ``--undersample-neg-type`` tokens into {category: factor}.
 
@@ -1636,12 +1701,21 @@ def _run_single(args: argparse.Namespace, device: torch.device) -> None:
             mre_col=args.mre_col, mirna_col=args.mirna_col, acc_col=args.acc_col,
                 con_col=args.con_col, cache=cache)
         print(f"  val samples   : {len(val_ds)}")
+        if args.keep_binding_type and args.keep_binding_type_val:
+            _filter_binding_types(val_ds, args.keep_binding_type, "val",
+                                  cache_path=(args.val if cache else None))
         val_loader = _make_loader(val_ds,   args.batch_size, shuffle=False,
                                   num_workers=args.num_workers)
 
     # Cache binding-type labels keyed to the source file, but not when --dedup is
     # active (the deduped row set no longer matches the on-disk file).
     bt_cache_path = args.train if (cache and not args.dedup) else None
+    if args.keep_binding_type:
+        _filter_binding_types(train_ds, args.keep_binding_type, "train",
+                              cache_path=bt_cache_path)
+        # The filtered row set no longer matches the on-disk file, so the
+        # bindtype sidecar can't be reused/written for the undersample pass.
+        bt_cache_path = None
     train_weights = _train_sampler_weights(train_ds, args, cache_path=bt_cache_path)
     train_loader = _make_loader(train_ds, args.batch_size, shuffle=True,
                                 num_workers=args.num_workers, balance=args.balance,
@@ -1680,6 +1754,19 @@ def _run_kfold(args: argparse.Namespace, device: torch.device) -> None:
     print(f"  {len(df)} rows")
     if args.dedup:
         df = _dedup_pairs(df, args.mirna_col, args.mre_col, args.dedup)
+
+    # Binding-type filter: restrict the whole pool before the CV split, so every
+    # fold (train and held-out) is drawn from the chosen subdomain.  --keep-
+    # binding-type-val does not apply here (there is no separate held-out val).
+    if args.keep_binding_type:
+        mi = _encode_seqs(df[args.mirna_col].astype(str).tolist(), MAX_MIRNA)
+        ti = _encode_seqs(df[args.mre_col].astype(str).tolist(),   MRE_LEN)
+        types = _binding_types(
+            mi, ti, cache_path=(args.train if not args.dedup else None))
+        mask  = _keep_binding_mask(types, args.keep_binding_type)
+        df    = df[mask].reset_index(drop=True)
+        print(f"  [keep-binding-type] filtered to {len(df)} rows "
+              f"matching {args.keep_binding_type}")
 
     if args.family_col not in df.columns:
         sys.exit(f"ERROR: --family-col '{args.family_col}' not found. "
@@ -2195,6 +2282,27 @@ def main() -> int:
                          f"(same one error_analysis uses): {', '.join(BINDING_TYPES)}. "
                          "Example: --undersample-neg-type seedless:0.55 "
                          "3prime.compensatory:0.8")
+    tr.add_argument("--keep-binding-type", nargs="+", default=None,
+                    metavar="CATEGORY", dest="keep_binding_type",
+                    help="Train only on samples whose classified binding type "
+                         "matches one of these categories (both positives and "
+                         "negatives are filtered). A sample matches a token when "
+                         "its type equals the token or is a sub-type of it (token "
+                         "'8mer1A' also keeps '8mer1A.GU.3prime'); 'seedless' and "
+                         "'3prime.compensatory' match exactly. Categories come "
+                         "from the shared binding_types classifier (same one "
+                         "error_analysis uses). Exits if a token matches no row, "
+                         "printing the types present. By default only the training "
+                         "set is filtered (see --keep-binding-type-val). With "
+                         "--folds the whole pool is filtered before the CV split. "
+                         "Example: --keep-binding-type seedless 3prime.compensatory")
+    tr.add_argument("--keep-binding-type-val", action="store_true",
+                    dest="keep_binding_type_val",
+                    help="Also restrict the validation set to --keep-binding-type "
+                         "categories, so val metrics reflect the trained "
+                         "subdomain. Off by default (val stays the full mixed "
+                         "set). No effect with --folds, where the whole dataset is "
+                         "filtered before splitting.")
     tr.add_argument("--no-cache",     action="store_true", dest="no_cache",
                     help="Disable the preprocessing .cnncache.npz sidecar files.")
     tr.add_argument("--checkpoint-metric",
