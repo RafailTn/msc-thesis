@@ -121,14 +121,15 @@ def _train_trial(
         running_loss = 0.0
         seen = 0
 
-        for mi, ti, acc, con, labels in train_loader:
+        for mi, ti, acc, con, nbr, labels in train_loader:
             mi     = mi.to(device,     non_blocking=True)
             ti     = ti.to(device,     non_blocking=True)
             acc    = acc.to(device,    non_blocking=True)
             con    = con.to(device,    non_blocking=True)
+            nbr    = nbr.to(device,    non_blocking=True)
             labels = labels.to(device, non_blocking=True).float()
 
-            logits = model(mi, ti, acc, con)
+            logits = model(mi, ti, acc, con, nbr)
             loss   = F.binary_cross_entropy_with_logits(
                 logits, labels, pos_weight=pos_weight)
 
