@@ -117,10 +117,11 @@ def _mean_track(raw) -> float:
         return float(nz.mean()) if nz.size else float("nan")
 
 
-def _neighbour_flags(df: pd.DataFrame, window: int) -> pd.DataFrame:
+def _neighbour_flags(df: pd.DataFrame, window: int,
+                     min_sep: int = 0) -> pd.DataFrame:
     """For every positive row, flag whether a *distinct* positive site sits
-    within `window` nt (centre-to-centre) on the same chr+strand, and whether
-    that neighbour is the same / a different miRNA family.
+    within [`min_sep`, `window`] nt (centre-to-centre) on the same chr+strand,
+    and whether that neighbour is the same / a different miRNA family.
 
     Returned frame is indexed like `df` (positives only) with columns
     has_nb / has_nb_difffam / has_nb_samefam, n_nb (distinct neighbour coords).
@@ -149,7 +150,8 @@ def _neighbour_flags(df: pd.DataFrame, window: int) -> pd.DataFrame:
         for ci, c in enumerate(centers):
             lo = np.searchsorted(centers, c - window, "left")
             hi = np.searchsorted(centers, c + window, "right")
-            nb_centers = [centers[j] for j in range(lo, hi) if j != ci]
+            nb_centers = [centers[j] for j in range(lo, hi)
+                          if j != ci and abs(centers[j] - c) >= min_sep]
             if not nb_centers:
                 continue
             nb_fams = set().union(*(fams_at[nc] for nc in nb_centers))
@@ -230,8 +232,13 @@ def _fn_characterisation(df: pd.DataFrame, flags: pd.DataFrame,
         return
     key = [mirna_col, mre_col]
     pred = pred.drop_duplicates(subset=key)[key + ["prediction"]]
-    pos = df[df["label"] == 1].merge(pred, on=key, how="left")
+    left = df[df["label"] == 1].drop(columns=["prediction"], errors="ignore")
+    pos = left.merge(pred, on=key, how="left")
     pos.index = df[df["label"] == 1].index
+    # Drop any pre-existing duplex-stat columns (e.g. from a prior error-analysis
+    # pass) so the join with freshly computed `duplex` doesn't collide.
+    overlap = pos.columns.intersection(duplex.columns)
+    pos = pos.drop(columns=overlap)
     pos = pos.join(flags).join(duplex)
     scored = pos.dropna(subset=["prediction"])
     if scored.empty:
@@ -425,12 +432,12 @@ def main() -> None:
     print("\nNeighbour prevalence among positives (distinct site, same chr+strand):")
     flags_by_w = {}
     for w in windows:
-        f = _neighbour_flags(df, w)
+        f = _neighbour_flags(df, w, min_sep=args.min_sep)
         flags_by_w[w] = f
         rate = f["has_nb"].mean()
         dr   = f["has_nb_difffam"].mean()
         sr   = f["has_nb_samefam"].mean()
-        print(f"  within {w:>4} nt: any={rate:6.3f}  "
+        print(f"  [{args.min_sep},{w:>4}] nt: any={rate:6.3f}  "
               f"diff-family={dr:6.3f}  same-family={sr:6.3f}")
 
     flags  = flags_by_w[args.window]
