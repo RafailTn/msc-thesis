@@ -60,7 +60,6 @@ from cnn_branches_mirbind import (
     MiRBindCNN,
     _make_loader,
     _read_table,
-    _fit_con_stats,
     evaluate,
 )
 
@@ -197,14 +196,6 @@ def make_objective(
     seq_pairing:      str   = "multi",
     pair_embed_dim:   int   = 3,
     seq_pool:         str   = "gem",
-    pool_heads:       int   = 1,
-    seq_pos_channels: bool  = False,
-    seq_acc_channel:  bool  = False,
-    seq_con_channel:  bool  = False,
-    con_transform:    str   = "none",
-    con_scale:        float = 1.0,
-    con_median:       float = 0.0,
-    con_iqr:          float = 1.0,
 ):
     def objective(trial: optuna.Trial) -> float:
         # ── Sequence branch (2D miRBind CNN) ──────────────────────────────
@@ -245,17 +236,9 @@ def make_objective(
             block_pool=block_pool, activation=activation,
             # Fixed (not part of the search space, so existing studies still
             # resume); recorded so checkpoints reconstruct the right branch and
-            # input channels.  The conservation RobustScaler stats (con_median/
-            # con_iqr) are fit once on the train set before the study and frozen
-            # here so every trial — and the saved checkpoint — uses the same
-            # transform at train and inference time.
+            # input channels.
             seq_pairing=seq_pairing, pair_embed_dim=pair_embed_dim,
-            seq_pool=seq_pool, pool_heads=pool_heads,
-            seq_pos_channels=seq_pos_channels,
-            seq_acc_channel=seq_acc_channel,
-            seq_con_channel=seq_con_channel,
-            con_transform=con_transform, con_scale=con_scale,
-            con_median=con_median, con_iqr=con_iqr,
+            seq_pool=seq_pool,
         )
 
         model = MiRBindCNN(**model_args).to(device)
@@ -331,8 +314,7 @@ def _load_and_test(
     for test_path in args.test:
         test_ds = MiRNAInteractionDataset(
             test_path, has_labels=True,
-            mre_col=args.mre_col, mirna_col=args.mirna_col,
-            acc_col=args.acc_col, con_col=args.con_col)
+            mre_col=args.mre_col, mirna_col=args.mirna_col)
         test_loader = _make_loader(test_ds, batch_size, shuffle=False,
                                    num_workers=args.num_workers)
         metrics = evaluate(model, test_loader, device)
@@ -395,32 +377,11 @@ def main() -> int:
                    help="Channels of the learnable pairing embedding when "
                         "--seq-pairing embed (ignored otherwise). Fixed for all "
                         "trials; not part of the search space.")
-    # ── Input channels / pooling: fixed for ALL trials (like --seq-pairing), so
-    # toggling them does not change the search space and existing studies resume.
-    p.add_argument("--seq-pool", choices=["avg", "gem", "attention"], default="gem",
+    # ── Pooling: fixed for ALL trials (like --seq-pairing), so toggling it does
+    # not change the search space and existing studies resume.
+    p.add_argument("--seq-pool", choices=["avg", "gem"], default="gem",
                    dest="seq_pool",
                    help="Global pooling for the 2D branch, fixed for all trials.")
-    p.add_argument("--pool-heads", type=int, default=1, dest="pool_heads",
-                   help="Heads for --seq-pool attention (ignored otherwise).")
-    p.add_argument("--seq-pos-channels", action="store_true", dest="seq_pos_channels",
-                   help="Add the CoordConv-style miRNA-position channel.")
-    p.add_argument("--acc-col", default="tAcc", dest="acc_col",
-                   help="Per-MRE accessibility column (used when --seq-acc-channel).")
-    p.add_argument("--seq-acc-channel", action="store_true", dest="seq_acc_channel",
-                   help="Add the per-MRE accessibility channel (reads --acc-col).")
-    p.add_argument("--con-col", default="", dest="con_col",
-                   help="Per-MRE conservation column, e.g. gene_phastCons or "
-                        "gene_phyloP (used when --seq-con-channel).")
-    p.add_argument("--seq-con-channel", action="store_true", dest="seq_con_channel",
-                   help="Add the per-MRE conservation channel (reads --con-col).")
-    p.add_argument("--con-transform", choices=["none", "tanh", "robust"],
-                   default="none", dest="con_transform",
-                   help="Conservation transform: 'none' (phastCons), 'tanh' "
-                        "(squash phyloP), or 'robust' (RobustScaler fit on the "
-                        "train set, frozen into every trial's checkpoint).")
-    p.add_argument("--con-scale", type=float, default=1.0, dest="con_scale",
-                   help="Conservation multiplier (after robust centring, before "
-                        "tanh). E.g. 0.2 with --con-transform tanh ~= tanh(phyloP/5).")
     p.add_argument("--test",          nargs="+", default=None, metavar="FILE",
                    help="Test CSV/TSV files to evaluate with the best checkpoint.")
     p.add_argument("--ckpt-dir",      default=None, dest="ckpt_dir",
@@ -447,12 +408,10 @@ def main() -> int:
     if args.val:
         train_ds = MiRNAInteractionDataset(
             args.train, has_labels=True,
-            mre_col=args.mre_col, mirna_col=args.mirna_col,
-            acc_col=args.acc_col, con_col=args.con_col, cache=not args.no_cache)
+            mre_col=args.mre_col, mirna_col=args.mirna_col, cache=not args.no_cache)
         val_ds = MiRNAInteractionDataset(
             args.val, has_labels=True,
-            mre_col=args.mre_col, mirna_col=args.mirna_col,
-            acc_col=args.acc_col, con_col=args.con_col, cache=not args.no_cache)
+            mre_col=args.mre_col, mirna_col=args.mirna_col, cache=not args.no_cache)
         print(f"  train={len(train_ds)}  val={len(val_ds)}")
     else:
         df = _read_table(args.train)
@@ -471,30 +430,12 @@ def main() -> int:
         val_df   = df.iloc[val_idx].reset_index(drop=True)
         train_ds = MiRNAInteractionDataset.from_df(
             train_df, has_labels=True,
-            mre_col=args.mre_col, mirna_col=args.mirna_col,
-            acc_col=args.acc_col, con_col=args.con_col)
+            mre_col=args.mre_col, mirna_col=args.mirna_col)
         val_ds = MiRNAInteractionDataset.from_df(
             val_df, has_labels=True,
-            mre_col=args.mre_col, mirna_col=args.mirna_col,
-            acc_col=args.acc_col, con_col=args.con_col)
+            mre_col=args.mre_col, mirna_col=args.mirna_col)
         print(f"  StratifiedGroupKFold: fold {args.val_fold}/{args.val_folds}  "
               f"train={len(train_ds)}  val={len(val_ds)}")
-
-    if args.seq_acc_channel and train_ds.tacc is None:
-        print(f"  WARNING: --seq-acc-channel set but column {args.acc_col!r} not "
-              f"found in {args.train}; the accessibility channel will be all zeros.")
-    if args.seq_con_channel and train_ds.tcon is None:
-        print(f"  WARNING: --seq-con-channel set but column {args.con_col!r} not "
-              f"found in {args.train}; the conservation channel will be all zeros.")
-
-    # Fit the conservation RobustScaler once on the train set (--con-transform
-    # robust); median/IQR are then frozen into every trial's model_args so the
-    # transform is identical across trials and reproduced at inference. No-op for
-    # the other transforms or when the channel/column is absent.
-    con_stats = {"con_transform": args.con_transform,
-                 "seq_con_channel": args.seq_con_channel,
-                 "con_median": 0.0, "con_iqr": 1.0}
-    _fit_con_stats(con_stats, train_ds)
 
     storage_url = f"sqlite:///{args.storage}"
     sampler = TPESampler(n_startup_trials=args.startup_trials, seed=42)
@@ -523,14 +464,6 @@ def main() -> int:
         seq_pairing=args.seq_pairing,
         pair_embed_dim=args.pair_embed_dim,
         seq_pool=args.seq_pool,
-        pool_heads=args.pool_heads,
-        seq_pos_channels=args.seq_pos_channels,
-        seq_acc_channel=args.seq_acc_channel,
-        seq_con_channel=args.seq_con_channel,
-        con_transform=args.con_transform,
-        con_scale=args.con_scale,
-        con_median=con_stats["con_median"],
-        con_iqr=con_stats["con_iqr"],
     )
 
     study.optimize(

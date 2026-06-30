@@ -43,6 +43,13 @@ Usage
 
   # dump the per-positive table (neighbour flags + duplex stats) for plotting
   python cnn/cooperativity_analysis.py --input ... --out-table coop_sites.tsv
+
+  # transcript-aware dose-response: does P(label=1)-by-neighbour-count survive
+  # when neighbours are counted in spliced (MANE) coordinates within the SAME
+  # transcript instead of by raw genomic distance?  Needs a score column.
+  python cnn/cooperativity_analysis.py \
+      --input results/manakov_test_errors_v7_restructure.tsv \
+      --score-col interaction_probability
 """
 
 from __future__ import annotations
@@ -60,14 +67,22 @@ try:
 except ImportError:
     HAS_SCIPY = False
 
-# Flat when run from cnn/, package-style when imported as cnn.*
+# Flat when run from cnn/, package-style when imported as cnn.*.  The neighbour-
+# counting + MANE transcript-mapping helpers live in the core module so the
+# `neighbor-counts` builder and this analysis share one implementation (full
+# 50-mer exon containment + spliced-sequence guard, mirroring the accessibility
+# precompute's acc_mode routing).
 try:
     from cnn_branches_mirbind import (
         _encode_seqs, _duplex_stats, _parse_vector, MRE_LEN, MAX_MIRNA,
+        _neighbor_counts, _parse_mane_gtf, _TxContext,
+        _neighbor_counts_transcript,
     )
 except ImportError:
     from cnn.cnn_branches_mirbind import (  # type: ignore
         _encode_seqs, _duplex_stats, _parse_vector, MRE_LEN, MAX_MIRNA,
+        _neighbor_counts, _parse_mane_gtf, _TxContext,
+        _neighbor_counts_transcript,
     )
 
 # Default neighbour windows (centre-to-centre nt). The first is the headline
@@ -244,6 +259,115 @@ def _fn_characterisation(df: pd.DataFrame, flags: pd.DataFrame,
                   "FN-rate of weak-seed sites)")
 
 
+# ---------------------------------------------------------------------------
+# Transcript-aware neighbour dose-response
+#
+# `_neighbour_flags` above measures linear genomic distance, which conflates
+# relationships that differ on the processed transcript: two sites 100 nt apart
+# on the genome can straddle a splice junction (far apart — or non-co-existent —
+# on the mature mRNA), and an intronic site only exists in the pre-mRNA.  The
+# core-module helpers (`_neighbor_counts`, `_neighbor_counts_transcript`) map
+# each MRE onto MANE-Select transcript (spliced) coordinates and count
+# confident-positive neighbours within the SAME transcript by spliced distance —
+# introns collapsed, cross-junction / wrong-isoform pairs excluded.  A row is
+# "exonic" only if a single MANE exon FULLY contains the 50-mer AND the spliced
+# transcript sequence at the mapped offset equals the MRE sequence; straddlers /
+# intronic / intergenic / sequence-mismatch rows fall back to the genomic count
+# (the same `mane`/`genomic` split as the accessibility `acc_mode`).
+# ---------------------------------------------------------------------------
+
+DEFAULT_GTF = Path(
+    "~/Downloads/hg38/gencode.v47.primary_assembly.annotation.gtf.gz"
+).expanduser()
+DEFAULT_GENOME = Path(
+    "~/Downloads/hg38/GRCh38.primary_assembly.genome.fa"
+).expanduser()
+
+
+def _dose_response(label, counts, name, mask=None) -> None:
+    """Print P(label=1) by neighbour-count bucket for one count column."""
+    buckets = [(0, 0, "0"), (1, 2, "1-2"), (3, 6, "3-6"), (7, None, ">=7")]
+    if mask is not None:
+        label, counts = label[mask], counts[mask]
+    n = len(counts)
+    nz = float((counts >= 1).mean()) if n else 0.0
+    print(f"\n[{name}]  n={n:,}  %>=1={100*nz:.1f}%  "
+          f"mean={counts.mean():.3f}  max={int(counts.max()) if n else 0}")
+    print(f"  {'bucket':<8} {'n':>10} {'frac':>7} {'P(label=1)':>11}")
+    for lo, hi, lbl in buckets:
+        m = (counts >= lo) if hi is None else ((counts >= lo) & (counts <= hi))
+        k = int(m.sum())
+        pl = f"{label[m].mean():>11.3f}" if k else f"{'—':>11}"
+        print(f"  {lbl:<8} {k:>10,d} {100*k/max(n,1):>6.1f}% {pl}")
+
+
+def _transcript_dose_response(df: pd.DataFrame, args) -> None:
+    """Genomic vs transcript-aware neighbour dose-response, side by side."""
+    score = df[args.score_col].to_numpy(float)
+    label = df["label"].to_numpy(float)
+
+    print("\n" + "=" * 72)
+    print(f"DOSE-RESPONSE  P(label=1) by neighbour count "
+          f"(conf>={args.conf}, band [{args.min_sep}, {args.window}] nt)")
+    gen = _neighbor_counts(df, score, conf=args.conf, window=args.window,
+                           min_sep=args.min_sep, chr_col="chr", strand_col="strand",
+                           start_col="start", end_col="end")
+    _dose_response(label, gen, "genomic (same chr+strand, linear distance)")
+
+    gtf = Path(args.gtf).expanduser()
+    genome = Path(args.genome).expanduser()
+    if not gtf.exists() or not genome.exists():
+        miss = gtf if not gtf.exists() else genome
+        print(f"\n  [transcript] not found: {miss}; pass --gtf/--genome to enable "
+              f"the transcript-aware comparison. Skipping.")
+        return
+    tx, index, max_exon_len = _parse_mane_gtf(gtf)
+    ctx = _TxContext(str(genome), tx)
+    txc, mapped, n_nohost, n_seqfail = _neighbor_counts_transcript(
+        df, score, conf=args.conf, window=args.window, min_sep=args.min_sep,
+        tx=tx, index=index, max_exon_len=max_exon_len, ctx=ctx,
+        chr_col="chr", strand_col="strand", start_col="start", end_col="end",
+        mre_col=args.mre_col)
+    print(f"\n  {int(mapped.sum()):,}/{len(df):,} sites "
+          f"({100*mapped.mean():.1f}%) map to a MANE-Select host transcript "
+          f"(full 50-mer containment + sequence guard).")
+    print(f"  fallback: {n_nohost:,} no host exon (intronic/intergenic/"
+          f"straddling), {n_seqfail:,} failed the sequence guard "
+          f"-> these take the genomic count.")
+    _dose_response(label, txc, "transcript (same MANE tx, spliced distance)")
+
+    # HYBRID — the production-consistent feature, mirroring the accessibility
+    # `acc_mode` routing: an exon-mapped site takes its same-transcript spliced
+    # count (introns collapsed, cross-junction/intronic pairs excluded); an
+    # intronic/intergenic site, which has no mature transcript, falls back to the
+    # genomic count. Each row is counted in the frame appropriate to the molecule
+    # it lives on. The exonic↔intronic asymmetry (an exonic site ignores a nearby
+    # intronic positive, but that intronic site still sees the exonic one) is
+    # correct: they co-exist only in the pre-mRNA frame, not the mature one.
+    hyb = np.where(mapped, txc, gen).astype(np.int32)
+    n_geno = int((~mapped).sum())
+    print(f"\n  hybrid routing: {int(mapped.sum()):,} sites use spliced "
+          f"(mane) counts, {n_geno:,} fall back to genomic counts.")
+    _dose_response(label, hyb, "HYBRID (mane where exonic, else genomic)")
+
+    # Fairer head-to-head: restrict to exon-mapped sites, so the genomic baseline
+    # isn't diluted by intronic sites the transcript view can never score. If the
+    # transcript split stays graded here, the signal is genuinely transcript-
+    # collinear, not an artefact of genomic locality.
+    print("\n  --- exon-mapped sites only (apples-to-apples) ---")
+    _dose_response(label, gen, "genomic, exon-mapped only", mask=mapped)
+    _dose_response(label, txc, "transcript, exon-mapped only", mask=mapped)
+
+    if args.out_table:
+        out = df[["label", args.score_col, "chr", "start", "end", "strand"]].copy()
+        out["nbr_genomic"] = gen
+        out["nbr_transcript"] = txc
+        out["nbr_hybrid"] = hyb
+        out["nbr_mode"] = np.where(mapped, "mane", "genomic")
+        out.to_csv(args.out_table, sep="\t", index=False)
+        print(f"\nwrote neighbour-count comparison table -> {args.out_table}")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -255,7 +379,27 @@ def main() -> None:
     ap.add_argument("--pred", default=None,
                     help="predict_cnn.py output TSV; enables FN characterisation.")
     ap.add_argument("--out-table", default=None,
-                    help="write the per-positive table (flags + duplex stats).")
+                    help="write the per-positive table (flags + duplex stats); "
+                         "in --score-col mode writes the genomic-vs-transcript "
+                         "neighbour-count comparison table instead.")
+    # Transcript-aware dose-response mode (triggered by --score-col).
+    ap.add_argument("--score-col", default=None,
+                    help="confidence column (e.g. interaction_probability). When "
+                         "given, run the genomic-vs-transcript-aware dose-response "
+                         "comparison instead of the pairing-strength hypothesis.")
+    ap.add_argument("--conf", type=float, default=0.8,
+                    help="a site is a confident-positive neighbour when its "
+                         "score >= this (default 0.8).")
+    ap.add_argument("--min-sep", type=int, default=60, dest="min_sep",
+                    help="lower bound of the neighbour band in nt; drop closer "
+                         "neighbours (default 60, the AGO2-footprint / fragment-"
+                         "redundancy floor). Applies to spliced distance too.")
+    ap.add_argument("--gtf", default=str(DEFAULT_GTF),
+                    help="GENCODE GTF (MANE_Select tag) for transcript mapping "
+                         f"(default {DEFAULT_GTF}).")
+    ap.add_argument("--genome", default=str(DEFAULT_GENOME),
+                    help="GRCh38 primary-assembly .fa (indexed) for the spliced-"
+                         f"sequence guard (default {DEFAULT_GENOME}).")
     args = ap.parse_args()
 
     df = _read_table(args.input)
@@ -265,6 +409,16 @@ def main() -> None:
             sys.exit(f"ERROR: missing column {col!r}. Have: {list(df.columns)}")
     n_pos = int((df["label"] == 1).sum())
     print(f"{Path(args.input).name}: {len(df)} rows, {n_pos} positive")
+
+    # Transcript-aware dose-response mode: compare genomic vs spliced neighbour
+    # counting on a scored table, then stop (skip the pairing-strength test,
+    # which answers a different question and is slow on full prediction TSVs).
+    if args.score_col:
+        if args.score_col not in df.columns:
+            sys.exit(f"ERROR: --score-col {args.score_col!r} not found. "
+                     f"Have: {list(df.columns)}")
+        _transcript_dose_response(df, args)
+        return
 
     # Neighbour-window sweep (prevalence only) so the headline split is in context.
     windows = [args.window] + [w for w in WINDOWS if w != args.window]

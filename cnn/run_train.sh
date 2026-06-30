@@ -12,9 +12,18 @@
 # infer scores new data end to end (e.g. test/leftout/genome scan):
 #   INPUT=data/..._test_v7.tsv FINAL=checkpoints/cnn_nbr.pt \
 #     bash cnn/run_train.sh infer
-# It uses the SAME conf/window/min_sep band as nbr-prep so the count
-# distribution matches training. BASE_CKPTS defaults to the nbr-prep base
+# It uses the SAME conf/window/min_sep band AND NBR_MODE as nbr-prep so the
+# count distribution matches training. BASE_CKPTS defaults to the nbr-prep base
 # fold-ensemble.
+#
+# Neighbour distance frame (NBR_MODE): hybrid (default; transcript where exonic,
+# genomic fallback elsewhere), transcript (spliced within the same MANE host
+# transcript), or genomic (linear, no GTF needed). hybrid/transcript need
+# GTF + GENOME (default the ~/Downloads/hg38 paths) and MUST match between
+# nbr-prep and infer. Override with NBR_MODE=genomic to skip MANE mapping:
+#   NBR_MODE=genomic bash cnn/run_train.sh nbr-prep
+#   NBR_MODE=genomic INPUT=..._test_v7.tsv FINAL=checkpoints/cnn_nbr.pt \
+#     bash cnn/run_train.sh infer
 #
 # Everything is overridable via environment variables, e.g.
 #   FOLDS=10 EPOCHS=60 bash cnn/run_train.sh kfold
@@ -79,6 +88,17 @@ STRAND_COL="${STRAND_COL:-strand}"
 START_COL="${START_COL:-start}"
 END_COL="${END_COL:-end}"
 
+# Neighbour distance frame: hybrid (default; transcript where exonic, genomic
+# fallback elsewhere — mirrors the accessibility acc_mode), transcript (spliced
+# within the same MANE host transcript, intronic/intergenic score 0), or genomic
+# (linear distance, no GTF needed). transcript/hybrid need GTF + GENOME and use
+# the MRE-sequence column (MRE_COL) for the sequence guard. The SAME mode must be
+# used by nbr-prep and infer so the count distributions match. Set NBR_MODE=genomic
+# to skip the MANE mapping entirely (no GTF/GENOME required).
+NBR_MODE="${NBR_MODE:-hybrid}"
+GTF="${GTF:-$HOME/Downloads/hg38/gencode.v47.primary_assembly.annotation.gtf.gz}"
+GENOME="${GENOME:-$HOME/Downloads/hg38/GRCh38.primary_assembly.genome.fa}"
+
 # ── infer params (two-pass scoring on new data) ────────────────────────────
 INPUT="${INPUT:-}"                              # data to score (required for infer)
 FINAL="${FINAL:-$OUT}"                          # final neighbour-model checkpoint
@@ -100,6 +120,16 @@ model_flags=(
 )
 [[ "$SEQ_PAIRING" == "embed" ]] && model_flags+=( --pair-embed-dim "$PAIR_EMBED_DIM" )
 [[ "$DETERMINISTIC" == "1" ]]   && model_flags+=( --deterministic )
+
+# neighbor-counts distance-frame flags, shared by nbr-prep and infer so the
+# train and inference columns are built the same way. genomic = no GTF needed.
+nbr_mode_args=( --mode "$NBR_MODE" )
+if [[ "$NBR_MODE" != "genomic" ]]; then
+  for _p in "GTF:$GTF" "GENOME:$GENOME"; do
+    [[ -e "${_p#*:}" ]] || { echo "ERROR: NBR_MODE=$NBR_MODE needs ${_p%%:*}=${_p#*:} (not found)" >&2; exit 2; }
+  done
+  nbr_mode_args+=( --gtf "$GTF" --genome "$GENOME" --mre-col "$MRE_COL" )
+fi
 
 # ── nbr-prep: base k-fold (OOF preds) -> neighbor-counts column -------------
 if [[ "$MODE" == "nbr-prep" ]]; then
@@ -128,8 +158,9 @@ if [[ "$MODE" == "nbr-prep" ]]; then
     --out-col "$NBR_COL"
     --chr-col "$CHR_COL" --strand-col "$STRAND_COL"
     --start-col "$START_COL" --end-col "$END_COL"
+    "${nbr_mode_args[@]}"
   )
-  echo "[nbr-prep] 2/2 neighbor-counts (conf>=$CONF, band [$MIN_SEP,$WINDOW]) -> $NBR_TRAIN"
+  echo "[nbr-prep] 2/2 neighbor-counts (mode=$NBR_MODE, conf>=$CONF, band [$MIN_SEP,$WINDOW]) -> $NBR_TRAIN"
   echo "[nbr-prep] $PY ${nc_args[*]}"
   "$PY" "${nc_args[@]}"
 
@@ -178,15 +209,16 @@ if [[ "$MODE" == "infer" ]]; then
     "$PY" "${pr_args[@]}"
   fi
 
-  # 2/3 — materialise neighbor_count (SAME band/conf as nbr-prep training)
+  # 2/3 — materialise neighbor_count (SAME mode/band/conf as nbr-prep training)
   nc_args=(
     "$SCRIPT" neighbor-counts --input "$scored" --output "$withnbr"
     --score-col interaction_probability
     --conf "$CONF" --window "$WINDOW" --min-sep "$MIN_SEP" --out-col "$NBR_COL"
     --chr-col "$CHR_COL" --strand-col "$STRAND_COL"
     --start-col "$START_COL" --end-col "$END_COL"
+    "${nbr_mode_args[@]}"
   )
-  echo "[infer] 2/3 neighbor-counts (conf>=$CONF, band [$MIN_SEP,$WINDOW]) -> $withnbr"
+  echo "[infer] 2/3 neighbor-counts (mode=$NBR_MODE, conf>=$CONF, band [$MIN_SEP,$WINDOW]) -> $withnbr"
   echo "[infer] $PY ${nc_args[*]}"
   "$PY" "${nc_args[@]}"
 
