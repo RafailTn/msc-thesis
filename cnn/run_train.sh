@@ -14,11 +14,11 @@
 #     bash cnn/run_train.sh infer
 # It uses the SAME conf/window/min_sep band as nbr-prep so the count
 # distribution matches training. BASE_CKPTS defaults to the nbr-prep base
-# fold-ensemble; CON/ACC must match how the base + final models were trained.
+# fold-ensemble.
 #
 # Everything is overridable via environment variables, e.g.
 #   FOLDS=10 EPOCHS=60 bash cnn/run_train.sh kfold
-#   NBR=1 CON=1 OUT=checkpoints/cnn_nbr.pt bash cnn/run_train.sh full
+#   NBR=1 OUT=checkpoints/cnn_nbr.pt bash cnn/run_train.sh full
 #
 # Neighbour feature (NBR=1): the --train file must already carry the
 # `neighbor_count` column, leakage-free ONLY if built from OUT-OF-FOLD scores.
@@ -45,8 +45,6 @@ FOLDS="${FOLDS:-5}"
 MRE_COL="${MRE_COL:-gene}"
 MIRNA_COL="${MIRNA_COL:-noncodingRNA}"
 FAMILY_COL="${FAMILY_COL:-noncodingRNA_fam}"
-CON_COL="${CON_COL:-gene_phyloP}"
-ACC_COL="${ACC_COL:-tAcc}"
 NBR_COL="${NBR_COL:-neighbor_count}"
 
 # ── training hyper-params ──────────────────────────────────────────────────
@@ -57,10 +55,16 @@ SEED="${SEED:-42}"
 DEVICE="${DEVICE:-cuda}"
 METRIC="${METRIC:-auprc}"
 
+# ── model architecture / loss ──────────────────────────────────────────────
+SEQ_PAIRING="${SEQ_PAIRING:-embed}"    # binary | multi | multi4 | embed
+PAIR_EMBED_DIM="${PAIR_EMBED_DIM:-16}" # learned pair-embed dim (embed pairing only)
+SEQ_POOL="${SEQ_POOL:-gem}"            # avg | gem | attention
+ACTIVATION="${ACTIVATION:-relu}"       # leaky_relu | relu | gelu | silu | elu | selu
+FOCAL_GAMMA="${FOCAL_GAMMA:-2.0}"      # 0 = BCE; 2 = standard focal
+DETERMINISTIC="${DETERMINISTIC:-1}"    # 1 -> --deterministic
+
 # ── optional feature channels (off by default) ─────────────────────────────
 NBR="${NBR:-0}"        # 1 -> --seq-nbr-feature (needs neighbor_count column)
-CON="${CON:-0}"        # 1 -> --seq-con-channel  (conservation, gene_phyloP)
-ACC="${ACC:-0}"        # 1 -> --seq-acc-channel  (accessibility, needs tAcc col)
 EMA="${EMA:-1}"        # 1 -> --ema
 
 # ── nbr-prep params (build the leakage-free neighbour-count column) ─────────
@@ -86,14 +90,16 @@ BASE_CKPTS="${BASE_CKPTS:-${BASE_OUT%.pt}_fold*.pt}"
 # Shared feature flags (used by every mode's training argv).
 feature_flags=()
 [[ "$EMA" == "1" ]] && feature_flags+=( --ema )
-[[ "$CON" == "1" ]] && feature_flags+=( --seq-con-channel --con-col "$CON_COL" --con-transform robust )
-[[ "$ACC" == "1" ]] && feature_flags+=( --seq-acc-channel )
 
-# Channel column names a checkpoint needs at predict time (the channels
-# themselves are baked into the checkpoint; predict only needs the columns).
-predict_chan=()
-[[ "$CON" == "1" ]] && predict_chan+=( --con-col "$CON_COL" )
-[[ "$ACC" == "1" ]] && predict_chan+=( --acc-col "$ACC_COL" )
+# Architecture / loss flags (applied to every training run so the base and
+# final models share the same design). Not passed to predict — the design is
+# baked into the checkpoint.
+model_flags=(
+  --seq-pairing "$SEQ_PAIRING" --seq-pool "$SEQ_POOL"
+  --activation "$ACTIVATION" --focal-gamma "$FOCAL_GAMMA"
+)
+[[ "$SEQ_PAIRING" == "embed" ]] && model_flags+=( --pair-embed-dim "$PAIR_EMBED_DIM" )
+[[ "$DETERMINISTIC" == "1" ]]   && model_flags+=( --deterministic )
 
 # ── nbr-prep: base k-fold (OOF preds) -> neighbor-counts column -------------
 if [[ "$MODE" == "nbr-prep" ]]; then
@@ -104,7 +110,7 @@ if [[ "$MODE" == "nbr-prep" ]]; then
     --epochs "$EPOCHS" --batch-size "$BATCH" --lr "$LR"
     --seed "$SEED" --device "$DEVICE" --checkpoint-metric "$METRIC"
     --folds "$FOLDS" --oof-out "$OOF_OUT"
-    "${feature_flags[@]}"
+    "${feature_flags[@]}" "${model_flags[@]}"
   )
   # shellcheck disable=SC2206
   test_arr=( $TESTS )
@@ -155,7 +161,7 @@ if [[ "$MODE" == "infer" ]]; then
       "$SCRIPT" predict-ensemble
       --checkpoints "${base_ckpts[@]}" --inputs "$INPUT" --output-dir "$workdir"
       --mre-col "$MRE_COL" --mirna-col "$MIRNA_COL"
-      --batch-size "$BATCH" --device "$DEVICE" "${predict_chan[@]}"
+      --batch-size "$BATCH" --device "$DEVICE"
     )
     echo "[infer] $PY ${pe_args[*]}"
     "$PY" "${pe_args[@]}"
@@ -166,7 +172,7 @@ if [[ "$MODE" == "infer" ]]; then
       "$SCRIPT" predict --checkpoint "${base_ckpts[0]}"
       --input "$INPUT" --output "$scored"
       --mre-col "$MRE_COL" --mirna-col "$MIRNA_COL"
-      --batch-size "$BATCH" --device "$DEVICE" "${predict_chan[@]}"
+      --batch-size "$BATCH" --device "$DEVICE"
     )
     echo "[infer] $PY ${pr_args[*]}"
     "$PY" "${pr_args[@]}"
@@ -189,7 +195,7 @@ if [[ "$MODE" == "infer" ]]; then
     "$SCRIPT" predict --checkpoint "$FINAL"
     --input "$withnbr" --output "$INFER_OUT" --nbr-col "$NBR_COL"
     --mre-col "$MRE_COL" --mirna-col "$MIRNA_COL"
-    --batch-size "$BATCH" --device "$DEVICE" "${predict_chan[@]}"
+    --batch-size "$BATCH" --device "$DEVICE"
   )
   echo "[infer] 3/3 final neighbour model ($FINAL) -> $INFER_OUT"
   echo "[infer] $PY ${final_args[*]}"
@@ -230,7 +236,7 @@ args=(
 test_arr=( $TESTS )
 [[ ${#test_arr[@]} -gt 0 ]] && args+=( --test "${test_arr[@]}" )
 
-args+=( "${feature_flags[@]}" )
+args+=( "${feature_flags[@]}" "${model_flags[@]}" )
 [[ "$NBR" == "1" ]] && args+=( --seq-nbr-feature )
 
 case "$MODE" in
@@ -239,6 +245,6 @@ case "$MODE" in
   *) echo "ERROR: mode must be 'kfold', 'full', 'nbr-prep', 'infer' or 'report' (got '$MODE')" >&2; exit 2 ;;
 esac
 
-echo "[run_train] mode=$MODE  train=$TRAIN  out=$OUT  nbr=$NBR con=$CON acc=$ACC"
+echo "[run_train] mode=$MODE  train=$TRAIN  out=$OUT  nbr=$NBR"
 echo "[run_train] $PY ${args[*]}"
 exec "$PY" "${args[@]}"
