@@ -101,6 +101,16 @@ PAIRING_METRICS = {
     "n_mm":        "higher",
 }
 
+# For FP vs TN: FPs look like positives to the model, so we expect stronger
+# complementarity (higher WC/seed/run, lower mismatches).
+FP_PAIRING_METRICS = {
+    "seed_pairs":  "higher",
+    "total_pairs": "higher",
+    "n_wc":        "higher",
+    "max_run":     "higher",
+    "n_mm":        "lower",
+}
+
 
 def _read_table(path: str | Path) -> pd.DataFrame:
     sep = "\t" if str(path).endswith(".tsv") else ","
@@ -169,6 +179,46 @@ def _neighbour_flags(df: pd.DataFrame, window: int,
         {"has_nb": has_nb, "has_nb_difffam": has_diff,
          "has_nb_samefam": has_same, "n_nb": n_nb},
         index=pos.index,
+    )
+
+
+def _neg_neighbour_flags(df: pd.DataFrame, window: int,
+                         min_sep: int = 0) -> pd.DataFrame:
+    """For every negative row, count distinct *positive* sites within
+    [`min_sep`, `window`] nt (centre-to-centre) on the same chr+strand.
+
+    Returns a frame indexed to the negatives with columns has_pos_nb / n_pos_nb.
+    """
+    neg = df[df["label"] == 0].copy()
+    pos = df[df["label"] == 1].copy()
+    neg["_center"] = (neg["start"].to_numpy() + neg["end"].to_numpy()) // 2
+    pos["_center"] = (pos["start"].to_numpy() + pos["end"].to_numpy()) // 2
+
+    has_pos_nb = np.zeros(len(neg), dtype=bool)
+    n_pos_nb   = np.zeros(len(neg), dtype=np.int32)
+    row_neg    = {idx: i for i, idx in enumerate(neg.index)}
+
+    pos_by_cs: dict = {}
+    for (ch, st), g in pos.groupby(["chr", "strand"], sort=False):
+        pos_by_cs[(ch, st)] = np.array(sorted(g["_center"].unique()), dtype=np.int64)
+
+    for (ch, st), g in neg.groupby(["chr", "strand"], sort=False):
+        pc = pos_by_cs.get((ch, st))
+        if pc is None or len(pc) == 0:
+            continue
+        for idx, c in zip(g.index, g["_center"].to_numpy(dtype=np.int64)):
+            lo = np.searchsorted(pc, c - window, "left")
+            hi = np.searchsorted(pc, c + window, "right")
+            seg = pc[lo:hi]
+            cnt = int(((seg >= c + min_sep) | (seg <= c - min_sep)).sum())
+            i = row_neg[idx]
+            if cnt:
+                has_pos_nb[i] = True
+                n_pos_nb[i]   = cnt
+
+    return pd.DataFrame(
+        {"has_pos_nb": has_pos_nb, "n_pos_nb": n_pos_nb},
+        index=neg.index,
     )
 
 
@@ -264,6 +314,50 @@ def _fn_characterisation(df: pd.DataFrame, flags: pd.DataFrame,
                   f"FN-rate WITH nb={wr_nb:.3f}  WITHOUT nb={wr_non:.3f}")
             print("  (hypothesis: a structure-opening neighbour should LOWER the "
                   "FN-rate of weak-seed sites)")
+
+
+def _fp_characterisation(df: pd.DataFrame, neg_flags: pd.DataFrame,
+                         neg_duplex: pd.DataFrame, pred_path: str,
+                         mirna_col: str, mre_col: str) -> None:
+    """Among negatives, split FP vs TN and compare pairing strength and
+    positive-neighbour rates."""
+    pred = _read_table(pred_path)
+    need = {"prediction", mirna_col, mre_col}
+    miss = need - set(pred.columns)
+    if miss:
+        print(f"\n[--pred] skipping FP characterisation; missing {miss} "
+              f"in {pred_path}")
+        return
+    key = [mirna_col, mre_col]
+    pred = pred.drop_duplicates(subset=key)[key + ["prediction"]]
+    left = df[df["label"] == 0].drop(columns=["prediction"], errors="ignore")
+    neg = left.merge(pred, on=key, how="left")
+    neg.index = df[df["label"] == 0].index
+    overlap = neg.columns.intersection(neg_duplex.columns)
+    neg = neg.drop(columns=overlap)
+    neg = neg.join(neg_flags).join(neg_duplex)
+    scored = neg.dropna(subset=["prediction"])
+    if scored.empty:
+        print("\n[--pred] no negatives matched the predictions file.")
+        return
+    fp = scored[scored["prediction"] == 1]
+    tn = scored[scored["prediction"] == 0]
+    print("\n" + "=" * 72)
+    print(f"FALSE-POSITIVE characterisation  (matched negatives: {len(scored)})")
+    print(f"  FP={len(fp)}  TN={len(tn)}  specificity={len(tn)/max(len(scored),1):.3f}")
+    if len(fp) and len(tn):
+        print(f"  pos-neighbour rate   FP={fp['has_pos_nb'].mean():.3f}  "
+              f"TN={tn['has_pos_nb'].mean():.3f}   "
+              f"(hypothesis: FP >= TN if structure-opening bleeds into nearby negatives)")
+        _compare(fp, tn, FP_PAIRING_METRICS, "FP vs TN pairing strength")
+        weak = scored[scored["seed_pairs"] <= 4]
+        if len(weak) > 20:
+            pr_nb  = weak[weak["has_pos_nb"]]["prediction"].mean()
+            pr_non = weak[~weak["has_pos_nb"]]["prediction"].mean()
+            print(f"\n  Among weak-seed negatives (seed_pairs<=4, n={len(weak)}): "
+                  f"FP-rate WITH pos-nb={pr_nb:.3f}  WITHOUT pos-nb={pr_non:.3f}")
+            print("  (hypothesis: a nearby positive neighbour should RAISE "
+                  "the FP-rate of weak-seed negatives)")
 
 
 # ---------------------------------------------------------------------------
@@ -463,6 +557,34 @@ def main() -> None:
 
     if args.pred:
         _fn_characterisation(df, flags, duplex, args.pred,
+                             args.mirna_col, args.mre_col)
+
+        # Negative-side analysis: prevalence of positive neighbours near negatives,
+        # then FP vs TN pairing + neighbour rate.
+        n_neg = int((df["label"] == 0).sum())
+        print(f"\nPositive-neighbour prevalence among negatives "
+              f"(n={n_neg}, same chr+strand as a confident positive):")
+        neg_flags_by_w = {}
+        for w in windows:
+            nf = _neg_neighbour_flags(df, w, min_sep=args.min_sep)
+            neg_flags_by_w[w] = nf
+            rate = nf["has_pos_nb"].mean()
+            print(f"  [{args.min_sep},{w:>4}] nt: any={rate:6.3f}")
+
+        neg_flags  = neg_flags_by_w[args.window]
+        neg_duplex = _duplex_frame(df[df["label"] == 0], args.mirna_col, args.mre_col)
+
+        neg_joined = neg_flags.join(neg_duplex)
+        print("\n" + "=" * 72)
+        print(f"PAIRING STRENGTH: negatives WITH vs WITHOUT a positive neighbour "
+              f"(window {args.window} nt)")
+        print("  prediction: FPs are more complementary (look like positives); "
+              "cooperative bleedover would raise FP-rate among weak-seed negatives near positives")
+        _compare(neg_joined[neg_joined["has_pos_nb"]],
+                 neg_joined[~neg_joined["has_pos_nb"]],
+                 FP_PAIRING_METRICS, "any positive neighbour")
+
+        _fp_characterisation(df, neg_flags, neg_duplex, args.pred,
                              args.mirna_col, args.mre_col)
 
     if args.out_table:
