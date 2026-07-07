@@ -8,7 +8,13 @@ columns:
     Eall      ensemble energy of the miRNA-MRE interaction ensemble
               (-RT ln Zall over all considered interactions)
     Eall_MRE  ensemble energy of all *intramolecular* structures of the MRE
-              alone (IntaRNA's ``Eall1``)
+              alone (IntaRNA's ``Eall1``); a whole-sequence quantity that grows
+              with target length -- NOT a site-local accessibility measure
+    ED1       accessibility energy penalty of the target *interaction site*
+              (IntaRNA's ``ED1`` = -RT ln Pu1); site-local, length-independent
+              once enough context is included
+    Pu1       probability that the target interaction site is unpaired/accessible
+              (IntaRNA's ``Pu1``, in [0,1]); the interpretable form of ED1
 
 The miRNA (query) is assumed by default to have NO intramolecular structure
 (``--qacc N`` -> IntaRNA ``--qAcc=N``), which zeroes its accessibility penalty
@@ -77,7 +83,8 @@ def run_chunk(rows, intarna, threads, gene_col, mir_col, tacc_w, tacc_l, qacc,
     tregion  : optional 1-based inclusive ``--tRegion`` spec (e.g. "101-150")
                applied to every target in this call; restricts the *interaction*
                to that sub-region without changing the accessibility/Eall1 fold.
-    Returns dict {local_id -> (Eall, Eall_MRE)} for rows that produced output.
+    Returns dict {local_id -> (Eall, Eall_MRE, ED1, Pu1)} for rows that produced
+    output.
     """
     with tempfile.NamedTemporaryFile("w", suffix="_t.fa", delete=False) as tf, \
          tempfile.NamedTemporaryFile("w", suffix="_q.fa", delete=False) as qf:
@@ -105,7 +112,7 @@ def run_chunk(rows, intarna, threads, gene_col, mir_col, tacc_w, tacc_l, qacc,
         "--outNoLP",
         "--threads", str(threads),
         "--outMode=C",
-        "--outCsvCols=id1,Eall,Eall1",
+        "--outCsvCols=id1,Eall,Eall1,ED1,Pu1",
     ]
     if tregion:                       # anchor the interaction to the MRE region
         cmd.append(f"--tRegion={tregion}")
@@ -117,7 +124,8 @@ def run_chunk(rows, intarna, threads, gene_col, mir_col, tacc_w, tacc_l, qacc,
         reader = csv.DictReader(lines, delimiter=";")
         for row in reader:
             try:
-                out[int(row["id1"])] = (row.get("Eall", ""), row.get("Eall1", ""))
+                out[int(row["id1"])] = (row.get("Eall", ""), row.get("Eall1", ""),
+                                        row.get("ED1", ""), row.get("Pu1", ""))
             except (ValueError, KeyError, TypeError):
                 continue
 
@@ -249,8 +257,8 @@ def main() -> int:
             print(f"ERROR: --tregion-col {args.tregion_col!r} not in input",
                   file=sys.stderr)
             return 1
-    out_header = "\t".join(header) + "\tEall\tEall_MRE\n"
-    expected_ncols = len(header) + 2
+    out_header = "\t".join(header) + "\tEall\tEall_MRE\tED1\tPu1\n"
+    expected_ncols = len(header) + 4
 
     # --- resume: count valid rows already written, drop any partial tail -----
     already = resume_offset(args.output, out_header, expected_ncols)
@@ -276,8 +284,8 @@ def main() -> int:
         res = score_chunk(chunk, regions, args.intarna, args.threads,
                           gene_col, mir_col, args.tacc_w, args.tacc_l, args.qacc)
         for i, r in enumerate(chunk):
-            eall, eall_mre = res.get(i, ("", ""))
-            fout.write("\t".join(r) + f"\t{eall}\t{eall_mre}\n")
+            eall, eall_mre, ed1, pu1 = res.get(i, ("", "", "", ""))
+            fout.write("\t".join(r) + f"\t{eall}\t{eall_mre}\t{ed1}\t{pu1}\n")
         fout.flush()
         total += len(chunk)
         dt = time.time() - t0

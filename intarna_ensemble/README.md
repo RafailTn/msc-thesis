@@ -1,11 +1,13 @@
 # IntaRNA ensemble-energy annotation
 
-Self-contained tool to append two IntaRNA ensemble-energy columns to a v7 TSV:
+Self-contained tool to append IntaRNA ensemble columns to a v7 TSV:
 
 | column     | meaning |
 |------------|---------|
 | `Eall`     | ensemble energy of the miRNA–MRE **interaction** (`-RT·ln Zall` over all interactions) |
-| `Eall_MRE` | ensemble energy of the MRE's own **intramolecular** structure (IntaRNA's `Eall1`) |
+| `Eall_MRE` | ensemble energy of the MRE's own **intramolecular** structure (IntaRNA's `Eall1`); whole-sequence, grows with target length — *not* a site-local accessibility measure |
+| `ED1`      | accessibility energy penalty of the target **interaction site** (`-RT·ln Pu1`); site-local, converges once ≥ the accessibility radius (~150 nt) of context is included |
+| `Pu1`      | probability that the target interaction site is **unpaired/accessible** (in `[0,1]`); the interpretable form of `ED1` |
 
 The miRNA is treated as having **no intramolecular structure** (`--qAcc=N`, i.e.
 ED2 = 0), matching the assumption that it is single-stranded while loaded in AGO2.
@@ -50,8 +52,16 @@ pixi run python extend_mre.py \
     --output in_v7_extended.tsv \
     --genome /path/GRCh38.primary_assembly.genome.fa \
     --gtf    /path/gencode.v47.primary_assembly.annotation.gtf.gz \
-    --flank  100                       # nt added on EACH side (50 nt -> ~250 nt)
+    --flank  150                       # DEFAULT; nt added on EACH side (50 -> ~350 nt)
 ```
+
+`--flank 150` is the default because that is where site accessibility (`ED1`/`Pu1`)
+**converges** for `--tacc-w 150 --tacc-l 100`: no base pair can reach further than
+`--tacc-l`, so context past ~150 nt each side cannot change the site's accessibility
+(verified — `ED1` at flank 150 and flank 250 is identical). It also matches
+`cnn/compute_accessibility.py --flank 150`, so these energies stay on the same
+accessibility model as the CNN's `tAcc` feature. Smaller flanks (e.g. 100 → ~250 nt)
+run faster but under-estimate accessibility by up to ~1 kcal/mol on some sites.
 
 This leaves `chr/start/end/strand` untouched (the locus doesn't move) and adds:
 

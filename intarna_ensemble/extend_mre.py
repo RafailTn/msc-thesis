@@ -36,7 +36,7 @@ Usage
         --output IN_v7_extended.tsv \\
         --genome GRCh38.primary_assembly.genome.fa \\
         --gtf    gencode.vXX.primary_assembly.annotation.gtf.gz \\
-        --flank  100
+        --flank  150
 
 Then score the extended file with the local accessibility window (so the now
 long target is not folded whole -- that is O(L^3)):
@@ -208,9 +208,11 @@ def main() -> int:
                     help="GRCh38 primary assembly .fa (indexed; pyfaidx builds "
                          "the .fai on first use)")
     ap.add_argument("--gtf", required=True, help="GENCODE annotation .gtf(.gz)")
-    ap.add_argument("--flank", type=int, default=100,
+    ap.add_argument("--flank", type=int, default=150,
                     help="nt of context added on EACH side of the MRE "
-                         "(default 100 -> a 50 nt MRE becomes ~250 nt)")
+                         "(default 150 -> a 50 nt MRE becomes ~350 nt; matches "
+                         "the accessibility convergence radius for --tacc-w 150 "
+                         "--tacc-l 100 and cnn/compute_accessibility.py)")
     ap.add_argument("--gene-col", default="gene",
                     help="MRE-sequence column to widen (default: gene)")
     ap.add_argument("--offset-col", default="mre_offset",
