@@ -770,27 +770,36 @@ class MiRBindCNN(nn.Module):
                 nn.Linear(seq_dim // 2, 1),
             )
 
-    def forward(
+    def build_pair_matrix(
         self,
-        mi:     torch.Tensor,            # (B, MAX_MIRNA)  int nucleotide indices
-        ti:     torch.Tensor,            # (B, MRE_LEN)    int nucleotide indices
-        nbr:    Optional[torch.Tensor] = None,  # (B,) float neighbour count
-    ) -> torch.Tensor:          # (B,) logits
+        mi: torch.Tensor,       # (B, MAX_MIRNA)  int nucleotide indices
+        ti: torch.Tensor,       # (B, MRE_LEN)    int nucleotide indices
+    ) -> torch.Tensor:          # (B, C_pair, MAX_MIRNA, MRE_LEN)
+        """Assemble the on-device 2D pairing matrix from nucleotide-index vectors.
 
-        # ── miRBind 2D sequence branch ───────────────────────────────────────
-        # Assemble the pairing matrix on-device from the nucleotide-index
-        # vectors: a broadcasted gather into pair_table giving one channel per
-        # pairing type, (B, C_pair, MAX_MIRNA, MRE_LEN).  This keeps the
-        # per-sample CPU work in the data loader down to a slice copy.
+        A broadcasted gather into ``pair_table`` giving one channel per pairing
+        type.  Pad cells (mi/ti == index 4) must carry no signal: the fixed
+        tables zero them by construction; the learnable embedding does not, so it
+        is masked explicitly.  Exposed as a method so attribution (the ``explain``
+        subcommand) can differentiate the classifier w.r.t. this continuous
+        matrix — the first differentiable representation of the input, since the
+        index gather itself is not differentiable in the indices.
+        """
         mi = mi.long()
         ti = ti.long()
         pair = self.pair_table[:, mi[:, :, None], ti[:, None, :]]  # (C_pair, B, 30, 50)
         wc_mat = pair.movedim(0, 1).contiguous()                   # (B, C_pair, 30, 50)
-        # Pad cells (mi/ti == index 4) must carry no signal.  Fixed tables zero
-        # them by construction; the learnable embedding does not, so mask it.
         if self._pair_learnable:
             valid = ((mi < 4)[:, :, None] & (ti < 4)[:, None, :])  # (B, 30, 50)
             wc_mat = wc_mat * valid.unsqueeze(1).to(wc_mat.dtype)
+        return wc_mat
+
+    def logits_from_matrix(
+        self,
+        wc_mat: torch.Tensor,           # (B, C_pair, MAX_MIRNA, MRE_LEN)
+        nbr:    Optional[torch.Tensor] = None,  # (B,) float neighbour count
+    ) -> torch.Tensor:                  # (B,) logits
+        """Run the sequence branch + classifier head from a pairing matrix."""
         h_seq = self.seq_branch(wc_mat)         # (B, seq_dim)
 
         if self.seq_nbr_feature:
@@ -802,6 +811,17 @@ class MiRBindCNN(nn.Module):
             nf = self.nbr_norm(nf)
             return self.classifier(torch.cat([h, nf], dim=1)).squeeze(-1)
         return self.classifier(h_seq).squeeze(-1)
+
+    def forward(
+        self,
+        mi:     torch.Tensor,            # (B, MAX_MIRNA)  int nucleotide indices
+        ti:     torch.Tensor,            # (B, MRE_LEN)    int nucleotide indices
+        nbr:    Optional[torch.Tensor] = None,  # (B,) float neighbour count
+    ) -> torch.Tensor:          # (B,) logits
+        # Assemble the pairing matrix on-device (keeps the per-sample CPU work in
+        # the data loader down to a slice copy), then run the head.
+        wc_mat = self.build_pair_matrix(mi, ti)
+        return self.logits_from_matrix(wc_mat, nbr)
 
 
 # ---------------------------------------------------------------------------
@@ -2337,6 +2357,158 @@ def cmd_predict_ensemble(args: argparse.Namespace) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Explain: per-MRE-position attribution of the binding logit
+# ---------------------------------------------------------------------------
+
+def _ig_attribution(model: MiRBindCNN, wc: torch.Tensor,
+                    nbr: Optional[torch.Tensor], steps: int) -> torch.Tensor:
+    """Integrated Gradients of the binding logit w.r.t. the pairing matrix.
+
+    Returns signed per-cell attributions, shape (B, C_pair, MAX_MIRNA, MRE_LEN).
+    The baseline is the all-zero ("no complementarity") matrix — the natural
+    reference here, since pad cells are already zero and a zero matrix encodes a
+    duplex with no pairing at all.  The neighbour scalar (if any) is held at its
+    real value along the whole path, so IG attributes only the sequence-matrix
+    part of the logit; completeness then reads
+    ``Σ attr ≈ logit(x, nbr) − logit(0, nbr)``.
+    """
+    baseline = torch.zeros_like(wc)
+    delta    = wc - baseline
+    total    = torch.zeros_like(wc)
+    with torch.enable_grad():
+        for k in range(1, steps + 1):
+            alpha  = k / steps
+            x      = (baseline + alpha * delta).detach().requires_grad_(True)
+            logit  = model.logits_from_matrix(x, nbr)
+            (grad,) = torch.autograd.grad(logit.sum(), x)
+            total += grad
+    return (delta * (total / steps)).detach()
+
+
+def _occlusion_attribution(model: MiRBindCNN, wc: torch.Tensor,
+                           nbr: Optional[torch.Tensor]) -> torch.Tensor:
+    """Per-MRE-position occlusion Δlogit, shape (B, MRE_LEN).
+
+    Zero each MRE column of the pairing matrix in turn (removing all pairing that
+    involves that MRE nucleotide) and measure how far the binding logit drops:
+    ``Δ_j = logit(full) − logit(occluded_j)``.  Positive Δ ⇒ that MRE position
+    supports the "binds" call.  Costs ``MRE_LEN`` forward passes per batch.
+    """
+    base = model.logits_from_matrix(wc, nbr)                 # (B,)
+    out  = wc.new_zeros(wc.shape[0], wc.shape[3])            # (B, MRE_LEN)
+    for j in range(wc.shape[3]):
+        occ = wc.clone()
+        occ[:, :, :, j] = 0.0
+        out[:, j] = base - model.logits_from_matrix(occ, nbr)
+    return out
+
+
+def cmd_explain(args: argparse.Namespace) -> None:
+    """Per-sample attribution of the binding logit onto MRE positions.
+
+    Runs Integrated Gradients (default) or column occlusion on the 2D pairing
+    matrix — the first differentiable representation of the (miRNA, MRE) pair —
+    and reduces the attribution over the pairing channels and the miRNA axis to a
+    signed per-MRE-position score for every row.  Positive scores push the pair
+    toward "binds"; under IG the scores sum (completeness) to
+    ``logit(x) − logit(baseline)``.
+
+    Writes ``<output>`` = input columns + logit/prob/baseline_logit/attr_total +
+    one ``mre_pos_XX`` column per MRE position.  With ``--dump-matrix`` (IG only)
+    it also saves the full channel-summed (N, MAX_MIRNA, MRE_LEN) attribution
+    tensor as .npz for per-pair (miRNA×MRE) heatmaps.
+    """
+    if args.method == "occlusion" and args.dump_matrix:
+        sys.exit("ERROR: --dump-matrix is only available for --method ig "
+                 "(occlusion does not produce a full per-cell matrix).")
+
+    device = torch.device(args.device)
+    model, ckpt = _load_ckpt_model(args.checkpoint, device)
+    print(f"Loaded checkpoint (epoch {ckpt.get('epoch')}, "
+          f"val_metrics={ckpt.get('val_metrics')})")
+
+    ds = MiRNAInteractionDataset(
+        args.input, has_labels=True,
+        mre_col=args.mre_col, mirna_col=args.mirna_col,
+        nbr_col=args.nbr_col, cache=not args.no_cache)
+    loader = DataLoader(ds, batch_size=args.batch_size, shuffle=False,
+                        num_workers=args.num_workers, pin_memory=True)
+
+    per_pos_batches: list[np.ndarray] = []
+    logit_batches:   list[np.ndarray] = []
+    base_batches:    list[np.ndarray] = []
+    mat_batches: Optional[list[np.ndarray]] = [] if args.dump_matrix else None
+
+    with torch.no_grad():
+        for mi, ti, nbr, _labels in loader:
+            mi  = mi.to(device,  non_blocking=True)
+            ti  = ti.to(device,  non_blocking=True)
+            nbr = nbr.to(device, non_blocking=True)
+            wc  = model.build_pair_matrix(mi, ti)              # (B, C, 30, 50)
+
+            logit = model.logits_from_matrix(wc, nbr)              # (B,)
+            base  = model.logits_from_matrix(torch.zeros_like(wc), nbr)
+
+            if args.method == "ig":
+                ig      = _ig_attribution(model, wc, nbr, args.ig_steps)
+                per_pos = ig.sum(dim=(1, 2))                       # (B, MRE_LEN)
+                if mat_batches is not None:
+                    mat_batches.append(ig.sum(dim=1).cpu().numpy())  # (B, 30, 50)
+            else:
+                per_pos = _occlusion_attribution(model, wc, nbr)   # (B, MRE_LEN)
+
+            per_pos_batches.append(per_pos.cpu().numpy())
+            logit_batches.append(logit.cpu().numpy())
+            base_batches.append(base.cpu().numpy())
+
+    per_pos = np.concatenate(per_pos_batches)      # (N, MRE_LEN)
+    logits  = np.concatenate(logit_batches)
+    bases   = np.concatenate(base_batches)
+    probs   = 1.0 / (1.0 + np.exp(-logits))
+
+    df = _read_table(args.input)
+    df["logit"]          = logits
+    df["prob"]           = probs
+    df["baseline_logit"] = bases
+    df["attr_total"]     = per_pos.sum(axis=1)
+    for j in range(MRE_LEN):
+        df[f"mre_pos_{j:02d}"] = per_pos[:, j]
+
+    out_path = Path(args.output)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(out_path, sep="\t", index=False)
+    print(f"Wrote {len(df)} rows × {MRE_LEN} MRE-position attributions "
+          f"(method={args.method}) → {out_path}")
+
+    # Completeness diagnostic (IG only): the per-position scores should sum to
+    # logit(x) − logit(baseline).  A large gap means too few --ig-steps.
+    if args.method == "ig":
+        gap = np.abs(per_pos.sum(axis=1) - (logits - bases))
+        print(f"  IG completeness |Σattr − (logit−baseline)|: "
+              f"mean={gap.mean():.4f} max={gap.max():.4f} "
+              f"(raise --ig-steps if large)")
+
+    # Orientation: mean |attribution| per MRE position over the scored rows.
+    mabs = np.abs(per_pos).mean(axis=0)
+    top  = np.argsort(mabs)[::-1][:8]
+    print("  top MRE positions by mean|attr|:")
+    for j in sorted(top):
+        print(f"    pos {j:2d}: mean|attr|={mabs[j]:.4f}  "
+              f"mean_signed={per_pos[:, j].mean():+.4f}")
+
+    if mat_batches is not None:
+        mat   = np.concatenate(mat_batches)        # (N, MAX_MIRNA, MRE_LEN)
+        mpath = Path(args.dump_matrix)
+        mpath.parent.mkdir(parents=True, exist_ok=True)
+        np.savez_compressed(
+            mpath, attribution=mat.astype(np.float32),
+            mirna_idx=ds.mirna_idx, mre_idx=ds.mre_idx,
+            logit=logits, prob=probs)
+        print(f"  Wrote full (N, {MAX_MIRNA}, {MRE_LEN}) attribution tensor "
+              f"→ {mpath}")
+
+
+# ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
 
@@ -2519,6 +2691,42 @@ def main() -> int:
     pr.add_argument("--device",
                     default="cuda" if torch.cuda.is_available() else "cpu")
 
+    # ----- explain ----------------------------------------------------------
+    ex = sub.add_parser(
+        "explain",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        help="Per-sample attribution of the binding logit onto MRE positions "
+             "(Integrated Gradients or occlusion on the 2D pairing matrix).")
+    ex.add_argument("--checkpoint", required=True)
+    ex.add_argument("--input", required=True,
+                    help="TSV to explain (labels optional; carried through).")
+    ex.add_argument("--output", required=True,
+                    help="Output TSV: input columns + logit/prob + one "
+                         "mre_pos_XX column per MRE position.")
+    ex.add_argument("--method", choices=["ig", "occlusion"], default="ig",
+                    help="ig = Integrated Gradients on the pairing matrix (fast, "
+                         "additive/completeness); occlusion = zero each MRE "
+                         "column and measure Δlogit (model-agnostic, MRE_LEN "
+                         "forwards/sample).")
+    ex.add_argument("--ig-steps", type=int, default=32, dest="ig_steps",
+                    help="Riemann steps for Integrated Gradients (raise if the "
+                         "completeness gap printed at the end is large).")
+    ex.add_argument("--dump-matrix", default=None, dest="dump_matrix",
+                    help="Also save the full channel-summed (N, MAX_MIRNA, "
+                         "MRE_LEN) attribution tensor as .npz (IG only) for "
+                         "per-pair (miRNA×MRE) heatmaps.")
+    ex.add_argument("--batch-size", type=int,  default=256)
+    ex.add_argument("--num-workers", type=int, default=4, dest="num_workers")
+    ex.add_argument("--mre-col",   default="mre_sequence",   dest="mre_col")
+    ex.add_argument("--mirna-col", default="mirna_sequence", dest="mirna_col")
+    ex.add_argument("--nbr-col",   default="neighbor_count",  dest="nbr_col",
+                    help="Per-pair neighbour-count column (used if the checkpoint "
+                         "was trained with --seq-nbr-feature).")
+    ex.add_argument("--no-cache",  action="store_true", dest="no_cache",
+                    help="Disable the preprocessing .cnncache.npz sidecar files.")
+    ex.add_argument("--device",
+                    default="cuda" if torch.cuda.is_available() else "cpu")
+
     # ----- predict-ensemble -------------------------------------------------
     pe = sub.add_parser("predict-ensemble",
                         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
@@ -2616,6 +2824,8 @@ def main() -> int:
     args = parser.parse_args()
     if args.command == "train":
         cmd_train(args)
+    elif args.command == "explain":
+        cmd_explain(args)
     elif args.command == "predict-ensemble":
         cmd_predict_ensemble(args)
     elif args.command == "neighbor-counts":

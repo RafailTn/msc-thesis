@@ -1,0 +1,29 @@
+# Standalone Pixi environment for the IntaRNA ensemble-energy annotation.
+#
+# IntaRNA is deliberately NOT part of the main project env (dependencies/pixi.toml);
+# this is a small, self-contained env so the annotation can be run on a server
+# without pulling in the whole CUDA/torch stack.
+#
+#   cd intarna_ensemble
+#   pixi install            # solves + fetches IntaRNA (uses pixi.lock if present)
+#   ./run_ensemble.sh INPUT.tsv OUTPUT.tsv --threads 12
+#
+[workspace]
+name = "intarna-ensemble"
+version = "0.1.0"
+description = "Append IntaRNA ensemble-energy columns (Eall, Eall_MRE) to v7 TSVs"
+channels = ["conda-forge", "bioconda"]
+platforms = ["linux-64"]          # add "osx-arm64" etc. here if the server differs
+
+[dependencies]
+intarna = "3.4.1.*"               # provides the `IntaRNA` binary (+ ViennaRNA)
+python = ">=3.10"                 # add_ensemble_energy.py is pure stdlib
+# extend_mre.py (MRE-coordinate widening) needs these; add_ensemble_energy.py
+# does not, but one env for both keeps the server footprint to a single solve.
+polars = "*"                      # fast TSV read/join
+pyfaidx = "*"                     # random-access genome FASTA
+numpy = "*"                       # exon-index arrays
+
+[tasks]
+# Print the IntaRNA version the env resolved to (quick sanity check).
+version = "IntaRNA --version"
