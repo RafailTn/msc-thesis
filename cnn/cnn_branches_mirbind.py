@@ -177,7 +177,8 @@ _ASCII_IDX[ord("t")] = _NUC_IDX["U"]
 # v5: added the per-MRE conservation vector (phastCons/phyloP) MRE-axis channel.
 # v6: added the per-pair leakage-free neighbour-count scalar (classifier head).
 # v7: dropped the tAcc/conservation MRE-axis vectors (acc/con channels removed).
-_CACHE_VERSION = 7
+# v8: dropped the neighbour-count scalar (cooperativity feature removed).
+_CACHE_VERSION = 8
 
 
 def _norm_seq(seq: str) -> str:
@@ -277,30 +278,26 @@ def _cache_path(path: str | Path) -> Path:
 
 
 def _save_cache(path: str | Path, mre_col: str, mirna_col: str,
-                nbr_col: str, ds: "MiRNAInteractionDataset") -> None:
+                ds: "MiRNAInteractionDataset") -> None:
     cp = _cache_path(path)
     try:
         arrays = dict(
             version=np.array([_CACHE_VERSION]),
             mre_col=np.array([mre_col]),
             mirna_col=np.array([mirna_col]),
-            nbr_col=np.array([nbr_col or ""]),
             dims=np.array([MAX_MIRNA, MRE_LEN]),
-            has_nbr=np.array([ds.nbr is not None]),
             mirna_idx=ds.mirna_idx,
             mre_idx=ds.mre_idx,
             labels=ds.labels,
         )
-        if ds.nbr is not None:
-            arrays["nbr"] = ds.nbr
         np.savez(cp, **arrays)
         print(f"  [cache] wrote {cp.name}")
     except Exception as e:   # caching is best-effort; never fail training over it
         print(f"  [cache] could not write {cp.name}: {e}")
 
 
-def _load_cache(path: str | Path, mre_col: str, mirna_col: str,
-                nbr_col: str) -> Optional[dict]:
+def _load_cache(path: str | Path, mre_col: str,
+                mirna_col: str) -> Optional[dict]:
     cp = _cache_path(path)
     if not cp.exists():
         return None
@@ -311,7 +308,6 @@ def _load_cache(path: str | Path, mre_col: str, mirna_col: str,
         if (int(z["version"][0]) != _CACHE_VERSION
                 or str(z["mre_col"][0]) != mre_col
                 or str(z["mirna_col"][0]) != mirna_col
-                or str(z["nbr_col"][0]) != (nbr_col or "")
                 or list(z["dims"]) != [MAX_MIRNA, MRE_LEN]):
             z.close()
             return None
@@ -319,7 +315,6 @@ def _load_cache(path: str | Path, mre_col: str, mirna_col: str,
             "mirna_idx":  z["mirna_idx"],
             "mre_idx":    z["mre_idx"],
             "labels":     z["labels"],
-            "nbr":        z["nbr"] if bool(z["has_nbr"][0]) else None,
         }
         z.close()
         return data
@@ -339,19 +334,17 @@ class MiRNAInteractionDataset(Dataset):
         has_labels: bool = True,
         mre_col: str = "mre_sequence",
         mirna_col: str = "mirna_sequence",
-        nbr_col: str = "",
         cache: bool = True,
     ) -> None:
-        cached = (_load_cache(path, mre_col, mirna_col, nbr_col)
-                  if cache else None)
+        cached = _load_cache(path, mre_col, mirna_col) if cache else None
         if cached is not None:
             print(f"  [cache] loaded {_cache_path(path).name}")
             self.has_labels = has_labels
             self._set_arrays(**cached)
         else:
-            self._init(_read_table(path), has_labels, mre_col, mirna_col, nbr_col)
+            self._init(_read_table(path), has_labels, mre_col, mirna_col)
             if cache:
-                _save_cache(path, mre_col, mirna_col, nbr_col, self)
+                _save_cache(path, mre_col, mirna_col, self)
 
     @classmethod
     def from_df(
@@ -360,10 +353,9 @@ class MiRNAInteractionDataset(Dataset):
         has_labels: bool = True,
         mre_col: str = "mre_sequence",
         mirna_col: str = "mirna_sequence",
-        nbr_col: str = "",
     ) -> "MiRNAInteractionDataset":
         obj = cls.__new__(cls)
-        obj._init(df, has_labels, mre_col, mirna_col, nbr_col)
+        obj._init(df, has_labels, mre_col, mirna_col)
         return obj
 
     def _init(
@@ -372,10 +364,9 @@ class MiRNAInteractionDataset(Dataset):
         has_labels: bool,
         mre_col: str,
         mirna_col: str,
-        nbr_col: str = "",
     ) -> None:
         self.has_labels = has_labels
-        self._build_arrays(df, has_labels, mre_col, mirna_col, nbr_col)
+        self._build_arrays(df, has_labels, mre_col, mirna_col)
 
     def _build_arrays(
         self,
@@ -383,24 +374,11 @@ class MiRNAInteractionDataset(Dataset):
         has_labels: bool,
         mre_col: str,
         mirna_col: str,
-        nbr_col: str = "",
     ) -> None:
         # Tokenise sequences once into int8 index matrices; the Watson–Crick
         # matrix is assembled on-device in the model forward pass.
         self.mirna_idx = _encode_seqs(df[mirna_col].astype(str).tolist(), MAX_MIRNA)  # (N, 30)
         self.mre_idx   = _encode_seqs(df[mre_col].astype(str).tolist(),   MRE_LEN)    # (N, 50)
-
-        # Per-pair leakage-free neighbour count: number of distinct
-        # confident-positive sites near this pair's MRE (a global scalar, not an
-        # MRE-axis vector).  Precomputed offline by the `neighbor-counts`
-        # subcommand from out-of-fold predictions and stored as a plain column;
-        # parsed only when present, else the model — if it requests the feature —
-        # sees a count of 0.  Stored as (N,) float32.
-        if nbr_col and nbr_col in df.columns:
-            self.nbr = df[nbr_col].to_numpy(dtype=np.float32)
-            np.nan_to_num(self.nbr, copy=False)
-        else:
-            self.nbr = None
 
         if has_labels and "label" in df.columns:
             self.labels = df["label"].astype(int).values
@@ -412,37 +390,30 @@ class MiRNAInteractionDataset(Dataset):
         mirna_idx: np.ndarray,
         mre_idx: np.ndarray,
         labels: np.ndarray,
-        nbr: Optional[np.ndarray] = None,
     ) -> None:
         """Populate arrays from a loaded cache."""
         self.mirna_idx  = mirna_idx
         self.mre_idx    = mre_idx
-        self.nbr        = nbr
         self.labels = labels if self.has_labels else np.zeros(len(mirna_idx), dtype=np.int64)
 
     def subset(self, mask: np.ndarray) -> None:
         """Restrict the dataset in place to rows where ``mask`` is True.
 
-        Keeps every per-sample array (tokens, labels, optional neighbour count)
-        aligned, so the dataset stays internally consistent after e.g.
-        binding-type filtering.
+        Keeps every per-sample array (tokens, labels) aligned, so the dataset
+        stays internally consistent after e.g. binding-type filtering.
         """
         mask = np.asarray(mask, dtype=bool)
         self.mirna_idx = self.mirna_idx[mask]
         self.mre_idx   = self.mre_idx[mask]
         self.labels    = self.labels[mask]
-        if self.nbr is not None:
-            self.nbr = self.nbr[mask]
 
     def __len__(self) -> int:
         return len(self.mirna_idx)
 
     def __getitem__(self, idx: int):
-        nbr = float(self.nbr[idx]) if self.nbr is not None else 0.0
         return (
             torch.from_numpy(self.mirna_idx[idx]),          # (MAX_MIRNA,) int8
             torch.from_numpy(self.mre_idx[idx]),            # (MRE_LEN,)   int8
-            nbr,                                            # scalar neighbour count
             int(self.labels[idx]),
         )
 
@@ -677,7 +648,6 @@ class MiRBindCNN(nn.Module):
         seq_pairing:      str   = "multi",
         pair_embed_dim:   int   = 3,
         seq_pool:         str   = "gem",
-        seq_nbr_feature:  bool  = False,
         n_conv_blocks:    int   = 6,
         n_pool_blocks:    int   = 4,
         block_pool:       str   = "max",
@@ -729,46 +699,18 @@ class MiRBindCNN(nn.Module):
             n_conv_blocks=n_conv_blocks, n_pool_blocks=n_pool_blocks,
             block_pool=block_pool, activation=activation)
 
-        # ── Leakage-free neighbour-count scalar (classifier head) ─────────────
-        # A per-pair global feature: the number of distinct confident-positive
-        # sites near this pair's MRE (precomputed offline from out-of-fold
-        # predictions; see the `neighbor-counts` subcommand).  It does NOT belong
-        # in the 2D conv stack — it is constant over the pairing map — so it is
-        # injected into the classifier head instead.  log1p compresses the raw
-        # 0..~40 count and a BatchNorm1d normalises it onto the embedding's
-        # scale.  A sample with no neighbour column (or genuinely no neighbours)
-        # sees count 0, so the head degrades gracefully to the no-neighbour
-        # baseline.
-        self.seq_nbr_feature = seq_nbr_feature
-
         # ── Classifier ────────────────────────────────────────────────────────
         # No dropout before the first Linear: the seq-branch's final DenseBlock
         # already applies dropout, and only a LayerNorm+GELU (no linear) sits
         # between it and here, so a second dropout would be redundant.
-        #
-        # Without the neighbour feature the head is unchanged (byte-identical
-        # state_dict, so existing checkpoints keep loading).  With it, the seq
-        # embedding is LayerNorm+GELU'd on its own and the neighbour scalar is
-        # concatenated before the first Linear (kept out of that LayerNorm so it
-        # is not renormalised against the 128-d embedding).
-        if seq_nbr_feature:
-            self.nbr_norm = nn.BatchNorm1d(1)
-            self.seq_head_norm = nn.Sequential(nn.LayerNorm(seq_dim), nn.GELU())
-            self.classifier = nn.Sequential(
-                nn.Linear(seq_dim + 1, seq_dim // 2),
-                nn.GELU(),
-                nn.Dropout(seq_dropout),
-                nn.Linear(seq_dim // 2, 1),
-            )
-        else:
-            self.classifier = nn.Sequential(
-                nn.LayerNorm(seq_dim),
-                nn.GELU(),
-                nn.Linear(seq_dim, seq_dim // 2),
-                nn.GELU(),
-                nn.Dropout(seq_dropout),
-                nn.Linear(seq_dim // 2, 1),
-            )
+        self.classifier = nn.Sequential(
+            nn.LayerNorm(seq_dim),
+            nn.GELU(),
+            nn.Linear(seq_dim, seq_dim // 2),
+            nn.GELU(),
+            nn.Dropout(seq_dropout),
+            nn.Linear(seq_dim // 2, 1),
+        )
 
     def build_pair_matrix(
         self,
@@ -797,31 +739,20 @@ class MiRBindCNN(nn.Module):
     def logits_from_matrix(
         self,
         wc_mat: torch.Tensor,           # (B, C_pair, MAX_MIRNA, MRE_LEN)
-        nbr:    Optional[torch.Tensor] = None,  # (B,) float neighbour count
     ) -> torch.Tensor:                  # (B,) logits
         """Run the sequence branch + classifier head from a pairing matrix."""
         h_seq = self.seq_branch(wc_mat)         # (B, seq_dim)
-
-        if self.seq_nbr_feature:
-            h = self.seq_head_norm(h_seq)       # (B, seq_dim)
-            if nbr is None:
-                nbr = h.new_zeros(h.shape[0])
-            # log1p-compress the count, then BatchNorm onto the embedding scale.
-            nf = torch.log1p(nbr.to(h.dtype).clamp(min=0.0)).unsqueeze(1)  # (B, 1)
-            nf = self.nbr_norm(nf)
-            return self.classifier(torch.cat([h, nf], dim=1)).squeeze(-1)
         return self.classifier(h_seq).squeeze(-1)
 
     def forward(
         self,
         mi:     torch.Tensor,            # (B, MAX_MIRNA)  int nucleotide indices
         ti:     torch.Tensor,            # (B, MRE_LEN)    int nucleotide indices
-        nbr:    Optional[torch.Tensor] = None,  # (B,) float neighbour count
     ) -> torch.Tensor:          # (B,) logits
         # Assemble the pairing matrix on-device (keeps the per-sample CPU work in
         # the data loader down to a slice copy), then run the head.
         wc_mat = self.build_pair_matrix(mi, ti)
-        return self.logits_from_matrix(wc_mat, nbr)
+        return self.logits_from_matrix(wc_mat)
 
 
 # ---------------------------------------------------------------------------
@@ -929,13 +860,12 @@ def evaluate(model: MiRBindCNN, loader: DataLoader,
     all_logits, all_labels = [], []
     total_loss, n_batches  = 0.0, 0
 
-    for mi, ti, nbr, labels in loader:
+    for mi, ti, labels in loader:
         mi     = mi.to(device,     non_blocking=True)
         ti     = ti.to(device,     non_blocking=True)
-        nbr    = nbr.to(device,    non_blocking=True)
         labels = labels.to(device, non_blocking=True).float()
 
-        logits = model(mi, ti, nbr)
+        logits = model(mi, ti)
         loss   = _compute_loss(logits, labels, pos_weight, gamma)
         total_loss += loss.item()
         n_batches  += 1
@@ -960,11 +890,10 @@ def predict_logits(model: MiRBindCNN, loader: DataLoader,
     """
     model.eval()
     all_logits, all_labels = [], []
-    for mi, ti, nbr, labels in loader:
+    for mi, ti, labels in loader:
         mi     = mi.to(device,     non_blocking=True)
         ti     = ti.to(device,     non_blocking=True)
-        nbr    = nbr.to(device,    non_blocking=True)
-        logits = model(mi, ti, nbr)
+        logits = model(mi, ti)
         all_logits.append(logits.cpu().numpy())
         all_labels.append(labels.numpy())
     return np.concatenate(all_logits), np.concatenate(all_labels).astype(int)
@@ -1029,280 +958,6 @@ def _duplex_stats(mirna_idx: np.ndarray, mre_idx: np.ndarray) -> dict:
         out["seed_pairs"][s] = int(
             ((_PAIR_WC[sp, ti[sq]] + _PAIR_GU[sp, ti[sq]]) > 0).sum())
     return out
-
-
-# ---------------------------------------------------------------------------
-# Leakage-free neighbour-count feature
-#
-# Real AGO2 target sites cluster spatially while the dissimilarity-sampled
-# negatives do not, so the number of *other* confident-positive sites near a
-# pair's MRE predicts the true label even at fixed seed strength — a signal the
-# sequence branch cannot see (it has no coordinates).  This stays leakage-free
-# because (a) the count is over OTHER coordinates, never the row's own, and (b)
-# the "confident-positive" set comes from out-of-fold predictions the caller
-# supplies (so a row's own label never enters its feature).  The graded count
-# (dose-response), not a binary flag, is what carries the signal.
-# ---------------------------------------------------------------------------
-
-def _neighbor_counts(df: pd.DataFrame, score: np.ndarray, conf: float,
-                     window: int, min_sep: int, chr_col: str, strand_col: str,
-                     start_col: str, end_col: str) -> np.ndarray:
-    """Per-row count of *distinct* confident-positive neighbour sites in a band.
-
-    For each row, counts the distinct genomic coordinates (centre = (start+end)//2)
-    on the same chr+strand whose ``score >= conf`` and whose centre lies in the
-    band ``min_sep <= |Δcentre| <= window``.  ``score`` is a per-row confidence
-    (e.g. ``interaction_probability`` from a held-out / out-of-fold prediction
-    pass).
-
-    ``min_sep`` sets a lower bound that drops too-close neighbours.  The row's own
-    coordinate (Δ=0) is always excluded, so ``min_sep=0`` counts every distinct
-    neighbour in ``(0, window]``.  Two AGO2 footprints (~50–60 nt) cannot
-    co-occupy, and sites <~50 nt apart share overlapping 50-mer MRE fragments
-    (near-duplicate sequences the seq branch already sees), so ``min_sep≈60``
-    isolates the independent-clustering signal — empirically a steeper
-    per-neighbour dose-response than the close-inclusive band.  Returns an (N,)
-    int32 array.
-    """
-    centers = ((df[start_col].to_numpy(dtype=np.int64)
-                + df[end_col].to_numpy(dtype=np.int64)) // 2)
-    conf_mask = np.asarray(score, dtype=np.float64) >= conf
-    counts = np.zeros(len(df), dtype=np.int32)
-    grp = pd.DataFrame({
-        "chr":    df[chr_col].astype(str).to_numpy(),
-        "strand": df[strand_col].astype(str).to_numpy(),
-        "c":      centers,
-        "conf":   conf_mask,
-        "row":    np.arange(len(df)),
-    })
-    # Exclude the near band |Δ| < max(min_sep, 1) — which always covers the row's
-    # own Δ=0 coordinate, so a site never counts itself regardless of min_sep.
-    thr = max(min_sep, 1)
-    for _, sub in grp.groupby(["chr", "strand"], sort=False):
-        conf_centers = np.unique(sub.loc[sub["conf"], "c"].to_numpy())
-        if conf_centers.size == 0:
-            continue
-        rc   = sub["c"].to_numpy()
-        lo   = np.searchsorted(conf_centers, rc - window, side="left")
-        hi   = np.searchsorted(conf_centers, rc + window, side="right")
-        nlo  = np.searchsorted(conf_centers, rc - (thr - 1), side="left")
-        nhi  = np.searchsorted(conf_centers, rc + (thr - 1), side="right")
-        counts[sub["row"].to_numpy()] = ((hi - lo) - (nhi - nlo)).astype(np.int32)
-    return counts
-
-
-# ---------------------------------------------------------------------------
-# MANE-Select transcript model — transcript-aware / hybrid neighbour counting
-#
-# Genomic `_neighbor_counts` measures linear distance, which conflates relations
-# that differ on the processed mRNA: two sites 100 nt apart on the genome can
-# straddle a splice junction (far apart — or non-co-existent — on the mature
-# mRNA), and an intronic site only exists in the pre-mRNA.  These helpers map an
-# MRE onto MANE-Select transcript (spliced) coordinates and count neighbours only
-# within the SAME transcript by spliced distance: introns collapsed, cross-
-# junction / wrong-isoform pairs excluded.  A 50-mer is "exonic" only when a
-# single MANE exon FULLY contains [start,end] AND the spliced transcript sequence
-# at the mapped offset equals the MRE sequence (U->T) — the same routing the
-# accessibility precompute uses for its `acc_mode`.  Straddlers / intronic /
-# intergenic / sequence-mismatch rows are unmapped; in hybrid mode they fall back
-# to the genomic count.  (Kept here in the core module so the `neighbor-counts`
-# builder and cooperativity_analysis share one implementation.)
-# ---------------------------------------------------------------------------
-
-_DNA_COMP = str.maketrans("ACGTNacgtn", "TGCANtgcan")
-
-
-def _rc_dna(s: str) -> str:
-    return s.translate(_DNA_COMP)[::-1]
-
-
-def _tsv_chrom_to_fa(chrom: str) -> str:
-    """v7 TSV chromosome label (`6`, `MT`) -> GENCODE contig (`chr6`, `chrM`)."""
-    c = str(chrom)
-    if c in ("MT", "chrMT", "M"):
-        return "chrM"
-    return c if c.startswith("chr") else "chr" + c
-
-
-def _parse_mane_gtf(gtf_path):
-    """Parse MANE-Select exons -> (tx, index, max_exon_len); pickle-cached.
-
-    tx[tid] = {"chrom","strand","ex":[(es,ee)...asc],"cum":[...],"Lt":int};
-    index[(chrom,strand)] = (es_arr, ee_arr, meta) sorted by es, meta entry
-    (cum_offset, es, tid).  Cache <gtf>.mane_nbr.pkl, rebuilt when GTF is newer.
-    """
-    import gzip
-    import pickle
-    gtf_path = Path(gtf_path)
-    cache = gtf_path.with_name(gtf_path.name + ".mane_nbr.pkl")
-    if cache.exists() and cache.stat().st_mtime >= gtf_path.stat().st_mtime:
-        with open(cache, "rb") as fh:
-            return pickle.load(fh)
-
-    opener = gzip.open if str(gtf_path).endswith(".gz") else open
-    tx: dict = {}
-    with opener(gtf_path, "rt") as fh:
-        for line in fh:
-            if line[0] == "#":
-                continue
-            f = line.split("\t")
-            if len(f) < 9 or f[2] != "exon" or 'tag "MANE_Select"' not in f[8]:
-                continue
-            tid = f[8].split('transcript_id "', 1)[1].split('"', 1)[0]
-            es, ee = int(f[3]), int(f[4])
-            d = tx.get(tid)
-            if d is None:
-                tx[tid] = {"chrom": f[0], "strand": f[6], "ex": [(es, ee)]}
-            else:
-                d["ex"].append((es, ee))
-
-    raw: dict = {}
-    max_exon_len = 0
-    for tid, d in tx.items():
-        d["ex"].sort()                                   # genomic ascending
-        cum, c = [], 0
-        for es, ee in d["ex"]:
-            cum.append(c)
-            c += ee - es + 1
-            max_exon_len = max(max_exon_len, ee - es + 1)
-        d["cum"] = cum
-        d["Lt"] = c
-        for (es, ee), cm in zip(d["ex"], cum):
-            raw.setdefault((d["chrom"], d["strand"]), []).append((es, ee, cm, tid))
-
-    index: dict = {}
-    for key, bucket in raw.items():
-        bucket.sort()                                    # by exon start
-        index[key] = (
-            np.array([b[0] for b in bucket], dtype=np.int64),
-            np.array([b[1] for b in bucket], dtype=np.int64),
-            [(b[2], b[0], b[3]) for b in bucket],        # (cum, es, tid)
-        )
-    with open(cache, "wb") as fh:
-        pickle.dump((tx, index, max_exon_len), fh)
-    return tx, index, max_exon_len
-
-
-def _find_host_exon(index, max_exon_len, chrom, strand, s, e):
-    """(cum, es, tid) of the MANE exon fully containing [s,e], or None."""
-    from bisect import bisect_right
-    rec = index.get((chrom, strand))
-    if rec is None:
-        return None
-    es_arr, ee_arr, meta = rec
-    j = bisect_right(es_arr, s)
-    k = j - 1
-    while k >= 0 and (s - es_arr[k]) <= max_exon_len:
-        if ee_arr[k] >= e:
-            return meta[k]
-        k -= 1
-    return None
-
-
-class _TxContext:
-    """Lazily concatenated spliced MANE transcript sequences (for the guard)."""
-
-    def __init__(self, genome_fa, tx):
-        from pyfaidx import Fasta
-        self.fa = Fasta(genome_fa, sequence_always_upper=True, rebuild=False)
-        self.tx = tx
-        self._seq: dict = {}
-
-    def txseq(self, tid: str) -> str:
-        s = self._seq.get(tid)
-        if s is None:
-            d = self.tx[tid]
-            asc = "".join(str(self.fa[d["chrom"]][es - 1:ee]) for es, ee in d["ex"])
-            s = asc if d["strand"] == "+" else _rc_dna(asc)
-            self._seq[tid] = s
-        return s
-
-
-def _map_rows_to_tx(df, tx, index, max_exon_len, ctx,
-                    chr_col, strand_col, start_col, end_col, mre_col):
-    """Map each row to its MANE host transcript (full containment + seq guard).
-
-    Returns (tids[object], txpos[int64 5'-spliced coord], mapped[bool],
-    n_nohost, n_seqfail).  txpos is a constant 25-nt offset from the centre, so
-    it is fine as the neighbour anchor (only |Δ| matters)."""
-    s_arr = df[start_col].to_numpy(np.int64)
-    e_arr = df[end_col].to_numpy(np.int64)
-    chrom = df[chr_col].astype(str).to_numpy()
-    strand = df[strand_col].astype(str).to_numpy()
-    mre = (df[mre_col].astype(str).str.upper()
-           .str.replace("U", "T", regex=False).to_numpy())
-
-    n = len(df)
-    tids = np.empty(n, dtype=object)
-    txpos = np.full(n, -1, dtype=np.int64)
-    mapped = np.zeros(n, dtype=bool)
-    n_nohost = n_seqfail = 0
-    for j in range(n):
-        chrom_fa = _tsv_chrom_to_fa(chrom[j])
-        if chrom_fa not in ctx.fa:
-            n_nohost += 1
-            continue
-        host = _find_host_exon(index, max_exon_len, chrom_fa, strand[j],
-                               int(s_arr[j]), int(e_arr[j]))
-        if host is None:
-            n_nohost += 1
-            continue
-        cum, es, tid = host
-        Lt = tx[tid]["Lt"]
-        a_s = cum + (int(s_arr[j]) - es)
-        a_e = cum + (int(e_arr[j]) - es)
-        tlo = a_s if strand[j] == "+" else (Lt - 1 - a_e)
-        if 0 <= tlo and ctx.txseq(tid)[tlo:tlo + MRE_LEN] == mre[j]:
-            tids[j] = tid
-            txpos[j] = tlo
-            mapped[j] = True
-        else:
-            n_seqfail += 1
-    return tids, txpos, mapped, n_nohost, n_seqfail
-
-
-def _neighbor_counts_transcript(df, score, conf, window, min_sep,
-                                tx, index, max_exon_len, ctx,
-                                chr_col, strand_col, start_col, end_col, mre_col):
-    """Distinct confident-positive neighbours within a SPLICED band [min_sep,
-    window] along the same MANE host transcript.  Each row has at most one host,
-    so counts assign directly.  Returns (counts, mapped, n_nohost, n_seqfail)."""
-    centers = ((df[start_col].to_numpy(np.int64)
-                + df[end_col].to_numpy(np.int64)) // 2)
-    conf_mask = np.asarray(score, float) >= conf
-    tids, txpos, mapped, n_nohost, n_seqfail = _map_rows_to_tx(
-        df, tx, index, max_exon_len, ctx,
-        chr_col, strand_col, start_col, end_col, mre_col)
-
-    counts = np.zeros(len(df), dtype=np.int32)
-    sel = np.where(mapped)[0]
-    if sel.size == 0:
-        return counts, mapped, n_nohost, n_seqfail
-
-    thr = max(min_sep, 1)
-    long = pd.DataFrame({"tid": tids[sel], "row": sel, "pos": txpos[sel],
-                         "center": centers[sel], "conf": conf_mask[sel]})
-    for _, sub in long.groupby("tid", sort=False):
-        cdf = sub[sub["conf"]].drop_duplicates("center")
-        if cdf.empty:
-            continue
-        order = np.argsort(cdf["pos"].to_numpy())
-        cpos = cdf["pos"].to_numpy()[order]
-        ccen = cdf["center"].to_numpy()[order]
-        rpos = sub["pos"].to_numpy()
-        rrow = sub["row"].to_numpy()
-        rcen = sub["center"].to_numpy()
-        lo = np.searchsorted(cpos, rpos - window, "left")
-        hi = np.searchsorted(cpos, rpos + window, "right")
-        nlo = np.searchsorted(cpos, rpos - (thr - 1), "left")
-        nhi = np.searchsorted(cpos, rpos + (thr - 1), "right")
-        for k in range(len(rrow)):
-            if hi[k] == lo[k]:
-                continue
-            neigh = np.concatenate((ccen[lo[k]:nlo[k]], ccen[nhi[k]:hi[k]]))
-            neigh = neigh[neigh != rcen[k]]
-            counts[rrow[k]] = neigh.size                 # unique centres already
-    return counts, mapped, n_nohost, n_seqfail
 
 
 # ---------------------------------------------------------------------------
@@ -1506,7 +1161,6 @@ def _model_args_from_cli(args: argparse.Namespace) -> dict:
         "seq_pairing":      args.seq_pairing,
         "pair_embed_dim":   args.pair_embed_dim,
         "seq_pool":         args.seq_pool,
-        "seq_nbr_feature":  args.seq_nbr_feature,
         "n_conv_blocks":    args.n_conv_blocks,
         "n_pool_blocks":    args.n_pool_blocks,
         "block_pool":       args.block_pool,
@@ -1618,13 +1272,12 @@ def _train_one_run(
         seen = 0
         train_logits_buf, train_labels_buf = [], []
 
-        for mi, ti, nbr, labels in train_loader:
+        for mi, ti, labels in train_loader:
             mi     = mi.to(device,     non_blocking=True)
             ti     = ti.to(device,     non_blocking=True)
-            nbr    = nbr.to(device,    non_blocking=True)
             labels = labels.to(device, non_blocking=True).float()
 
-            logits = model(mi, ti, nbr)
+            logits = model(mi, ti)
             loss   = _compute_loss(logits, labels, pos_weight, gamma)
 
             optim.zero_grad(set_to_none=True)
@@ -1777,26 +1430,19 @@ def _run_single(args: argparse.Namespace, device: torch.device) -> None:
                                 args.mirna_col, args.mre_col, args.dedup)
         train_ds = MiRNAInteractionDataset.from_df(
             train_df, has_labels=True,
-            mre_col=args.mre_col, mirna_col=args.mirna_col, nbr_col=args.nbr_col)
+            mre_col=args.mre_col, mirna_col=args.mirna_col)
     else:
         train_ds = MiRNAInteractionDataset(
             args.train, has_labels=True,
-            mre_col=args.mre_col, mirna_col=args.mirna_col, nbr_col=args.nbr_col, cache=cache)
+            mre_col=args.mre_col, mirna_col=args.mirna_col, cache=cache)
     print(f"  train samples : {len(train_ds)}")
     print(f"  positives     : {int(train_ds.labels.sum())} / {len(train_ds.labels)}")
-    if args.seq_nbr_feature and train_ds.nbr is None:
-        print(f"  WARNING: --seq-nbr-feature set but column {args.nbr_col!r} not "
-              f"found in {args.train}; the neighbour count will be all zeros "
-              f"(head degrades to the no-neighbour baseline). Materialise the "
-              f"column first with the `neighbor-counts` subcommand, or drop the "
-              f"flag.")
-
     val_loader = None
     if not args.no_val:
         print("Loading validation data ...")
         val_ds = MiRNAInteractionDataset(
             args.val, has_labels=True,
-            mre_col=args.mre_col, mirna_col=args.mirna_col, nbr_col=args.nbr_col, cache=cache)
+            mre_col=args.mre_col, mirna_col=args.mirna_col, cache=cache)
         print(f"  val samples   : {len(val_ds)}")
         if args.keep_binding_type and args.keep_binding_type_val:
             _filter_binding_types(val_ds, args.keep_binding_type, "val",
@@ -1909,10 +1555,10 @@ def _run_kfold(args: argparse.Namespace, device: torch.device) -> None:
 
         train_ds = MiRNAInteractionDataset.from_df(
             train_df, has_labels=True,
-            mre_col=args.mre_col, mirna_col=args.mirna_col, nbr_col=args.nbr_col)
+            mre_col=args.mre_col, mirna_col=args.mirna_col)
         val_ds   = MiRNAInteractionDataset.from_df(
             val_df, has_labels=True,
-            mre_col=args.mre_col, mirna_col=args.mirna_col, nbr_col=args.nbr_col)
+            mre_col=args.mre_col, mirna_col=args.mirna_col)
 
         print(f"  train positives: {int(train_ds.labels.sum())} / {len(train_ds.labels)}")
         print(f"  val   positives: {int(val_ds.labels.sum())} / {len(val_ds.labels)}")
@@ -1964,7 +1610,7 @@ def _run_kfold(args: argparse.Namespace, device: torch.device) -> None:
                 test_ds   = MiRNAInteractionDataset.from_df(
                     _read_table(test_path),
                     has_labels=True,
-                    mre_col=args.mre_col, mirna_col=args.mirna_col, nbr_col=args.nbr_col)
+                    mre_col=args.mre_col, mirna_col=args.mirna_col)
                 test_loader = _make_loader(
                     test_ds, args.batch_size, shuffle=False,
                     num_workers=args.num_workers)
@@ -2026,8 +1672,8 @@ def _run_kfold(args: argparse.Namespace, device: torch.device) -> None:
         if n_missing:
             msg += f"  ({n_missing} rows left unscored → 0.0)"
         print(msg)
-        print("  Feed it to `neighbor-counts --score-col interaction_probability` "
-              "for a leakage-free neighbour column.")
+        print("  Feed it to `cooperativity_analysis.py --score-col "
+              "interaction_probability` for the neighbour-clustering analysis.")
 
     print(f"{'='*60}")
 
@@ -2106,22 +1752,26 @@ def _load_ckpt_model(checkpoint: str | Path,
     # single WC(+wobble) channel with average pooling, so default to that when
     # the keys are absent (newer checkpoints carry their own values).
     for key, val in [("seq_pairing", "binary"), ("seq_pool", "avg"),
-                     ("seq_nbr_feature", False),
                      ("n_conv_blocks", 6), ("n_pool_blocks", 4),
                      ("block_pool", "max"), ("activation", "leaky_relu")]:
         margs.setdefault(key, val)
     # Drop keys for removed branches (tspot / energy, conservation / eclip vector
-    # branches, and the removed accessibility / conservation / positional channels
-    # and attention pooling) so older checkpoints still reconstruct — their saved
-    # weights for those branches, if any, are ignored and such checkpoints must be
-    # retrained.
+    # branches, the removed accessibility / conservation / positional channels and
+    # attention pooling, and the neighbour-count cooperativity feature) so older
+    # checkpoints still reconstruct — their saved weights for those branches, if
+    # any, are ignored and such checkpoints must be retrained.
+    #
+    # NOTE: a checkpoint trained with the old `--seq-nbr-feature` head carries
+    # extra `nbr_norm.*` / `seq_head_norm.*` weights and a wider `classifier.0`,
+    # so `load_state_dict` below will reject it.  Those checkpoints must be
+    # retrained against the vanilla sequence-only head.
     for dead in ("use_tspot", "use_energy", "energy_dim",
                  "use_conservation", "use_eclip",
                  "vec_channels", "vec_blocks", "vec_kernel_size",
                  "vec_dropout", "norm",
                  "pool_heads", "seq_pos_channels", "seq_acc_channel",
                  "seq_con_channel", "con_transform", "con_scale",
-                 "con_median", "con_iqr"):
+                 "con_median", "con_iqr", "seq_nbr_feature"):
         margs.pop(dead, None)
     model = MiRBindCNN(**margs).to(device)
     model.load_state_dict(ckpt["model_state"])
@@ -2138,17 +1788,16 @@ def cmd_predict(args: argparse.Namespace) -> None:
 
     ds = MiRNAInteractionDataset(
         args.input, has_labels=True,
-        mre_col=args.mre_col, mirna_col=args.mirna_col, nbr_col=args.nbr_col, cache=not args.no_cache)
+        mre_col=args.mre_col, mirna_col=args.mirna_col, cache=not args.no_cache)
     loader = DataLoader(ds, batch_size=args.batch_size, shuffle=False,
                         num_workers=args.num_workers, pin_memory=True)
 
     all_probs, all_preds, all_labels = [], [], []
     with torch.no_grad():
-        for mi, ti, nbr, labels in loader:
+        for mi, ti, labels in loader:
             mi     = mi.to(device)
             ti     = ti.to(device)
-            nbr    = nbr.to(device)
-            logits = model(mi, ti, nbr)
+            logits = model(mi, ti)
             probs  = torch.sigmoid(logits).cpu().numpy()
             all_probs.extend(probs.tolist())
             all_preds.extend((probs >= args.threshold).astype(int).tolist())
@@ -2174,118 +1823,6 @@ def cmd_predict(args: argparse.Namespace) -> None:
         _write_error_dump(args.error_dump, df_in, ds,
                           np.array(all_probs), np.array(all_preds, dtype=int),
                           np.array(all_labels, dtype=int))
-
-
-def cmd_neighbor_counts(args: argparse.Namespace) -> None:
-    """Materialise the leakage-free neighbour-count column on an input TSV.
-
-    Reads a table that already carries genomic coordinates and a per-row
-    confidence score (e.g. ``interaction_probability`` from a held-out / k-fold
-    out-of-fold prediction pass), computes the per-row count of distinct
-    confident-positive neighbour sites, and writes the table back with the new
-    column added.  Feed the resulting file to ``train``/``predict`` with
-    ``--seq-nbr-feature --nbr-col <out-col>``.
-
-    Leakage note: use OUT-OF-FOLD predictions for the score on training data —
-    a model's in-sample confident calls on its own training neighbours are
-    over-optimistic and would inflate the feature relative to inference.
-
-    ``--mode`` selects how neighbours are counted:
-      genomic    — linear distance on the same chr+strand (default; no GTF).
-      transcript — spliced distance within the same MANE host transcript;
-                   intronic/intergenic/straddling rows score 0.
-      hybrid     — exon-mapped rows take the transcript count, the rest fall back
-                   to the genomic count (mirrors the accessibility `acc_mode`).
-    transcript/hybrid need ``--gtf`` + ``--genome`` and the MRE-sequence column
-    (``--mre-col``) for the spliced-sequence guard.  Use the SAME mode/band for
-    training and inference so the count distribution matches.
-    """
-    df = _read_table(args.input)
-    need = [args.chr_col, args.strand_col, args.start_col, args.end_col,
-            args.score_col]
-    if args.mode in ("transcript", "hybrid"):
-        need.append(args.mre_col)
-    missing = [c for c in need if c not in df.columns]
-    if missing:
-        sys.exit(f"ERROR: neighbor-counts needs columns {need}; missing "
-                 f"{missing}. Available: {list(df.columns)}")
-
-    score = df[args.score_col].to_numpy(dtype=float)
-    gen = _neighbor_counts(
-        df, score, conf=args.conf, window=args.window, min_sep=args.min_sep,
-        chr_col=args.chr_col, strand_col=args.strand_col,
-        start_col=args.start_col, end_col=args.end_col)
-
-    if args.mode == "genomic":
-        counts = gen
-    else:
-        for path, flag in ((args.gtf, "--gtf"), (args.genome, "--genome")):
-            if not path:
-                sys.exit(f"ERROR: --mode {args.mode} needs {flag}.")
-            if not Path(path).expanduser().exists():
-                sys.exit(f"ERROR: {flag} not found: {path}")
-        tx, index, max_exon_len = _parse_mane_gtf(Path(args.gtf).expanduser())
-        ctx = _TxContext(str(Path(args.genome).expanduser()), tx)
-        txc, mapped, n_nohost, n_seqfail = _neighbor_counts_transcript(
-            df, score, conf=args.conf, window=args.window, min_sep=args.min_sep,
-            tx=tx, index=index, max_exon_len=max_exon_len, ctx=ctx,
-            chr_col=args.chr_col, strand_col=args.strand_col,
-            start_col=args.start_col, end_col=args.end_col, mre_col=args.mre_col)
-        counts = txc if args.mode == "transcript" else \
-            np.where(mapped, txc, gen).astype(np.int32)
-        print(f"  {int(mapped.sum()):,}/{len(df):,} sites "
-              f"({100*mapped.mean():.1f}%) map to a MANE host transcript; "
-              f"fallback {n_nohost:,} no-host + {n_seqfail:,} seq-mismatch.")
-
-    df[args.out_col] = counts
-
-    out_path = Path(args.output)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(out_path, sep="\t", index=False)
-
-    nz = int((counts > 0).sum())
-    print(f"Wrote {len(df)} rows → {out_path}")
-    print(f"  neighbour column {args.out_col!r} (mode={args.mode}): conf>={args.conf} "
-          f"in band [{args.min_sep}, {args.window}] nt")
-    print(f"  {nz} rows ({100*nz/max(len(df),1):.1f}%) have >=1 neighbour; "
-          f"max={int(counts.max())}, mean={counts.mean():.2f}")
-
-
-def cmd_nbr_report(args: argparse.Namespace) -> None:
-    """Summarise the neighbour-count distribution of one or more TSVs.
-
-    For each input prints the count distribution (mean / %≥1 / max) and a
-    bucketed breakdown (0, 1-2, 3-6, ≥7); when a label column is present it also
-    shows the dose-response P(label=1) per bucket. Use it to check that the
-    inference column built by `infer` matches the training column's
-    distribution — if the buckets diverge, the confident-positive detector or
-    `conf` differs between train and inference and the feature is miscalibrated.
-    """
-    buckets = [(0, 0, "0"), (1, 2, "1-2"), (3, 6, "3-6"), (7, None, ">=7")]
-    for path in args.inputs:
-        df = _read_table(path)
-        if args.nbr_col not in df.columns:
-            print(f"[{Path(path).stem}]  no column {args.nbr_col!r} "
-                  f"(have {list(df.columns)[:8]}…); skipping")
-            continue
-        c   = df[args.nbr_col].to_numpy(dtype=np.float64)
-        lab = (df[args.label_col].to_numpy(dtype=np.float64)
-               if args.label_col in df.columns else None)
-        nz  = float((c >= 1).mean())
-        print(f"\n[{Path(path).stem}]  n={len(c):,}")
-        print(f"  {args.nbr_col}: mean={c.mean():.3f}  std={c.std():.3f}  "
-              f"%>=1={100*nz:.1f}%  max={int(c.max()) if len(c) else 0}")
-        hdr = f"  {'bucket':<8s} {'n':>10s} {'frac':>8s}"
-        if lab is not None:
-            hdr += f" {'P(label=1)':>11s}"
-        print(hdr)
-        for lo, hi, name in buckets:
-            m = (c >= lo) if hi is None else ((c >= lo) & (c <= hi))
-            n = int(m.sum())
-            row = f"  {name:<8s} {n:>10,d} {100*n/max(len(c),1):>7.1f}%"
-            if lab is not None:
-                row += (f" {lab[m].mean():>11.3f}" if n else f" {'—':>11s}")
-            print(row)
 
 
 def cmd_predict_ensemble(args: argparse.Namespace) -> None:
@@ -2319,7 +1856,7 @@ def cmd_predict_ensemble(args: argparse.Namespace) -> None:
         ds = MiRNAInteractionDataset(
             test_path, has_labels=True,
             mre_col=args.mre_col, mirna_col=args.mirna_col,
-            nbr_col=args.nbr_col, cache=not args.no_cache)
+            cache=not args.no_cache)
 
         fold_probs: list[np.ndarray] = []
         per_fold: list[tuple[str, dict]] = []
@@ -2361,16 +1898,14 @@ def cmd_predict_ensemble(args: argparse.Namespace) -> None:
 # ---------------------------------------------------------------------------
 
 def _ig_attribution(model: MiRBindCNN, wc: torch.Tensor,
-                    nbr: Optional[torch.Tensor], steps: int) -> torch.Tensor:
+                    steps: int) -> torch.Tensor:
     """Integrated Gradients of the binding logit w.r.t. the pairing matrix.
 
     Returns signed per-cell attributions, shape (B, C_pair, MAX_MIRNA, MRE_LEN).
     The baseline is the all-zero ("no complementarity") matrix — the natural
     reference here, since pad cells are already zero and a zero matrix encodes a
-    duplex with no pairing at all.  The neighbour scalar (if any) is held at its
-    real value along the whole path, so IG attributes only the sequence-matrix
-    part of the logit; completeness then reads
-    ``Σ attr ≈ logit(x, nbr) − logit(0, nbr)``.
+    duplex with no pairing at all.  Completeness then reads
+    ``Σ attr ≈ logit(x) − logit(0)``.
     """
     baseline = torch.zeros_like(wc)
     delta    = wc - baseline
@@ -2379,14 +1914,13 @@ def _ig_attribution(model: MiRBindCNN, wc: torch.Tensor,
         for k in range(1, steps + 1):
             alpha  = k / steps
             x      = (baseline + alpha * delta).detach().requires_grad_(True)
-            logit  = model.logits_from_matrix(x, nbr)
+            logit  = model.logits_from_matrix(x)
             (grad,) = torch.autograd.grad(logit.sum(), x)
             total += grad
     return (delta * (total / steps)).detach()
 
 
-def _occlusion_attribution(model: MiRBindCNN, wc: torch.Tensor,
-                           nbr: Optional[torch.Tensor]) -> torch.Tensor:
+def _occlusion_attribution(model: MiRBindCNN, wc: torch.Tensor) -> torch.Tensor:
     """Per-MRE-position occlusion Δlogit, shape (B, MRE_LEN).
 
     Zero each MRE column of the pairing matrix in turn (removing all pairing that
@@ -2394,12 +1928,12 @@ def _occlusion_attribution(model: MiRBindCNN, wc: torch.Tensor,
     ``Δ_j = logit(full) − logit(occluded_j)``.  Positive Δ ⇒ that MRE position
     supports the "binds" call.  Costs ``MRE_LEN`` forward passes per batch.
     """
-    base = model.logits_from_matrix(wc, nbr)                 # (B,)
+    base = model.logits_from_matrix(wc)                      # (B,)
     out  = wc.new_zeros(wc.shape[0], wc.shape[3])            # (B, MRE_LEN)
     for j in range(wc.shape[3]):
         occ = wc.clone()
         occ[:, :, :, j] = 0.0
-        out[:, j] = base - model.logits_from_matrix(occ, nbr)
+        out[:, j] = base - model.logits_from_matrix(occ)
     return out
 
 
@@ -2430,7 +1964,7 @@ def cmd_explain(args: argparse.Namespace) -> None:
     ds = MiRNAInteractionDataset(
         args.input, has_labels=True,
         mre_col=args.mre_col, mirna_col=args.mirna_col,
-        nbr_col=args.nbr_col, cache=not args.no_cache)
+        cache=not args.no_cache)
     loader = DataLoader(ds, batch_size=args.batch_size, shuffle=False,
                         num_workers=args.num_workers, pin_memory=True)
 
@@ -2440,22 +1974,21 @@ def cmd_explain(args: argparse.Namespace) -> None:
     mat_batches: Optional[list[np.ndarray]] = [] if args.dump_matrix else None
 
     with torch.no_grad():
-        for mi, ti, nbr, _labels in loader:
+        for mi, ti, _labels in loader:
             mi  = mi.to(device,  non_blocking=True)
             ti  = ti.to(device,  non_blocking=True)
-            nbr = nbr.to(device, non_blocking=True)
             wc  = model.build_pair_matrix(mi, ti)              # (B, C, 30, 50)
 
-            logit = model.logits_from_matrix(wc, nbr)              # (B,)
-            base  = model.logits_from_matrix(torch.zeros_like(wc), nbr)
+            logit = model.logits_from_matrix(wc)                   # (B,)
+            base  = model.logits_from_matrix(torch.zeros_like(wc))
 
             if args.method == "ig":
-                ig      = _ig_attribution(model, wc, nbr, args.ig_steps)
+                ig      = _ig_attribution(model, wc, args.ig_steps)
                 per_pos = ig.sum(dim=(1, 2))                       # (B, MRE_LEN)
                 if mat_batches is not None:
                     mat_batches.append(ig.sum(dim=1).cpu().numpy())  # (B, 30, 50)
             else:
-                per_pos = _occlusion_attribution(model, wc, nbr)   # (B, MRE_LEN)
+                per_pos = _occlusion_attribution(model, wc)        # (B, MRE_LEN)
 
             per_pos_batches.append(per_pos.cpu().numpy())
             logit_batches.append(logit.cpu().numpy())
@@ -2548,16 +2081,12 @@ def main() -> int:
                     help="With --folds, write the --train table back to this path "
                          "with an out-of-fold `interaction_probability` column "
                          "(each row scored by the fold that held it out). Use it "
-                         "as the leakage-free score for the `neighbor-counts` "
-                         "subcommand. Ignored without --folds.")
+                         "as the score column for cooperativity_analysis.py. "
+                         "Ignored without --folds.")
     tr.add_argument("--test",       nargs="+", default=None, metavar="FILE")
     tr.add_argument("--out",        default="checkpoints/cnn_mirbind.pt")
     tr.add_argument("--mre-col",    default="mre_sequence",   dest="mre_col")
     tr.add_argument("--mirna-col",  default="mirna_sequence", dest="mirna_col")
-    tr.add_argument("--nbr-col",    default="neighbor_count",  dest="nbr_col",
-                    help="Column holding the per-pair leakage-free neighbour "
-                         "count (materialise it with the `neighbor-counts` "
-                         "subcommand). Used only when --seq-nbr-feature is set.")
     # Architecture
     tr.add_argument("--seq-filters",     type=int,   default=64,
                     dest="seq_filters",
@@ -2581,13 +2110,6 @@ def main() -> int:
                     dest="seq_pool",
                     help="Global pooling for the 2D sequence branch: average or "
                          "GeM (learnable power-mean).")
-    tr.add_argument("--seq-nbr-feature", action="store_true", dest="seq_nbr_feature",
-                    help="Feed the leakage-free neighbour-count scalar (from "
-                         "--nbr-col) into the classifier head: a per-pair global "
-                         "feature (count of nearby confident-positive sites) that "
-                         "captures spatial clustering the sequence branch cannot "
-                         "see. Off by default. Materialise the column first with "
-                         "the `neighbor-counts` subcommand.")
     tr.add_argument("--n-conv-blocks", type=int, default=6, dest="n_conv_blocks",
                     help="Number of Conv2d blocks in the 2D sequence branch.")
     tr.add_argument("--n-pool-blocks", type=int, default=4, dest="n_pool_blocks",
@@ -2682,10 +2204,6 @@ def main() -> int:
     pr.add_argument("--num-workers", type=int,  default=4, dest="num_workers")
     pr.add_argument("--mre-col",   default="mre_sequence",   dest="mre_col")
     pr.add_argument("--mirna-col", default="mirna_sequence", dest="mirna_col")
-    pr.add_argument("--nbr-col",   default="neighbor_count",  dest="nbr_col",
-                    help="Per-pair neighbour-count column (used if the checkpoint "
-                         "was trained with --seq-nbr-feature). Materialise it with "
-                         "the `neighbor-counts` subcommand.")
     pr.add_argument("--no-cache",  action="store_true", dest="no_cache",
                     help="Disable the preprocessing .cnncache.npz sidecar files.")
     pr.add_argument("--device",
@@ -2719,9 +2237,6 @@ def main() -> int:
     ex.add_argument("--num-workers", type=int, default=4, dest="num_workers")
     ex.add_argument("--mre-col",   default="mre_sequence",   dest="mre_col")
     ex.add_argument("--mirna-col", default="mirna_sequence", dest="mirna_col")
-    ex.add_argument("--nbr-col",   default="neighbor_count",  dest="nbr_col",
-                    help="Per-pair neighbour-count column (used if the checkpoint "
-                         "was trained with --seq-nbr-feature).")
     ex.add_argument("--no-cache",  action="store_true", dest="no_cache",
                     help="Disable the preprocessing .cnncache.npz sidecar files.")
     ex.add_argument("--device",
@@ -2742,84 +2257,10 @@ def main() -> int:
     pe.add_argument("--num-workers", type=int,  default=4, dest="num_workers")
     pe.add_argument("--mre-col",   default="mre_sequence",   dest="mre_col")
     pe.add_argument("--mirna-col", default="mirna_sequence", dest="mirna_col")
-    pe.add_argument("--nbr-col",   default="neighbor_count",  dest="nbr_col",
-                    help="Per-pair neighbour-count column (used if the "
-                         "checkpoints were trained with --seq-nbr-feature).")
     pe.add_argument("--no-cache",  action="store_true", dest="no_cache",
                     help="Disable the preprocessing .cnncache.npz sidecar files.")
     pe.add_argument("--device",
                     default="cuda" if torch.cuda.is_available() else "cpu")
-
-    # ----- neighbor-counts --------------------------------------------------
-    nc = sub.add_parser(
-        "neighbor-counts",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-        help="Materialise the leakage-free neighbour-count column from a "
-             "predictions TSV (coords + a confidence score) for "
-             "--seq-nbr-feature training.")
-    nc.add_argument("--input",  required=True,
-                    help="TSV with genomic coordinates and a per-row confidence "
-                         "score (e.g. a predict / out-of-fold output).")
-    nc.add_argument("--output", required=True,
-                    help="Output TSV (input plus the neighbour-count column).")
-    nc.add_argument("--score-col", default="interaction_probability",
-                    dest="score_col",
-                    help="Per-row confidence used to flag confident-positive "
-                         "neighbour sites. Use OUT-OF-FOLD scores for training "
-                         "data to stay leakage-free.")
-    nc.add_argument("--conf",   type=float, default=0.8,
-                    help="A site counts as a confident-positive neighbour when "
-                         "its score >= this threshold.")
-    nc.add_argument("--window", type=int, default=150,
-                    help="Upper bound of the neighbour band in nt (centre-to-"
-                         "centre, same chr+strand). ~150 covers the AGO2 "
-                         "footprint + local folding domain.")
-    nc.add_argument("--min-sep", type=int, default=0, dest="min_sep",
-                    help="Lower bound of the neighbour band in nt: drop "
-                         "neighbours closer than this. The row's own coordinate "
-                         "is always excluded. ~60 isolates independent clustering "
-                         "(two AGO2 footprints can't co-occupy < ~60 nt, and "
-                         "closer sites share overlapping MRE fragments) and gives "
-                         "a steeper per-neighbour signal; 0 counts all distinct "
-                         "neighbours. Must match between training and inference.")
-    nc.add_argument("--out-col", default="neighbor_count", dest="out_col",
-                    help="Name of the neighbour-count column to write.")
-    nc.add_argument("--mode", choices=["genomic", "transcript", "hybrid"],
-                    default="genomic",
-                    help="Neighbour distance frame: linear genomic (default), "
-                         "spliced within the same MANE transcript, or hybrid "
-                         "(transcript where exonic, genomic fallback elsewhere — "
-                         "mirrors the accessibility acc_mode). transcript/hybrid "
-                         "need --gtf + --genome. Use the same mode for train and "
-                         "inference.")
-    nc.add_argument("--gtf", default=None,
-                    help="GENCODE GTF (MANE_Select tag); required for "
-                         "--mode transcript/hybrid.")
-    nc.add_argument("--genome", default=None,
-                    help="GRCh38 primary-assembly .fa (indexed) for the spliced-"
-                         "sequence guard; required for --mode transcript/hybrid.")
-    nc.add_argument("--mre-col", default="gene", dest="mre_col",
-                    help="MRE-sequence column for the spliced-sequence guard "
-                         "(transcript/hybrid modes).")
-    nc.add_argument("--chr-col",    default="chr",    dest="chr_col")
-    nc.add_argument("--strand-col", default="strand", dest="strand_col")
-    nc.add_argument("--start-col",  default="start",  dest="start_col")
-    nc.add_argument("--end-col",    default="end",    dest="end_col")
-
-    # ----- nbr-report -------------------------------------------------------
-    nr = sub.add_parser(
-        "nbr-report",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-        help="Print the neighbour-count distribution (and dose-response if "
-             "labels present) for one or more TSVs — compare train vs "
-             "inference columns.")
-    nr.add_argument("--inputs", required=True, nargs="+", metavar="FILE",
-                    help="TSV(s) carrying the neighbour-count column.")
-    nr.add_argument("--nbr-col", default="neighbor_count", dest="nbr_col",
-                    help="Neighbour-count column to summarise.")
-    nr.add_argument("--label-col", default="label", dest="label_col",
-                    help="Label column for the per-bucket dose-response "
-                         "(skipped if absent).")
 
     args = parser.parse_args()
     if args.command == "train":
@@ -2828,10 +2269,6 @@ def main() -> int:
         cmd_explain(args)
     elif args.command == "predict-ensemble":
         cmd_predict_ensemble(args)
-    elif args.command == "neighbor-counts":
-        cmd_neighbor_counts(args)
-    elif args.command == "nbr-report":
-        cmd_nbr_report(args)
     else:
         cmd_predict(args)
     return 0

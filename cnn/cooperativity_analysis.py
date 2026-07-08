@@ -67,23 +67,285 @@ try:
 except ImportError:
     HAS_SCIPY = False
 
-# Flat when run from cnn/, package-style when imported as cnn.*.  The neighbour-
-# counting + MANE transcript-mapping helpers live in the core module so the
-# `neighbor-counts` builder and this analysis share one implementation (full
-# 50-mer exon containment + spliced-sequence guard, mirroring the accessibility
-# precompute's acc_mode routing).
+# Flat when run from cnn/, package-style when imported as cnn.*.  Only the
+# sequence-encoding / duplex primitives are shared with the core module; the
+# neighbour-counting + MANE transcript-mapping helpers below now live here, since
+# this model-free analysis is their sole remaining consumer (the CNN no longer
+# trains on a neighbour-count feature).
 try:
     from cnn_branches_mirbind import (
         _encode_seqs, _duplex_stats, _parse_vector, MRE_LEN, MAX_MIRNA,
-        _neighbor_counts, _parse_mane_gtf, _TxContext,
-        _neighbor_counts_transcript,
     )
 except ImportError:
     from cnn.cnn_branches_mirbind import (  # type: ignore
         _encode_seqs, _duplex_stats, _parse_vector, MRE_LEN, MAX_MIRNA,
-        _neighbor_counts, _parse_mane_gtf, _TxContext,
-        _neighbor_counts_transcript,
     )
+
+
+# ---------------------------------------------------------------------------
+# Neighbour counting (genomic)
+#
+# The count of nearby confident-positive sites for an MRE — the spatial
+# clustering quantity this analysis tests.  Leakage is not a concern here (this
+# script never trains anything); the caller supplies the confidence column.
+# ---------------------------------------------------------------------------
+
+def _neighbor_counts(df: pd.DataFrame, score: np.ndarray, conf: float,
+                     window: int, min_sep: int, chr_col: str, strand_col: str,
+                     start_col: str, end_col: str) -> np.ndarray:
+    """Per-row count of *distinct* confident-positive neighbour sites in a band.
+
+    For each row, counts the distinct genomic coordinates (centre = (start+end)//2)
+    on the same chr+strand whose ``score >= conf`` and whose centre lies in the
+    band ``min_sep <= |Δcentre| <= window``.  ``score`` is a per-row confidence
+    (e.g. ``interaction_probability`` from a held-out prediction pass).
+
+    ``min_sep`` sets a lower bound that drops too-close neighbours.  The row's own
+    coordinate (Δ=0) is always excluded, so ``min_sep=0`` counts every distinct
+    neighbour in ``(0, window]``.  Two AGO2 footprints (~50–60 nt) cannot
+    co-occupy, and sites <~50 nt apart share overlapping 50-mer MRE fragments
+    (near-duplicate sequences), so ``min_sep≈60`` isolates the independent-
+    clustering signal — empirically a steeper per-neighbour dose-response than
+    the close-inclusive band.  Returns an (N,) int32 array.
+    """
+    centers = ((df[start_col].to_numpy(dtype=np.int64)
+                + df[end_col].to_numpy(dtype=np.int64)) // 2)
+    conf_mask = np.asarray(score, dtype=np.float64) >= conf
+    counts = np.zeros(len(df), dtype=np.int32)
+    grp = pd.DataFrame({
+        "chr":    df[chr_col].astype(str).to_numpy(),
+        "strand": df[strand_col].astype(str).to_numpy(),
+        "c":      centers,
+        "conf":   conf_mask,
+        "row":    np.arange(len(df)),
+    })
+    # Exclude the near band |Δ| < max(min_sep, 1) — which always covers the row's
+    # own Δ=0 coordinate, so a site never counts itself regardless of min_sep.
+    thr = max(min_sep, 1)
+    for _, sub in grp.groupby(["chr", "strand"], sort=False):
+        conf_centers = np.unique(sub.loc[sub["conf"], "c"].to_numpy())
+        if conf_centers.size == 0:
+            continue
+        rc   = sub["c"].to_numpy()
+        lo   = np.searchsorted(conf_centers, rc - window, side="left")
+        hi   = np.searchsorted(conf_centers, rc + window, side="right")
+        nlo  = np.searchsorted(conf_centers, rc - (thr - 1), side="left")
+        nhi  = np.searchsorted(conf_centers, rc + (thr - 1), side="right")
+        counts[sub["row"].to_numpy()] = ((hi - lo) - (nhi - nlo)).astype(np.int32)
+    return counts
+
+
+# ---------------------------------------------------------------------------
+# MANE-Select transcript model — transcript-aware / hybrid neighbour counting
+#
+# Genomic `_neighbor_counts` measures linear distance, which conflates relations
+# that differ on the processed mRNA: two sites 100 nt apart on the genome can
+# straddle a splice junction (far apart — or non-co-existent — on the mature
+# mRNA), and an intronic site only exists in the pre-mRNA.  These helpers map an
+# MRE onto MANE-Select transcript (spliced) coordinates and count neighbours only
+# within the SAME transcript by spliced distance: introns collapsed, cross-
+# junction / wrong-isoform pairs excluded.  A 50-mer is "exonic" only when a
+# single MANE exon FULLY contains [start,end] AND the spliced transcript sequence
+# at the mapped offset equals the MRE sequence (U->T) — the same routing the
+# accessibility precompute uses for its `acc_mode`.  Straddlers / intronic /
+# intergenic / sequence-mismatch rows are unmapped; in hybrid mode they fall back
+# to the genomic count.
+# ---------------------------------------------------------------------------
+
+_DNA_COMP = str.maketrans("ACGTNacgtn", "TGCANtgcan")
+
+
+def _rc_dna(s: str) -> str:
+    return s.translate(_DNA_COMP)[::-1]
+
+
+def _tsv_chrom_to_fa(chrom: str) -> str:
+    """v7 TSV chromosome label (`6`, `MT`) -> GENCODE contig (`chr6`, `chrM`)."""
+    c = str(chrom)
+    if c in ("MT", "chrMT", "M"):
+        return "chrM"
+    return c if c.startswith("chr") else "chr" + c
+
+
+def _parse_mane_gtf(gtf_path):
+    """Parse MANE-Select exons -> (tx, index, max_exon_len); pickle-cached.
+
+    tx[tid] = {"chrom","strand","ex":[(es,ee)...asc],"cum":[...],"Lt":int};
+    index[(chrom,strand)] = (es_arr, ee_arr, meta) sorted by es, meta entry
+    (cum_offset, es, tid).  Cache <gtf>.mane_nbr.pkl, rebuilt when GTF is newer.
+    """
+    import gzip
+    import pickle
+    gtf_path = Path(gtf_path)
+    cache = gtf_path.with_name(gtf_path.name + ".mane_nbr.pkl")
+    if cache.exists() and cache.stat().st_mtime >= gtf_path.stat().st_mtime:
+        with open(cache, "rb") as fh:
+            return pickle.load(fh)
+
+    opener = gzip.open if str(gtf_path).endswith(".gz") else open
+    tx: dict = {}
+    with opener(gtf_path, "rt") as fh:
+        for line in fh:
+            if line[0] == "#":
+                continue
+            f = line.split("\t")
+            if len(f) < 9 or f[2] != "exon" or 'tag "MANE_Select"' not in f[8]:
+                continue
+            tid = f[8].split('transcript_id "', 1)[1].split('"', 1)[0]
+            es, ee = int(f[3]), int(f[4])
+            d = tx.get(tid)
+            if d is None:
+                tx[tid] = {"chrom": f[0], "strand": f[6], "ex": [(es, ee)]}
+            else:
+                d["ex"].append((es, ee))
+
+    raw: dict = {}
+    max_exon_len = 0
+    for tid, d in tx.items():
+        d["ex"].sort()                                   # genomic ascending
+        cum, c = [], 0
+        for es, ee in d["ex"]:
+            cum.append(c)
+            c += ee - es + 1
+            max_exon_len = max(max_exon_len, ee - es + 1)
+        d["cum"] = cum
+        d["Lt"] = c
+        for (es, ee), cm in zip(d["ex"], cum):
+            raw.setdefault((d["chrom"], d["strand"]), []).append((es, ee, cm, tid))
+
+    index: dict = {}
+    for key, bucket in raw.items():
+        bucket.sort()                                    # by exon start
+        index[key] = (
+            np.array([b[0] for b in bucket], dtype=np.int64),
+            np.array([b[1] for b in bucket], dtype=np.int64),
+            [(b[2], b[0], b[3]) for b in bucket],        # (cum, es, tid)
+        )
+    with open(cache, "wb") as fh:
+        pickle.dump((tx, index, max_exon_len), fh)
+    return tx, index, max_exon_len
+
+
+def _find_host_exon(index, max_exon_len, chrom, strand, s, e):
+    """(cum, es, tid) of the MANE exon fully containing [s,e], or None."""
+    from bisect import bisect_right
+    rec = index.get((chrom, strand))
+    if rec is None:
+        return None
+    es_arr, ee_arr, meta = rec
+    j = bisect_right(es_arr, s)
+    k = j - 1
+    while k >= 0 and (s - es_arr[k]) <= max_exon_len:
+        if ee_arr[k] >= e:
+            return meta[k]
+        k -= 1
+    return None
+
+
+class _TxContext:
+    """Lazily concatenated spliced MANE transcript sequences (for the guard)."""
+
+    def __init__(self, genome_fa, tx):
+        from pyfaidx import Fasta
+        self.fa = Fasta(genome_fa, sequence_always_upper=True, rebuild=False)
+        self.tx = tx
+        self._seq: dict = {}
+
+    def txseq(self, tid: str) -> str:
+        s = self._seq.get(tid)
+        if s is None:
+            d = self.tx[tid]
+            asc = "".join(str(self.fa[d["chrom"]][es - 1:ee]) for es, ee in d["ex"])
+            s = asc if d["strand"] == "+" else _rc_dna(asc)
+            self._seq[tid] = s
+        return s
+
+
+def _map_rows_to_tx(df, tx, index, max_exon_len, ctx,
+                    chr_col, strand_col, start_col, end_col, mre_col):
+    """Map each row to its MANE host transcript (full containment + seq guard).
+
+    Returns (tids[object], txpos[int64 5'-spliced coord], mapped[bool],
+    n_nohost, n_seqfail).  txpos is a constant 25-nt offset from the centre, so
+    it is fine as the neighbour anchor (only |Δ| matters)."""
+    s_arr = df[start_col].to_numpy(np.int64)
+    e_arr = df[end_col].to_numpy(np.int64)
+    chrom = df[chr_col].astype(str).to_numpy()
+    strand = df[strand_col].astype(str).to_numpy()
+    mre = (df[mre_col].astype(str).str.upper()
+           .str.replace("U", "T", regex=False).to_numpy())
+
+    n = len(df)
+    tids = np.empty(n, dtype=object)
+    txpos = np.full(n, -1, dtype=np.int64)
+    mapped = np.zeros(n, dtype=bool)
+    n_nohost = n_seqfail = 0
+    for j in range(n):
+        chrom_fa = _tsv_chrom_to_fa(chrom[j])
+        if chrom_fa not in ctx.fa:
+            n_nohost += 1
+            continue
+        host = _find_host_exon(index, max_exon_len, chrom_fa, strand[j],
+                               int(s_arr[j]), int(e_arr[j]))
+        if host is None:
+            n_nohost += 1
+            continue
+        cum, es, tid = host
+        Lt = tx[tid]["Lt"]
+        a_s = cum + (int(s_arr[j]) - es)
+        a_e = cum + (int(e_arr[j]) - es)
+        tlo = a_s if strand[j] == "+" else (Lt - 1 - a_e)
+        if 0 <= tlo and ctx.txseq(tid)[tlo:tlo + MRE_LEN] == mre[j]:
+            tids[j] = tid
+            txpos[j] = tlo
+            mapped[j] = True
+        else:
+            n_seqfail += 1
+    return tids, txpos, mapped, n_nohost, n_seqfail
+
+
+def _neighbor_counts_transcript(df, score, conf, window, min_sep,
+                                tx, index, max_exon_len, ctx,
+                                chr_col, strand_col, start_col, end_col, mre_col):
+    """Distinct confident-positive neighbours within a SPLICED band [min_sep,
+    window] along the same MANE host transcript.  Each row has at most one host,
+    so counts assign directly.  Returns (counts, mapped, n_nohost, n_seqfail)."""
+    centers = ((df[start_col].to_numpy(np.int64)
+                + df[end_col].to_numpy(np.int64)) // 2)
+    conf_mask = np.asarray(score, float) >= conf
+    tids, txpos, mapped, n_nohost, n_seqfail = _map_rows_to_tx(
+        df, tx, index, max_exon_len, ctx,
+        chr_col, strand_col, start_col, end_col, mre_col)
+
+    counts = np.zeros(len(df), dtype=np.int32)
+    sel = np.where(mapped)[0]
+    if sel.size == 0:
+        return counts, mapped, n_nohost, n_seqfail
+
+    thr = max(min_sep, 1)
+    long = pd.DataFrame({"tid": tids[sel], "row": sel, "pos": txpos[sel],
+                         "center": centers[sel], "conf": conf_mask[sel]})
+    for _, sub in long.groupby("tid", sort=False):
+        cdf = sub[sub["conf"]].drop_duplicates("center")
+        if cdf.empty:
+            continue
+        order = np.argsort(cdf["pos"].to_numpy())
+        cpos = cdf["pos"].to_numpy()[order]
+        ccen = cdf["center"].to_numpy()[order]
+        rpos = sub["pos"].to_numpy()
+        rrow = sub["row"].to_numpy()
+        rcen = sub["center"].to_numpy()
+        lo = np.searchsorted(cpos, rpos - window, "left")
+        hi = np.searchsorted(cpos, rpos + window, "right")
+        nlo = np.searchsorted(cpos, rpos - (thr - 1), "left")
+        nhi = np.searchsorted(cpos, rpos + (thr - 1), "right")
+        for k in range(len(rrow)):
+            if hi[k] == lo[k]:
+                continue
+            neigh = np.concatenate((ccen[lo[k]:nlo[k]], ccen[nhi[k]:hi[k]]))
+            neigh = neigh[neigh != rcen[k]]
+            counts[rrow[k]] = neigh.size                 # unique centres already
+    return counts, mapped, n_nohost, n_seqfail
 
 # Default neighbour windows (centre-to-centre nt). The first is the headline
 # window used for the main with/without split; the rest are reported as a sweep.
@@ -367,7 +629,7 @@ def _fp_characterisation(df: pd.DataFrame, neg_flags: pd.DataFrame,
 # relationships that differ on the processed transcript: two sites 100 nt apart
 # on the genome can straddle a splice junction (far apart — or non-co-existent —
 # on the mature mRNA), and an intronic site only exists in the pre-mRNA.  The
-# core-module helpers (`_neighbor_counts`, `_neighbor_counts_transcript`) map
+# helpers at the top of this module (`_neighbor_counts`, `_neighbor_counts_transcript`) map
 # each MRE onto MANE-Select transcript (spliced) coordinates and count
 # confident-positive neighbours within the SAME transcript by spliced distance —
 # introns collapsed, cross-junction / wrong-isoform pairs excluded.  A row is

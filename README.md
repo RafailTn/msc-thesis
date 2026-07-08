@@ -25,10 +25,22 @@ The CNN model operates directly on sequence TSVs (v7 format) and does not requir
 bash cnn/run_train.sh kfold
 ```
 
-**Score new data end-to-end (base model → cooperativity counts → final prediction):**
+**Score new data:**
 ```bash
-INPUT=data/AGO2_eCLIP_Manakov2022_test_v7.tsv FINAL=checkpoints/cnn_nbr.pt \
-    bash cnn/run_train.sh infer
+dependencies/.pixi/envs/default/bin/python cnn/cnn_branches_mirbind.py predict \
+    --checkpoint checkpoints/cnn_mirbind_fold1.pt \
+    --input data/AGO2_eCLIP_Manakov2022_test_v7.tsv \
+    --output results/predictions.tsv \
+    --mre-col gene --mirna-col noncodingRNA
+```
+
+**Explain a prediction (which MRE positions mattered, per sample):**
+```bash
+dependencies/.pixi/envs/default/bin/python cnn/cnn_branches_mirbind.py explain \
+    --checkpoint checkpoints/cnn_mirbind_fold1.pt \
+    --input data/AGO2_eCLIP_Manakov2022_test_v7.tsv \
+    --output results/explain.tsv \
+    --mre-col gene --mirna-col noncodingRNA
 ```
 
 The input TSV must contain `gene` (MRE sequence), `noncodingRNA` (miRNA sequence), `chr`, `strand`, `start`, `end`, and `label` columns. All `run_train.sh` defaults are overridable via environment variables (e.g. `FOLDS=10 EPOCHS=60 DEVICE=cpu`).
