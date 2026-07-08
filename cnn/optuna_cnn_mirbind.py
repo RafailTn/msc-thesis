@@ -192,6 +192,9 @@ def make_objective(
     ckpt_dir: Path,
     seq_pairing:      str   = "multi",
     pair_embed_dim:   int   = 3,
+    pair_random_init:     bool = False,
+    pair_stack_channel:   bool = False,
+    pair_stack_learnable: bool = False,
     seq_pool:         str   = "gem",
 ):
     def objective(trial: optuna.Trial) -> float:
@@ -235,6 +238,9 @@ def make_objective(
             # resume); recorded so checkpoints reconstruct the right branch and
             # input channels.
             seq_pairing=seq_pairing, pair_embed_dim=pair_embed_dim,
+            pair_random_init=pair_random_init,
+            pair_stack_channel=pair_stack_channel,
+            pair_stack_learnable=pair_stack_learnable,
             seq_pool=seq_pool,
         )
 
@@ -362,18 +368,34 @@ def main() -> int:
                    help="Random trials before TPE kicks in.")
     p.add_argument("--pruner-warmup", type=int, default=5, dest="pruner_warmup",
                    help="Epochs before MedianPruner is allowed to prune.")
-    p.add_argument("--seq-pairing", choices=["binary", "multi", "multi4", "embed"],
+    p.add_argument("--seq-pairing",
+                   choices=["binary", "multi", "multi4", "embed", "dinuc"],
                    default="multi", dest="seq_pairing",
                    help="2D pairing encoding fixed for ALL trials (not tuned): "
                         "binary, multi (WC/wobble/mismatch), multi4 "
-                        "(A·U/G·C/wobble/mismatch), or embed (learnable "
-                        "chemistry-initialised dense embedding). Changing this "
-                        "does not alter the search space, so existing studies "
-                        "still resume.")
+                        "(A·U/G·C/wobble/mismatch), embed (learnable "
+                        "chemistry-initialised dense embedding), or dinuc (the "
+                        "same over the ordered dinucleotide stack context). "
+                        "Changing this does not alter the search space, so "
+                        "existing studies still resume.")
     p.add_argument("--pair-embed-dim", type=int, default=3, dest="pair_embed_dim",
                    help="Channels of the learnable pairing embedding when "
-                        "--seq-pairing embed (ignored otherwise). Fixed for all "
-                        "trials; not part of the search space.")
+                        "--seq-pairing embed or dinuc (ignored otherwise). Fixed "
+                        "for all trials; not part of the search space.")
+    p.add_argument("--pair-random-init", action="store_true",
+                   dest="pair_random_init",
+                   help="Start the learnable pairing table from noise instead of its "
+                        "chemistry priors. Fixed for all trials; not part of the "
+                        "search space.")
+    p.add_argument("--pair-stack-channel", action="store_true",
+                   dest="pair_stack_channel",
+                   help="Append the Turner-2004 nearest-neighbour stacking channel "
+                        "to the pairing matrix. Fixed for all trials; not part of "
+                        "the search space.")
+    p.add_argument("--pair-stack-learnable", action="store_true",
+                   dest="pair_stack_learnable",
+                   help="Learn the stacking table from its Turner initialisation. "
+                        "Requires --pair-stack-channel.")
     # ── Pooling: fixed for ALL trials (like --seq-pairing), so toggling it does
     # not change the search space and existing studies resume.
     p.add_argument("--seq-pool", choices=["avg", "gem"], default="gem",
@@ -460,6 +482,9 @@ def main() -> int:
         ckpt_dir=ckpt_dir,
         seq_pairing=args.seq_pairing,
         pair_embed_dim=args.pair_embed_dim,
+        pair_random_init=args.pair_random_init,
+        pair_stack_channel=args.pair_stack_channel,
+        pair_stack_learnable=args.pair_stack_learnable,
         seq_pool=args.seq_pool,
     )
 

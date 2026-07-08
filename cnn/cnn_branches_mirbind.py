@@ -142,22 +142,169 @@ _PAIR_STRENGTH = (3.0 * _PAIR_GC + 2.0 * _PAIR_AU
                   + 1.0 * _PAIR_GU + 0.0 * _PAIR_MM).astype(np.float32)   # (5, 5)
 
 
-def _chem_init_pair_embed(dim: int, seed: int = 0) -> np.ndarray:
+# Std of the Gaussian noise the learnable pairing tables start from.  Channels that
+# sit next to a chemistry prior keep it small so the prior dominates at init.  A
+# fully un-primed table (`pair_random_init`) uses _PAIR_STRENGTH's own std (~1.09)
+# instead, so each of its channels starts as informative as the prior it replaced.
+# Note the *aggregate* input magnitude still differs (a priored table has only one
+# or two non-negligible channels, an un-primed one has `pair_embed_dim` of them);
+# BatchNorm2d follows the first conv, so this sets the early gradient scale on the
+# table rather than the downstream activations.
+_PRIOR_NOISE_STD  = 0.02
+_RANDOM_NOISE_STD = 1.0
+
+
+def _chem_init_pair_embed(dim: int, random_init: bool = False,
+                          seed: int = 0) -> np.ndarray:
     """Chemistry-initialised (dim, 5, 5) lookup for the learnable pairing embedding.
 
     Channel 0 is seeded with the graded pairing-strength prior (_PAIR_STRENGTH);
     any extra channels start as small Gaussian noise so the network can learn
     further distinctions (e.g. mismatch sub-types) on top of the prior.  The pad
     index (4) rows/cols are zeroed so padding cells carry no signal at init.
+
+    ``random_init=True`` drops the prior entirely and starts the whole table from
+    noise — the ablation for "would the network learn this table anyway?".
     """
     if dim < 1:
         raise ValueError(f"pair_embed_dim must be >= 1, got {dim}")
     rng = np.random.default_rng(seed)
-    table = (0.02 * rng.standard_normal((dim, 5, 5))).astype(np.float32)
-    table[0] = _PAIR_STRENGTH
+    std = _RANDOM_NOISE_STD if random_init else _PRIOR_NOISE_STD
+    table = (std * rng.standard_normal((dim, 5, 5))).astype(np.float32)
+    if not random_init:
+        table[0] = _PAIR_STRENGTH
     table[:, 4, :] = 0.0
     table[:, :, 4] = 0.0
     return np.ascontiguousarray(table)
+
+
+# ---------------------------------------------------------------------------
+# Turner-2004 nearest-neighbour stacking free energies
+# ---------------------------------------------------------------------------
+# The pairing matrix above is a *mononucleotide* representation: cell (i,j) knows
+# only the identity of the pair between miRNA base i and MRE base j.  Duplex
+# stability, however, is a nearest-neighbour property — it depends on which pair
+# sits on top of which.  Both sequences are stored 5'→3', so a helical register
+# runs along an anti-diagonal (i + j = const, cf. `_duplex_stats`): the pair that
+# stacks under (i, j) is (i+1, j-1).  A 5×5 conv kernel already spans both cells,
+# but it has to *learn* that combination; the stacking channel below hands it the
+# literal thermodynamics instead.
+#
+# `_TURNER_STACK37` is ΔG°37 in kcal/mol, rows/cols indexing the 6 canonical pair
+# types in ViennaRNA's order.  Entry [t1][t2] is the stack whose OUTER pair is
+# t1 = (a, b) and whose INNER pair, written *reversed*, is t2 = (d, c):
+#
+#       5'- a  c -3'      a·b is the outer pair, c·d the inner one;
+#       3'- b  d -5'      here a,c are miRNA bases and b,d MRE bases.
+#
+# Source: the Turner 2004 set as distributed in ViennaRNA `rna_turner2004.par`
+# (`stack` block, units of 0.01 kcal/mol).  Its Watson–Crick block reproduces
+# Xia et al. (1998) and its G·U entries Mathews et al. (1999) — e.g. [GU][GU] =
+# +1.30 is the destabilising 5'GU3'/3'UG5' tandem wobble.  The matrix is
+# symmetric, [t1][t2] == [t2][t1].
+_STACK_PAIRS: tuple[tuple[str, str], ...] = (
+    ("C", "G"), ("G", "C"), ("G", "U"), ("U", "G"), ("A", "U"), ("U", "A"))
+
+_TURNER_STACK37 = np.array([          # CG     GC     GU     UG     AU     UA
+    [-2.40, -3.30, -2.10, -1.40, -2.10, -2.10],   # CG
+    [-3.30, -3.40, -2.50, -1.50, -2.20, -2.40],   # GC
+    [-2.10, -2.50,  1.30, -0.50, -1.40, -1.30],   # GU
+    [-1.40, -1.50, -0.50,  0.30, -0.60, -1.00],   # UG
+    [-2.10, -2.20, -1.40, -0.60, -1.10, -0.90],   # AU
+    [-2.10, -2.40, -1.30, -1.00, -0.90, -1.30],   # UA
+], dtype=np.float32)
+
+
+def _build_stack_table() -> tuple[np.ndarray, np.ndarray]:
+    """Expand `_TURNER_STACK37` into a (5,5,5,5) nucleotide-indexed lookup + mask.
+
+    Indexed ``[a, b, c, d]`` = ``[mirna[i], mre[j], mirna[i+1], mre[j-1]]``, so a
+    single gather at cell (i, j) returns the stack between the pair at (i, j) and
+    the pair at (i+1, j-1).
+
+    Values are stored as **stabilisation, −ΔG°37**, so that the sign convention
+    matches `_PAIR_STRENGTH` (larger = more stable) and the destabilising tandem
+    wobble comes out negative.  Entries where either pair is non-canonical (a
+    mismatch) or involves the pad index 4 stay exactly 0, which also zeroes the
+    last miRNA row and the first MRE column — those cells have no inner partner.
+
+    Returns ``(table, mask)``; the mask is 1.0 exactly where a real stack exists
+    and is used to keep the learnable variant from putting signal into pad cells.
+    """
+    tab = np.zeros((5, 5, 5, 5), dtype=np.float32)
+    msk = np.zeros((5, 5, 5, 5), dtype=np.float32)
+    idx = {p: k for k, p in enumerate(_STACK_PAIRS)}
+    for a, b in _STACK_PAIRS:                       # outer pair (mirna_i, mre_j)
+        for c, d in _STACK_PAIRS:                   # inner pair (mirna_i+1, mre_j-1)
+            # The table's second index is the inner pair written reversed, (d, c);
+            # _STACK_PAIRS is closed under reversal so this always resolves.
+            e = _TURNER_STACK37[idx[(a, b)], idx[(d, c)]]
+            cell = (_NUC_IDX[a], _NUC_IDX[b], _NUC_IDX[c], _NUC_IDX[d])
+            tab[cell] = -float(e)
+            msk[cell] = 1.0
+    return np.ascontiguousarray(tab), np.ascontiguousarray(msk)
+
+
+_STACK_TABLE, _STACK_MASK = _build_stack_table()
+
+
+def _chem_init_dinuc_embed(dim: int, random_init: bool = False,
+                           seed: int = 0) -> np.ndarray:
+    """Chemistry-initialised (dim, 5, 5, 5, 5) lookup over the ordered DInucleotide.
+
+    Where `_chem_init_pair_embed` keys each cell on the single pair (mirna[i],
+    mre[j]), this keys it on that pair *plus* the pair that stacks under it:
+    ``[a, b, c, d]`` = ``[mirna[i], mre[j], mirna[i+1], mre[j-1]]``.  A cell
+    therefore carries the whole nearest-neighbour context, so a 1×1 conv can read
+    off stacking energy that the mononucleotide encoding forces the network to
+    reconstruct from two cells two steps apart on the anti-diagonal.
+
+    This strictly generalises the mononucleotide table — that table is this one's
+    marginal over (c, d) — because every combination gets its own free entry,
+    including mismatched and terminal (pad-inner) contexts where the Turner stack
+    is undefined and `_STACK_TABLE` is 0.  The inner indices are therefore *not*
+    masked: ``[a, b, 4, 4]`` is the meaningful "outer pair with no stacking
+    partner" entry used by the last miRNA row and the first MRE column.
+
+    Initialisation:
+        channel 0  — the mono pairing-strength prior, broadcast over (c, d), so
+                     the encoding starts out exactly as informative as `embed`;
+        channel 1  — the Turner-2004 stacking stabilisation (-ΔG°37), if dim >= 2;
+        channels 2+ — small Gaussian noise.
+
+    ``random_init=True`` drops *both* priors — no strength on channel 0, no Turner
+    stack on channel 1 — and starts the whole table from noise.  The encoding still
+    keys on the dinucleotide context, so this isolates the value of the chemistry
+    prior from the value of the representation.
+
+    The OUTER pad index (a == 4 or b == 4) is zeroed in every channel; forward()
+    re-masks it so padding stays signal-free even after the table is trained.
+    """
+    if dim < 1:
+        raise ValueError(f"pair_embed_dim must be >= 1, got {dim}")
+    rng = np.random.default_rng(seed)
+    std = _RANDOM_NOISE_STD if random_init else _PRIOR_NOISE_STD
+    table = (std * rng.standard_normal((dim, 5, 5, 5, 5))).astype(np.float32)
+    if not random_init:
+        table[0] = _PAIR_STRENGTH[:, :, None, None]  # broadcast over the inner pair
+        if dim >= 2:
+            table[1] = _STACK_TABLE
+    table[:, 4, :, :, :] = 0.0
+    table[:, :, 4, :, :] = 0.0
+    return np.ascontiguousarray(table)
+
+
+def _stack_neighbours(mi: torch.Tensor,
+                      ti: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    """Shift the index vectors to the next pair along the helical register.
+
+    Both sequences are stored 5'→3', so the pair stacking under (i, j) is
+    (i+1, j-1): shift miRNA left, MRE right, and fill the vacated ends with the
+    pad index 4.  That zeroes the last miRNA row and the first MRE column, which
+    have no inner stacking partner.
+    """
+    pad = torch.full_like(mi[:, :1], 4)
+    return torch.cat([mi[:, 1:], pad], dim=1), torch.cat([pad, ti[:, :-1]], dim=1)
 
 
 # ASCII byte → nucleotide index lookup (default 4 = unknown/padding).
@@ -636,6 +783,17 @@ class MiRBindCNN(nn.Module):
         Output embedding size of the sequence branch (after dense layers).
     seq_dropout : float
         Dropout inside the miRBind 2D CNN blocks and the classifier head.
+    pair_random_init : bool
+        Start the learnable pairing table from pure noise instead of its chemistry
+        priors — for "dinuc" that drops both the channel-0 strength prior and the
+        channel-1 Turner stacking prior. Also randomises a learnable stacking
+        table. Requires seq_pairing "embed" or "dinuc".
+    pair_stack_channel : bool
+        Append a Turner-2004 nearest-neighbour stacking channel (-ΔG°37 of the
+        pair at (i,j) stacked on the pair at (i+1,j-1)) to the pairing matrix.
+    pair_stack_learnable : bool
+        Make that stacking table an nn.Parameter initialised to the Turner values
+        instead of a frozen buffer. Requires pair_stack_channel.
     seq_pool : str
         Global pool for the sequence branch: "gem" or "avg".
     """
@@ -647,6 +805,9 @@ class MiRBindCNN(nn.Module):
         seq_dropout:      float = 0.3,
         seq_pairing:      str   = "multi",
         pair_embed_dim:   int   = 3,
+        pair_random_init:     bool = False,
+        pair_stack_channel:   bool = False,
+        pair_stack_learnable: bool = False,
         seq_pool:         str   = "gem",
         n_conv_blocks:    int   = 6,
         n_pool_blocks:    int   = 4,
@@ -663,17 +824,28 @@ class MiRBindCNN(nn.Module):
         # lookup — a low-dim continuous representation of each nucleotide pair that
         # avoids the sparse one-hot channels and lets the network learn its own
         # pairing distinctions on top of the strength prior.
+        # "dinuc" = the same idea one order up: a learnable
+        # (pair_embed_dim,5,5,5,5) lookup keyed on the ordered DInucleotide
+        # context (mirna[i], mre[j], mirna[i+1], mre[j-1]), i.e. each cell knows
+        # the pair *and* the pair stacking under it, so nearest-neighbour
+        # thermodynamics is a per-cell property rather than something the conv has
+        # to assemble from two cells.  Initialised so channel 0 reproduces "embed"
+        # and channel 1 is the literal Turner-2004 stacking energy.
         #
         # The fixed tables are constants → registered as non-persistent buffers
         # (rebuilt at construction, kept out of the state_dict so older checkpoints
-        # stay loadable).  The "embed" table is learned → an nn.Parameter that IS
-        # saved.  In both cases forward() masks pad cells, so padding carries no
-        # signal regardless of the learned values.
+        # stay loadable).  The "embed"/"dinuc" tables are learned → an nn.Parameter
+        # that IS saved.  In every case forward() masks pad cells, so padding
+        # carries no signal regardless of the learned values.
         self._pair_learnable = False
-        if seq_pairing == "embed":
+        self._pair_dinuc     = False
+        if seq_pairing in ("embed", "dinuc"):
+            init = (_chem_init_dinuc_embed if seq_pairing == "dinuc"
+                    else _chem_init_pair_embed)
             self.pair_table = nn.Parameter(
-                torch.from_numpy(_chem_init_pair_embed(pair_embed_dim)))
+                torch.from_numpy(init(pair_embed_dim, random_init=pair_random_init)))
             self._pair_learnable = True
+            self._pair_dinuc     = seq_pairing == "dinuc"
             n_pair_ch = pair_embed_dim
         else:
             if seq_pairing == "multi":
@@ -684,13 +856,60 @@ class MiRBindCNN(nn.Module):
                 pair_table = _WC_TABLE[np.newaxis]      # (1, 5, 5)
             else:
                 raise ValueError(
-                    "seq_pairing must be 'binary', 'multi', 'multi4' or 'embed', "
-                    f"got {seq_pairing!r}")
+                    "seq_pairing must be 'binary', 'multi', 'multi4', 'embed' or "
+                    f"'dinuc', got {seq_pairing!r}")
+            if pair_random_init:
+                raise ValueError(
+                    "pair_random_init only applies to a learnable pairing table "
+                    f"(seq_pairing 'embed' or 'dinuc'), got {seq_pairing!r}")
             self.register_buffer(
                 "pair_table",
                 torch.from_numpy(np.ascontiguousarray(pair_table)),
                 persistent=False)
             n_pair_ch = pair_table.shape[0]
+
+        # Optional extra channel: the Turner-2004 nearest-neighbour stacking
+        # stabilisation (-ΔG°37) of the pair at (i,j) against the pair at
+        # (i+1,j-1) — the next base pair along the helical register.  Appended
+        # *last* so the indices of the pairing channels above are unchanged.
+        # Off by default, which keeps the state_dict byte-identical to older
+        # checkpoints (enabling it widens the first conv's in_channels).
+        self.pair_stack_channel   = bool(pair_stack_channel)
+        self._stack_learnable     = bool(pair_stack_learnable)
+        if self.pair_stack_channel:
+            if self._stack_learnable:
+                # A free (5,5,5,5) table, initialised either from the Turner values
+                # or — under pair_random_init — from noise on the 36 real stacks.
+                # That pair of runs is the ablation "is the chemistry prior better
+                # than a stack table learned from scratch?".
+                if pair_random_init:
+                    rng   = np.random.default_rng(0)
+                    init_ = (_RANDOM_NOISE_STD
+                             * rng.standard_normal((5, 5, 5, 5))).astype(np.float32)
+                    init_ *= _STACK_MASK      # noise only where a stack exists
+                else:
+                    init_ = _STACK_TABLE.copy()
+                self.stack_table = nn.Parameter(
+                    torch.from_numpy(np.ascontiguousarray(init_)))
+            elif pair_random_init:
+                # A frozen stack table *is* the Turner prior; asking to drop the
+                # prior while keeping the channel is contradictory.
+                raise ValueError(
+                    "pair_random_init with a frozen pair_stack_channel would "
+                    "re-inject the Turner prior it is meant to remove; pass "
+                    "pair_stack_learnable=True or drop pair_stack_channel")
+            else:
+                self.register_buffer(
+                    "stack_table", torch.from_numpy(_STACK_TABLE.copy()),
+                    persistent=False)
+            # Gathered alongside the table so mismatches, pads and the cells with
+            # no inner partner stay at exactly 0 even when the table is learned.
+            self.register_buffer(
+                "stack_mask", torch.from_numpy(_STACK_MASK.copy()), persistent=False)
+            n_pair_ch += 1
+        elif pair_stack_learnable:
+            raise ValueError(
+                "pair_stack_learnable requires pair_stack_channel=True")
 
         # ── miRBind 2D sequence branch ───────────────────────────────────────
         self.seq_branch = MiRBindSeqBranch(
@@ -726,14 +945,35 @@ class MiRBindCNN(nn.Module):
         subcommand) can differentiate the classifier w.r.t. this continuous
         matrix — the first differentiable representation of the input, since the
         index gather itself is not differentiable in the indices.
+
+        With ``seq_pairing="dinuc"`` the gather is 4-D: each cell keys on the
+        ordered dinucleotide context (mi[i], ti[j], mi[i+1], ti[j-1]) — the pair
+        and the pair stacking under it.  Only the *outer* pair is pad-masked; the
+        inner pad index is a meaningful "no stacking partner" context.
+
+        With ``pair_stack_channel`` a final channel carries the Turner-2004
+        nearest-neighbour stacking stabilisation, gathered at the same four
+        indices.
         """
         mi = mi.long()
         ti = ti.long()
-        pair = self.pair_table[:, mi[:, :, None], ti[:, None, :]]  # (C_pair, B, 30, 50)
+        if self._pair_dinuc:
+            mi_next, ti_prev = _stack_neighbours(mi, ti)
+            pair = self.pair_table[:, mi[:, :, None], ti[:, None, :],
+                                   mi_next[:, :, None], ti_prev[:, None, :]]
+        else:
+            pair = self.pair_table[:, mi[:, :, None], ti[:, None, :]]
         wc_mat = pair.movedim(0, 1).contiguous()                   # (B, C_pair, 30, 50)
         if self._pair_learnable:
             valid = ((mi < 4)[:, :, None] & (ti < 4)[:, None, :])  # (B, 30, 50)
             wc_mat = wc_mat * valid.unsqueeze(1).to(wc_mat.dtype)
+
+        if self.pair_stack_channel:
+            mi_next, ti_prev = _stack_neighbours(mi, ti)
+            gather = (mi[:, :, None], ti[:, None, :],
+                      mi_next[:, :, None], ti_prev[:, None, :])    # -> (B, 30, 50)
+            stack = self.stack_table[gather] * self.stack_mask[gather]
+            wc_mat = torch.cat([wc_mat, stack.unsqueeze(1).to(wc_mat.dtype)], dim=1)
         return wc_mat
 
     def logits_from_matrix(
@@ -1160,6 +1400,9 @@ def _model_args_from_cli(args: argparse.Namespace) -> dict:
         "seq_dropout":      args.seq_dropout,
         "seq_pairing":      args.seq_pairing,
         "pair_embed_dim":   args.pair_embed_dim,
+        "pair_random_init":     args.pair_random_init,
+        "pair_stack_channel":   args.pair_stack_channel,
+        "pair_stack_learnable": args.pair_stack_learnable,
         "seq_pool":         args.seq_pool,
         "n_conv_blocks":    args.n_conv_blocks,
         "n_pool_blocks":    args.n_pool_blocks,
@@ -1753,7 +1996,10 @@ def _load_ckpt_model(checkpoint: str | Path,
     # the keys are absent (newer checkpoints carry their own values).
     for key, val in [("seq_pairing", "binary"), ("seq_pool", "avg"),
                      ("n_conv_blocks", 6), ("n_pool_blocks", 4),
-                     ("block_pool", "max"), ("activation", "leaky_relu")]:
+                     ("block_pool", "max"), ("activation", "leaky_relu"),
+                     ("pair_random_init", False),
+                     ("pair_stack_channel", False),
+                     ("pair_stack_learnable", False)]:
         margs.setdefault(key, val)
     # Drop keys for removed branches (tspot / energy, conservation / eclip vector
     # branches, the removed accessibility / conservation / positional channels and
@@ -2096,16 +2342,38 @@ def main() -> int:
                     help="Output embedding size of the sequence branch.")
     tr.add_argument("--seq-dropout",     type=float, default=0.3, dest="seq_dropout",
                     help="Dropout in the 2D miRBind conv blocks and classifier head.")
-    tr.add_argument("--seq-pairing", choices=["binary", "multi", "multi4", "embed"],
+    tr.add_argument("--seq-pairing",
+                    choices=["binary", "multi", "multi4", "embed", "dinuc"],
                     default="multi", dest="seq_pairing",
                     help="2D pairing matrix encoding: single WC(+wobble) channel "
                          "(binary), separate WC/wobble/mismatch channels (multi), "
-                         "A·U/G·C/wobble/mismatch (multi4, WC split by strength), or "
-                         "a learnable chemistry-initialised dense embedding (embed).")
+                         "A·U/G·C/wobble/mismatch (multi4, WC split by strength), "
+                         "a learnable chemistry-initialised dense embedding over "
+                         "the mononucleotide pair (embed), or the same over the "
+                         "ordered dinucleotide stack context (dinuc).")
     tr.add_argument("--pair-embed-dim", type=int, default=3, dest="pair_embed_dim",
                     help="Channels of the learnable pairing embedding when "
-                         "--seq-pairing embed (ignored otherwise). Channel 0 is "
-                         "initialised to the graded pairing-strength prior.")
+                         "--seq-pairing embed or dinuc (ignored otherwise). Channel "
+                         "0 is initialised to the graded pairing-strength prior; "
+                         "for dinuc, channel 1 to the Turner-2004 stacking energy.")
+    tr.add_argument("--pair-random-init", action="store_true",
+                    dest="pair_random_init",
+                    help="Start the learnable pairing table from noise instead of "
+                         "its chemistry priors (for dinuc: drops BOTH the channel-0 "
+                         "pairing-strength prior and the channel-1 Turner stacking "
+                         "prior; also randomises a learnable stacking table). The "
+                         "'would it learn this anyway?' ablation. Requires "
+                         "--seq-pairing embed or dinuc.")
+    tr.add_argument("--pair-stack-channel", action="store_true",
+                    dest="pair_stack_channel",
+                    help="Append a Turner-2004 nearest-neighbour stacking channel "
+                         "to the pairing matrix: cell (i,j) carries -ΔG°37 for the "
+                         "pair at (i,j) stacked on the pair at (i+1,j-1). Combines "
+                         "with any --seq-pairing encoding.")
+    tr.add_argument("--pair-stack-learnable", action="store_true",
+                    dest="pair_stack_learnable",
+                    help="Let the stacking table be learned, initialised to the "
+                         "Turner values. Requires --pair-stack-channel.")
     tr.add_argument("--seq-pool", choices=["avg", "gem"], default="gem",
                     dest="seq_pool",
                     help="Global pooling for the 2D sequence branch: average or "

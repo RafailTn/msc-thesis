@@ -42,8 +42,11 @@ DEVICE="${DEVICE:-cuda}"
 METRIC="${METRIC:-auprc}"
 
 # ── model architecture / loss ──────────────────────────────────────────────
-SEQ_PAIRING="${SEQ_PAIRING:-embed}"    # binary | multi | multi4 | embed
-PAIR_EMBED_DIM="${PAIR_EMBED_DIM:-16}" # learned pair-embed dim (embed pairing only)
+SEQ_PAIRING="${SEQ_PAIRING:-embed}"    # binary | multi | multi4 | embed | dinuc
+PAIR_EMBED_DIM="${PAIR_EMBED_DIM:-16}" # learned pair-embed dim (embed/dinuc only)
+PAIR_RANDOM_INIT="${PAIR_RANDOM_INIT:-0}"  # 1 -> learnable table from noise, no chem prior
+PAIR_STACK="${PAIR_STACK:-0}"          # 1 -> extra Turner-2004 NN stacking channel
+PAIR_STACK_LEARN="${PAIR_STACK_LEARN:-0}"  # 1 -> learn that table from its Turner init
 SEQ_POOL="${SEQ_POOL:-gem}"            # avg | gem
 ACTIVATION="${ACTIVATION:-relu}"       # leaky_relu | relu | gelu | silu | elu | selu
 FOCAL_GAMMA="${FOCAL_GAMMA:-2.0}"      # 0 = BCE; 2 = standard focal
@@ -62,7 +65,11 @@ model_flags=(
   --seq-pairing "$SEQ_PAIRING" --seq-pool "$SEQ_POOL"
   --activation "$ACTIVATION" --focal-gamma "$FOCAL_GAMMA"
 )
-[[ "$SEQ_PAIRING" == "embed" ]] && model_flags+=( --pair-embed-dim "$PAIR_EMBED_DIM" )
+[[ "$SEQ_PAIRING" == "embed" || "$SEQ_PAIRING" == "dinuc" ]] \
+  && model_flags+=( --pair-embed-dim "$PAIR_EMBED_DIM" )
+[[ "$PAIR_RANDOM_INIT" == "1" ]] && model_flags+=( --pair-random-init )
+[[ "$PAIR_STACK" == "1" ]]       && model_flags+=( --pair-stack-channel )
+[[ "$PAIR_STACK_LEARN" == "1" ]] && model_flags+=( --pair-stack-learnable )
 [[ "$DETERMINISTIC" == "1" ]]   && model_flags+=( --deterministic )
 
 # ── assemble argv (kfold | full) ───────────────────────────────────────────
