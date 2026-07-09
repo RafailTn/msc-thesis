@@ -16,8 +16,14 @@ Pipeline
     ``ContextBuilder.window`` genomic branch (gws = s-1-flank, gwe = e+flank,
     0-based half-open).  ENCORI peaks are genomic, so we extend in genomic space
     (the MANE-spliced branch can't be overlapped against genomic peaks linearly).
-3.  Strand-aware overlap of the extended sites with ENCORI RBP narrow peaks
-    (``ENCORI_RBP_targets_*.tsv``) via PyRanges.
+3.  Strand-aware overlap of the extended sites with RBP peaks via PyRanges.  Two
+    interchangeable peak sources, exactly one of which must be given:
+      --encori   ENCORI narrow peaks (``ENCORI_RBP_targets_*.tsv``), 73 RBPs,
+                 1-based inclusive coordinates.
+      --bed-dir  iSHAPE per-RBP BED9 files named ``<RBP>_<CELLLINE>.bed``, 171
+                 RBPs for HEK293T, 0-based half-open coordinates.
+    The two panels share only 27 RBPs, so they are independent peak sets rather
+    than a filter of one another; results are written to distinct files (see --tag).
 4.  Per RBP, a 2x2 Fisher exact test of (site overlaps RBP) x (FN vs TP), with a
     Benjamini-Hochberg FDR correction.  Positive log2 odds-ratio => enriched in FN.
 
@@ -25,10 +31,16 @@ Pipeline
         --input data/manakov_test_errors_v7_restructure.tsv \
         --encori ENCORI_RBP_targets_HEK293T_hg38.tsv \
         --flank 150 --out results/rbp_enrichment_manakov_test.tsv
+
+    python cnn/rbp_enrichment_fn_vs_tp.py \
+        --input data/manakov_test_errors_v7_restructure.tsv \
+        --bed-dir data/RBP_from_ishape --cell-line HEK293T \
+        --control-density --region UTR3
 """
 from __future__ import annotations
 
 import argparse
+import glob
 import os
 
 import numpy as np
@@ -70,6 +82,30 @@ def load_encori(path: str) -> pr.PyRanges:
         Strand="strand", RBP="RBP",
     )
     df = pl_to_pd(df)
+    df = df[df["Strand"].isin(["+", "-"])]
+    return pr.PyRanges(df)
+
+
+def load_bed_dir(path: str, cell_line: str) -> pr.PyRanges:
+    """iSHAPE per-RBP BED9 -> stranded PyRanges (Chromosome, Start, End, Strand, RBP).
+
+    Reads ``<path>/<RBP>_<cell_line>.bed``.  BED is already 0-based half-open, so
+    (unlike :func:`load_encori`, whose source is 1-based inclusive) the coordinates
+    are taken verbatim -- no +1 on End.  The RBP name is taken from the *filename*
+    rather than the BED name column, which carries the redundant ``RBP_CELLLINE``.
+    """
+    files = sorted(glob.glob(os.path.join(path, f"*_{cell_line}.bed")))
+    if not files:
+        raise SystemExit(f"no *_{cell_line}.bed files under {path}")
+    frames = []
+    for f in files:
+        rbp = os.path.basename(f).rsplit(f"_{cell_line}.bed", 1)[0]
+        b = pl.read_csv(f, separator="\t", has_header=False,
+                        columns=[0, 1, 2, 5],
+                        new_columns=["Chromosome", "Start", "End", "Strand"])
+        frames.append(b.with_columns(RBP=pl.lit(rbp)))
+    e = pl.concat(frames).drop_nulls()
+    df = pl_to_pd(e.select("Chromosome", "Start", "End", "Strand", "RBP"))
     df = df[df["Strand"].isin(["+", "-"])]
     return pr.PyRanges(df)
 
@@ -364,7 +400,17 @@ def main():
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--input", nargs="+", required=True,
                     help="one or more *_errors_v7_restructure.tsv error dumps")
-    ap.add_argument("--encori", required=True, help="ENCORI RBP targets TSV")
+    src = ap.add_mutually_exclusive_group(required=True)
+    src.add_argument("--encori", help="ENCORI RBP targets TSV (1-based inclusive)")
+    src.add_argument("--bed-dir", help="directory of iSHAPE <RBP>_<CELLLINE>.bed "
+                                       "files (BED9, 0-based half-open)")
+    ap.add_argument("--cell-line", default="HEK293T",
+                    help="with --bed-dir, which cell line's beds to load (default "
+                         "HEK293T)")
+    ap.add_argument("--tag", default=None,
+                    help="string inserted into the output filename to keep runs "
+                         "from different peak sources apart (default: none for "
+                         "--encori, 'ishape' for --bed-dir)")
     ap.add_argument("--flank", type=int, default=150,
                     help="nt to extend each side of the 50-nt site (default 150, "
                          "the compute_accessibility.py FLANK)")
@@ -398,8 +444,15 @@ def main():
     ap.add_argument("--top", type=int, default=20, help="rows to print per input")
     args = ap.parse_args()
 
-    encori = load_encori(args.encori)
-    print(f"ENCORI: {len(encori.df)} peaks, "
+    if args.bed_dir:
+        encori = load_bed_dir(args.bed_dir, args.cell_line)
+        src_name = f"iSHAPE {args.cell_line}"
+        tag = args.tag or "ishape"
+    else:
+        encori = load_encori(args.encori)
+        src_name = "ENCORI"
+        tag = args.tag
+    print(f"{src_name}: {len(encori.df)} peaks, "
           f"{encori.df['RBP'].nunique()} RBPs, flank={args.flank}, "
           f"strand={'same' if not args.no_strand else 'ignored'}")
     os.makedirs(args.out_dir, exist_ok=True)
@@ -423,6 +476,8 @@ def main():
             suffix += f".{args.region}"
         if args.binding_type:
             suffix += f".{args.binding_type}"
+        if tag:
+            suffix += f".{tag}"
         if res.empty:
             continue
         base = os.path.basename(path).replace("_errors_v7_restructure.tsv", "")

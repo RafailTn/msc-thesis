@@ -120,12 +120,16 @@ def _train_trial(
         running_loss = 0.0
         seen = 0
 
-        for mi, ti, labels in train_loader:
+        # The dataset always yields the conservation vectors; they are all-zero and
+        # unused unless the model was built with seq_cons_channels=True.
+        for mi, ti, cm, ct, labels in train_loader:
             mi     = mi.to(device,     non_blocking=True)
             ti     = ti.to(device,     non_blocking=True)
+            cm     = cm.to(device,     non_blocking=True)
+            ct     = ct.to(device,     non_blocking=True)
             labels = labels.to(device, non_blocking=True).float()
 
-            logits = model(mi, ti)
+            logits = model(mi, ti, cm, ct)
             loss   = F.binary_cross_entropy_with_logits(
                 logits, labels, pos_weight=pos_weight)
 

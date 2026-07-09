@@ -325,7 +325,16 @@ _ASCII_IDX[ord("t")] = _NUC_IDX["U"]
 # v6: added the per-pair leakage-free neighbour-count scalar (classifier head).
 # v7: dropped the tAcc/conservation MRE-axis vectors (acc/con channels removed).
 # v8: dropped the neighbour-count scalar (cooperativity feature removed).
-_CACHE_VERSION = 8
+# v9: added the per-miRNA and per-MRE phastCons vectors for --seq-cons-channels.
+_CACHE_VERSION = 9
+
+# Default source columns for --seq-cons-channels.  `mirna_phastCons100way` is
+# produced by cnn/add_mirna_phastcons.py and is already 5'->3' aligned to
+# `noncodingRNA`.  `gene_phastCons` ships in the v7 TSVs and is stored in GENOMIC
+# order, so it must be reversed on minus-strand rows to align with `gene` (which
+# is transcript-oriented).  See _cons_vectors().
+DEFAULT_MIRNA_CONS_COL = "mirna_phastCons100way"
+DEFAULT_MRE_CONS_COL   = "gene_phastCons"
 
 
 def _norm_seq(seq: str) -> str:
@@ -411,6 +420,81 @@ def _parse_vector(raw, length: int) -> np.ndarray:
     return out
 
 
+def _parse_vector_exact(raw) -> np.ndarray:
+    """Parse a stored per-base vector to its *own* length (no padding).
+
+    Tolerates the `None` entries and whole-null rows that occur in the v7
+    `gene_phastCons` / `gene_phyloP` columns (126 null rows in manakov_test), which
+    `np.fromstring` would silently mis-parse.  Missing entries become 0.0, matching
+    the pad value — phastCons 0 means "unconserved", which is the right prior for a
+    position we know nothing about.
+    """
+    if raw is None or (isinstance(raw, float) and math.isnan(raw)):
+        return np.zeros(0, dtype=np.float32)
+    if isinstance(raw, (list, np.ndarray)):
+        return np.asarray(raw, dtype=np.float32)
+    s = str(raw).strip()
+    if not s or s.lower() in ("nan", "none", "null"):
+        return np.zeros(0, dtype=np.float32)
+    s = s.strip("[]")
+    if not s:
+        return np.zeros(0, dtype=np.float32)
+    vals = []
+    for tok in s.split(","):
+        tok = tok.strip()
+        if not tok or tok in ("None", "nan", "NaN", "null"):
+            vals.append(0.0)
+        else:
+            try:
+                vals.append(float(tok))
+            except ValueError:
+                vals.append(0.0)
+    return np.asarray(vals, dtype=np.float32)
+
+
+def _cons_spec(mirna_cons_col: Optional[str], mre_cons_col: Optional[str],
+               mre_cons_reverse: bool) -> str:
+    """Cache key for the conservation arrays.
+
+    Folded into the .cnncache.npz so a cache built with different columns — or with
+    the minus-strand reversal disabled — is rebuilt instead of silently reused.
+    """
+    return f"{mirna_cons_col}|{mre_cons_col}|{int(bool(mre_cons_reverse))}"
+
+
+def _cons_vectors(df: pd.DataFrame, col: Optional[str], length: int,
+                  reverse_minus: bool, tag: str) -> np.ndarray:
+    """(N, length) float32 conservation vectors, aligned 5'->3' with the sequence.
+
+    ``reverse_minus`` reverses each minus-strand row.  This is **required** for the
+    v7 ``gene_phastCons`` column: BigWig-derived values are stored in genomic
+    left-to-right order, while ``gene`` is transcript-oriented (reverse-complemented
+    on the minus strand).  Without the flip, roughly half the rows would carry the
+    conservation vector back-to-front against the MRE — a silent misalignment that
+    presents as "the feature does nothing".  The miRNA vector written by
+    ``cnn/add_mirna_phastcons.py`` is already 5'->3', so it is never reversed.
+    """
+    if col is None:
+        return np.zeros((len(df), length), dtype=np.float32)
+    if col not in df.columns:
+        sys.exit(f"ERROR: --seq-cons-channels needs column {col!r} ({tag}); "
+                 f"available: {list(df.columns)[:20]} ...")
+    if reverse_minus and "strand" not in df.columns:
+        sys.exit(f"ERROR: reversing {col!r} on minus-strand rows needs a 'strand' "
+                 "column; pass --mre-cons-no-reverse only if the column is already "
+                 "transcript-oriented")
+    minus = (df["strand"].astype(str).values == "-") if reverse_minus else None
+
+    out = np.zeros((len(df), length), dtype=np.float32)
+    for i, raw in enumerate(df[col].tolist()):
+        v = _parse_vector_exact(raw)
+        if minus is not None and minus[i]:
+            v = v[::-1]
+        n = min(len(v), length)
+        out[i, :n] = v[:n]
+    return out
+
+
 # ---------------------------------------------------------------------------
 # Preprocessing cache
 #
@@ -436,6 +520,12 @@ def _save_cache(path: str | Path, mre_col: str, mirna_col: str,
             mirna_idx=ds.mirna_idx,
             mre_idx=ds.mre_idx,
             labels=ds.labels,
+            # Conservation vectors + the exact spec they were built under, so a
+            # cache built with different columns (or a different minus-strand
+            # reversal policy) is rejected rather than silently reused.
+            cons_spec=np.array([str(ds.cons_spec)]),
+            mirna_cons=ds.mirna_cons,
+            mre_cons=ds.mre_cons,
         )
         np.savez(cp, **arrays)
         print(f"  [cache] wrote {cp.name}")
@@ -443,8 +533,8 @@ def _save_cache(path: str | Path, mre_col: str, mirna_col: str,
         print(f"  [cache] could not write {cp.name}: {e}")
 
 
-def _load_cache(path: str | Path, mre_col: str,
-                mirna_col: str) -> Optional[dict]:
+def _load_cache(path: str | Path, mre_col: str, mirna_col: str,
+                cons_spec: str) -> Optional[dict]:
     cp = _cache_path(path)
     if not cp.exists():
         return None
@@ -455,6 +545,7 @@ def _load_cache(path: str | Path, mre_col: str,
         if (int(z["version"][0]) != _CACHE_VERSION
                 or str(z["mre_col"][0]) != mre_col
                 or str(z["mirna_col"][0]) != mirna_col
+                or str(z["cons_spec"][0]) != cons_spec
                 or list(z["dims"]) != [MAX_MIRNA, MRE_LEN]):
             z.close()
             return None
@@ -462,6 +553,8 @@ def _load_cache(path: str | Path, mre_col: str,
             "mirna_idx":  z["mirna_idx"],
             "mre_idx":    z["mre_idx"],
             "labels":     z["labels"],
+            "mirna_cons": z["mirna_cons"],
+            "mre_cons":   z["mre_cons"],
         }
         z.close()
         return data
@@ -475,6 +568,15 @@ def _load_cache(path: str | Path, mre_col: str,
 # ---------------------------------------------------------------------------
 
 class MiRNAInteractionDataset(Dataset):
+    """Per-sample tokens, labels and (optionally) phastCons vectors.
+
+    ``__getitem__`` always yields a 5-tuple ``(mi, ti, cm, ct, label)``.  When the
+    conservation columns are not requested, ``cm``/``ct`` are all-zero and the model
+    ignores them (``seq_cons_channels=False``), so the extra tensors cost a slice
+    copy and nothing else.  Keeping the arity fixed means every call site unpacks
+    the same shape whether or not the feature is enabled.
+    """
+
     def __init__(
         self,
         path: str | Path,
@@ -482,14 +584,20 @@ class MiRNAInteractionDataset(Dataset):
         mre_col: str = "mre_sequence",
         mirna_col: str = "mirna_sequence",
         cache: bool = True,
+        mirna_cons_col: Optional[str] = None,
+        mre_cons_col: Optional[str] = None,
+        mre_cons_reverse: bool = True,
     ) -> None:
-        cached = _load_cache(path, mre_col, mirna_col) if cache else None
+        spec = _cons_spec(mirna_cons_col, mre_cons_col, mre_cons_reverse)
+        cached = _load_cache(path, mre_col, mirna_col, spec) if cache else None
         if cached is not None:
             print(f"  [cache] loaded {_cache_path(path).name}")
             self.has_labels = has_labels
+            self.cons_spec  = spec
             self._set_arrays(**cached)
         else:
-            self._init(_read_table(path), has_labels, mre_col, mirna_col)
+            self._init(_read_table(path), has_labels, mre_col, mirna_col,
+                       mirna_cons_col, mre_cons_col, mre_cons_reverse)
             if cache:
                 _save_cache(path, mre_col, mirna_col, self)
 
@@ -500,9 +608,13 @@ class MiRNAInteractionDataset(Dataset):
         has_labels: bool = True,
         mre_col: str = "mre_sequence",
         mirna_col: str = "mirna_sequence",
+        mirna_cons_col: Optional[str] = None,
+        mre_cons_col: Optional[str] = None,
+        mre_cons_reverse: bool = True,
     ) -> "MiRNAInteractionDataset":
         obj = cls.__new__(cls)
-        obj._init(df, has_labels, mre_col, mirna_col)
+        obj._init(df, has_labels, mre_col, mirna_col,
+                  mirna_cons_col, mre_cons_col, mre_cons_reverse)
         return obj
 
     def _init(
@@ -511,9 +623,14 @@ class MiRNAInteractionDataset(Dataset):
         has_labels: bool,
         mre_col: str,
         mirna_col: str,
+        mirna_cons_col: Optional[str] = None,
+        mre_cons_col: Optional[str] = None,
+        mre_cons_reverse: bool = True,
     ) -> None:
         self.has_labels = has_labels
-        self._build_arrays(df, has_labels, mre_col, mirna_col)
+        self.cons_spec  = _cons_spec(mirna_cons_col, mre_cons_col, mre_cons_reverse)
+        self._build_arrays(df, has_labels, mre_col, mirna_col,
+                           mirna_cons_col, mre_cons_col, mre_cons_reverse)
 
     def _build_arrays(
         self,
@@ -521,11 +638,21 @@ class MiRNAInteractionDataset(Dataset):
         has_labels: bool,
         mre_col: str,
         mirna_col: str,
+        mirna_cons_col: Optional[str] = None,
+        mre_cons_col: Optional[str] = None,
+        mre_cons_reverse: bool = True,
     ) -> None:
         # Tokenise sequences once into int8 index matrices; the Watson–Crick
         # matrix is assembled on-device in the model forward pass.
         self.mirna_idx = _encode_seqs(df[mirna_col].astype(str).tolist(), MAX_MIRNA)  # (N, 30)
         self.mre_idx   = _encode_seqs(df[mre_col].astype(str).tolist(),   MRE_LEN)    # (N, 50)
+
+        # The miRNA vector is written 5'->3' by add_mirna_phastcons.py; the MRE one
+        # is genomic-ordered in the v7 TSVs and must be flipped on the minus strand.
+        self.mirna_cons = _cons_vectors(df, mirna_cons_col, MAX_MIRNA,
+                                        reverse_minus=False, tag="miRNA")
+        self.mre_cons   = _cons_vectors(df, mre_cons_col, MRE_LEN,
+                                        reverse_minus=mre_cons_reverse, tag="MRE")
 
         if has_labels and "label" in df.columns:
             self.labels = df["label"].astype(int).values
@@ -537,22 +664,28 @@ class MiRNAInteractionDataset(Dataset):
         mirna_idx: np.ndarray,
         mre_idx: np.ndarray,
         labels: np.ndarray,
+        mirna_cons: np.ndarray,
+        mre_cons: np.ndarray,
     ) -> None:
         """Populate arrays from a loaded cache."""
         self.mirna_idx  = mirna_idx
         self.mre_idx    = mre_idx
+        self.mirna_cons = mirna_cons
+        self.mre_cons   = mre_cons
         self.labels = labels if self.has_labels else np.zeros(len(mirna_idx), dtype=np.int64)
 
     def subset(self, mask: np.ndarray) -> None:
         """Restrict the dataset in place to rows where ``mask`` is True.
 
-        Keeps every per-sample array (tokens, labels) aligned, so the dataset
-        stays internally consistent after e.g. binding-type filtering.
+        Keeps every per-sample array (tokens, conservation, labels) aligned, so the
+        dataset stays internally consistent after e.g. binding-type filtering.
         """
         mask = np.asarray(mask, dtype=bool)
-        self.mirna_idx = self.mirna_idx[mask]
-        self.mre_idx   = self.mre_idx[mask]
-        self.labels    = self.labels[mask]
+        self.mirna_idx  = self.mirna_idx[mask]
+        self.mre_idx    = self.mre_idx[mask]
+        self.mirna_cons = self.mirna_cons[mask]
+        self.mre_cons   = self.mre_cons[mask]
+        self.labels     = self.labels[mask]
 
     def __len__(self) -> int:
         return len(self.mirna_idx)
@@ -561,6 +694,8 @@ class MiRNAInteractionDataset(Dataset):
         return (
             torch.from_numpy(self.mirna_idx[idx]),          # (MAX_MIRNA,) int8
             torch.from_numpy(self.mre_idx[idx]),            # (MRE_LEN,)   int8
+            torch.from_numpy(self.mirna_cons[idx]),         # (MAX_MIRNA,) float32
+            torch.from_numpy(self.mre_cons[idx]),           # (MRE_LEN,)   float32
             int(self.labels[idx]),
         )
 
@@ -794,6 +929,23 @@ class MiRBindCNN(nn.Module):
     pair_stack_learnable : bool
         Make that stacking table an nn.Parameter initialised to the Turner values
         instead of a frozen buffer. Requires pair_stack_channel.
+    seq_cons_channels : bool
+        Append two phastCons channels to the pairing matrix: cell (i,j) carries the
+        miRNA conservation at position i in one channel and the MRE conservation at
+        position j in the other. Early fusion is the point — a 5x5 kernel then sees
+        pairing and conservation at the *same* cell, so "a conserved seed pair counts
+        for more than a conserved 3' tail" is expressible. A separate branch could
+        not represent that: its features never meet the pairing at cell level.
+        Off by default, keeping the state_dict byte-identical to older checkpoints.
+
+        Be aware of the ceiling before reading much into a null result. The MRE
+        vector is *constant* across a positive and its negative twin (they share the
+        target), so it contributes exactly 0.5 within-twin AUC; the miRNA vector
+        varies but is label-balanced by miRBench's construction (within-twin AUC
+        0.4942). Measured model-free, multiplying the pair count by either vector
+        makes within-twin ranking *worse* (0.6216 -> 0.5480). A learned gain function
+        is strictly more general than that product, so this is not a refutation —
+        but it is not encouragement either.
     seq_pool : str
         Global pool for the sequence branch: "gem" or "avg".
     """
@@ -808,6 +960,7 @@ class MiRBindCNN(nn.Module):
         pair_random_init:     bool = False,
         pair_stack_channel:   bool = False,
         pair_stack_learnable: bool = False,
+        seq_cons_channels:    bool = False,
         seq_pool:         str   = "gem",
         n_conv_blocks:    int   = 6,
         n_pool_blocks:    int   = 4,
@@ -911,6 +1064,13 @@ class MiRBindCNN(nn.Module):
             raise ValueError(
                 "pair_stack_learnable requires pair_stack_channel=True")
 
+        # Optional extra channels: per-position phastCons, broadcast into the matrix.
+        # Appended *after* the stacking channel so the indices of every existing
+        # channel are unchanged and older checkpoints keep loading.
+        self.seq_cons_channels = bool(seq_cons_channels)
+        if self.seq_cons_channels:
+            n_pair_ch += 2
+
         # ── miRBind 2D sequence branch ───────────────────────────────────────
         self.seq_branch = MiRBindSeqBranch(
             n_filters=seq_filters, out_dim=seq_dim, dropout=seq_dropout,
@@ -935,6 +1095,8 @@ class MiRBindCNN(nn.Module):
         self,
         mi: torch.Tensor,       # (B, MAX_MIRNA)  int nucleotide indices
         ti: torch.Tensor,       # (B, MRE_LEN)    int nucleotide indices
+        cm: Optional[torch.Tensor] = None,   # (B, MAX_MIRNA) float miRNA phastCons
+        ct: Optional[torch.Tensor] = None,   # (B, MRE_LEN)   float MRE   phastCons
     ) -> torch.Tensor:          # (B, C_pair, MAX_MIRNA, MRE_LEN)
         """Assemble the on-device 2D pairing matrix from nucleotide-index vectors.
 
@@ -951,9 +1113,17 @@ class MiRBindCNN(nn.Module):
         and the pair stacking under it.  Only the *outer* pair is pad-masked; the
         inner pad index is a meaningful "no stacking partner" context.
 
-        With ``pair_stack_channel`` a final channel carries the Turner-2004
+        With ``pair_stack_channel`` a further channel carries the Turner-2004
         nearest-neighbour stacking stabilisation, gathered at the same four
         indices.
+
+        With ``seq_cons_channels`` two final channels carry the per-position
+        phastCons of the miRNA (broadcast along the MRE axis) and of the MRE
+        (broadcast along the miRNA axis), both masked to zero on pad cells like
+        every other channel.  Their outer structure is rank-1 by construction — the
+        information is two vectors, not a matrix — but placing them *in* the matrix
+        is exactly the point: the conv can then multiply pairing against
+        conservation inside a single 5x5 receptive field.
         """
         mi = mi.long()
         ti = ti.long()
@@ -974,6 +1144,17 @@ class MiRBindCNN(nn.Module):
                       mi_next[:, :, None], ti_prev[:, None, :])    # -> (B, 30, 50)
             stack = self.stack_table[gather] * self.stack_mask[gather]
             wc_mat = torch.cat([wc_mat, stack.unsqueeze(1).to(wc_mat.dtype)], dim=1)
+
+        if self.seq_cons_channels:
+            if cm is None or ct is None:
+                raise ValueError(
+                    "seq_cons_channels=True but no conservation vectors were passed; "
+                    "the dataset must be built with --mirna-cons-col/--mre-cons-col")
+            valid = ((mi < 4)[:, :, None] & (ti < 4)[:, None, :])  # (B, 30, 50)
+            valid = valid.to(wc_mat.dtype)
+            cm_ch = cm.to(wc_mat.dtype)[:, :, None] * valid        # broadcast over j
+            ct_ch = ct.to(wc_mat.dtype)[:, None, :] * valid        # broadcast over i
+            wc_mat = torch.cat([wc_mat, cm_ch.unsqueeze(1), ct_ch.unsqueeze(1)], dim=1)
         return wc_mat
 
     def logits_from_matrix(
@@ -988,10 +1169,12 @@ class MiRBindCNN(nn.Module):
         self,
         mi:     torch.Tensor,            # (B, MAX_MIRNA)  int nucleotide indices
         ti:     torch.Tensor,            # (B, MRE_LEN)    int nucleotide indices
+        cm:     Optional[torch.Tensor] = None,   # (B, MAX_MIRNA) miRNA phastCons
+        ct:     Optional[torch.Tensor] = None,   # (B, MRE_LEN)   MRE   phastCons
     ) -> torch.Tensor:          # (B,) logits
         # Assemble the pairing matrix on-device (keeps the per-sample CPU work in
         # the data loader down to a slice copy), then run the head.
-        wc_mat = self.build_pair_matrix(mi, ti)
+        wc_mat = self.build_pair_matrix(mi, ti, cm, ct)
         return self.logits_from_matrix(wc_mat)
 
 
@@ -1100,12 +1283,14 @@ def evaluate(model: MiRBindCNN, loader: DataLoader,
     all_logits, all_labels = [], []
     total_loss, n_batches  = 0.0, 0
 
-    for mi, ti, labels in loader:
+    for mi, ti, cm, ct, labels in loader:
         mi     = mi.to(device,     non_blocking=True)
         ti     = ti.to(device,     non_blocking=True)
+        cm     = cm.to(device,     non_blocking=True)
+        ct     = ct.to(device,     non_blocking=True)
         labels = labels.to(device, non_blocking=True).float()
 
-        logits = model(mi, ti)
+        logits = model(mi, ti, cm, ct)
         loss   = _compute_loss(logits, labels, pos_weight, gamma)
         total_loss += loss.item()
         n_batches  += 1
@@ -1130,10 +1315,12 @@ def predict_logits(model: MiRBindCNN, loader: DataLoader,
     """
     model.eval()
     all_logits, all_labels = [], []
-    for mi, ti, labels in loader:
+    for mi, ti, cm, ct, labels in loader:
         mi     = mi.to(device,     non_blocking=True)
         ti     = ti.to(device,     non_blocking=True)
-        logits = model(mi, ti)
+        cm     = cm.to(device,     non_blocking=True)
+        ct     = ct.to(device,     non_blocking=True)
+        logits = model(mi, ti, cm, ct)
         all_logits.append(logits.cpu().numpy())
         all_labels.append(labels.numpy())
     return np.concatenate(all_logits), np.concatenate(all_labels).astype(int)
@@ -1393,6 +1580,38 @@ def _train_sampler_weights(train_ds: "MiRNAInteractionDataset",
 # Training helpers
 # ---------------------------------------------------------------------------
 
+def _cons_kwargs(args: argparse.Namespace) -> dict:
+    """Conservation-column kwargs for the Dataset, or all-None when disabled.
+
+    Returning None columns (rather than omitting them) keeps the .cnncache.npz key
+    distinct between a cons-enabled and a cons-disabled run of the same file.
+    """
+    if not getattr(args, "seq_cons_channels", False):
+        return {"mirna_cons_col": None, "mre_cons_col": None}
+    return {
+        "mirna_cons_col":   args.mirna_cons_col,
+        "mre_cons_col":     args.mre_cons_col,
+        "mre_cons_reverse": not args.mre_cons_no_reverse,
+    }
+
+
+def _cons_kwargs_for_ckpt(args: argparse.Namespace, model: "MiRBindCNN") -> dict:
+    """Same as _cons_kwargs, but for inference: the *checkpoint* decides.
+
+    predict / predict-ensemble / explain must feed conservation exactly when the
+    loaded model was trained with it.  A CLI flag could disagree with the weights,
+    and would then either blow up on the first conv's in_channels or — worse —
+    silently feed zeros where the model expects signal.
+    """
+    if not getattr(model, "seq_cons_channels", False):
+        return {"mirna_cons_col": None, "mre_cons_col": None}
+    return {
+        "mirna_cons_col":   args.mirna_cons_col,
+        "mre_cons_col":     args.mre_cons_col,
+        "mre_cons_reverse": not args.mre_cons_no_reverse,
+    }
+
+
 def _model_args_from_cli(args: argparse.Namespace) -> dict:
     return {
         "seq_filters":      args.seq_filters,
@@ -1403,6 +1622,7 @@ def _model_args_from_cli(args: argparse.Namespace) -> dict:
         "pair_random_init":     args.pair_random_init,
         "pair_stack_channel":   args.pair_stack_channel,
         "pair_stack_learnable": args.pair_stack_learnable,
+        "seq_cons_channels":    args.seq_cons_channels,
         "seq_pool":         args.seq_pool,
         "n_conv_blocks":    args.n_conv_blocks,
         "n_pool_blocks":    args.n_pool_blocks,
@@ -1515,12 +1735,14 @@ def _train_one_run(
         seen = 0
         train_logits_buf, train_labels_buf = [], []
 
-        for mi, ti, labels in train_loader:
+        for mi, ti, cm, ct, labels in train_loader:
             mi     = mi.to(device,     non_blocking=True)
             ti     = ti.to(device,     non_blocking=True)
+            cm     = cm.to(device,     non_blocking=True)
+            ct     = ct.to(device,     non_blocking=True)
             labels = labels.to(device, non_blocking=True).float()
 
-            logits = model(mi, ti)
+            logits = model(mi, ti, cm, ct)
             loss   = _compute_loss(logits, labels, pos_weight, gamma)
 
             optim.zero_grad(set_to_none=True)
@@ -1673,11 +1895,12 @@ def _run_single(args: argparse.Namespace, device: torch.device) -> None:
                                 args.mirna_col, args.mre_col, args.dedup)
         train_ds = MiRNAInteractionDataset.from_df(
             train_df, has_labels=True,
-            mre_col=args.mre_col, mirna_col=args.mirna_col)
+            mre_col=args.mre_col, mirna_col=args.mirna_col, **_cons_kwargs(args))
     else:
         train_ds = MiRNAInteractionDataset(
             args.train, has_labels=True,
-            mre_col=args.mre_col, mirna_col=args.mirna_col, cache=cache)
+            mre_col=args.mre_col, mirna_col=args.mirna_col, cache=cache,
+            **_cons_kwargs(args))
     print(f"  train samples : {len(train_ds)}")
     print(f"  positives     : {int(train_ds.labels.sum())} / {len(train_ds.labels)}")
     val_loader = None
@@ -1685,7 +1908,8 @@ def _run_single(args: argparse.Namespace, device: torch.device) -> None:
         print("Loading validation data ...")
         val_ds = MiRNAInteractionDataset(
             args.val, has_labels=True,
-            mre_col=args.mre_col, mirna_col=args.mirna_col, cache=cache)
+            mre_col=args.mre_col, mirna_col=args.mirna_col, cache=cache,
+            **_cons_kwargs(args))
         print(f"  val samples   : {len(val_ds)}")
         if args.keep_binding_type and args.keep_binding_type_val:
             _filter_binding_types(val_ds, args.keep_binding_type, "val",
@@ -1798,10 +2022,10 @@ def _run_kfold(args: argparse.Namespace, device: torch.device) -> None:
 
         train_ds = MiRNAInteractionDataset.from_df(
             train_df, has_labels=True,
-            mre_col=args.mre_col, mirna_col=args.mirna_col)
+            mre_col=args.mre_col, mirna_col=args.mirna_col, **_cons_kwargs(args))
         val_ds   = MiRNAInteractionDataset.from_df(
             val_df, has_labels=True,
-            mre_col=args.mre_col, mirna_col=args.mirna_col)
+            mre_col=args.mre_col, mirna_col=args.mirna_col, **_cons_kwargs(args))
 
         print(f"  train positives: {int(train_ds.labels.sum())} / {len(train_ds.labels)}")
         print(f"  val   positives: {int(val_ds.labels.sum())} / {len(val_ds.labels)}")
@@ -1853,7 +2077,8 @@ def _run_kfold(args: argparse.Namespace, device: torch.device) -> None:
                 test_ds   = MiRNAInteractionDataset.from_df(
                     _read_table(test_path),
                     has_labels=True,
-                    mre_col=args.mre_col, mirna_col=args.mirna_col)
+                    mre_col=args.mre_col, mirna_col=args.mirna_col,
+                    **_cons_kwargs(args))
                 test_loader = _make_loader(
                     test_ds, args.batch_size, shuffle=False,
                     num_workers=args.num_workers)
@@ -1999,7 +2224,8 @@ def _load_ckpt_model(checkpoint: str | Path,
                      ("block_pool", "max"), ("activation", "leaky_relu"),
                      ("pair_random_init", False),
                      ("pair_stack_channel", False),
-                     ("pair_stack_learnable", False)]:
+                     ("pair_stack_learnable", False),
+                     ("seq_cons_channels", False)]:
         margs.setdefault(key, val)
     # Drop keys for removed branches (tspot / energy, conservation / eclip vector
     # branches, the removed accessibility / conservation / positional channels and
@@ -2034,16 +2260,19 @@ def cmd_predict(args: argparse.Namespace) -> None:
 
     ds = MiRNAInteractionDataset(
         args.input, has_labels=True,
-        mre_col=args.mre_col, mirna_col=args.mirna_col, cache=not args.no_cache)
+        mre_col=args.mre_col, mirna_col=args.mirna_col, cache=not args.no_cache,
+        **_cons_kwargs_for_ckpt(args, model))
     loader = DataLoader(ds, batch_size=args.batch_size, shuffle=False,
                         num_workers=args.num_workers, pin_memory=True)
 
     all_probs, all_preds, all_labels = [], [], []
     with torch.no_grad():
-        for mi, ti, labels in loader:
+        for mi, ti, cm, ct, labels in loader:
             mi     = mi.to(device)
             ti     = ti.to(device)
-            logits = model(mi, ti)
+            cm     = cm.to(device)
+            ct     = ct.to(device)
+            logits = model(mi, ti, cm, ct)
             probs  = torch.sigmoid(logits).cpu().numpy()
             all_probs.extend(probs.tolist())
             all_preds.extend((probs >= args.threshold).astype(int).tolist())
@@ -2102,7 +2331,8 @@ def cmd_predict_ensemble(args: argparse.Namespace) -> None:
         ds = MiRNAInteractionDataset(
             test_path, has_labels=True,
             mre_col=args.mre_col, mirna_col=args.mirna_col,
-            cache=not args.no_cache)
+            cache=not args.no_cache,
+            **_cons_kwargs_for_ckpt(args, models[0][1]))
 
         fold_probs: list[np.ndarray] = []
         per_fold: list[tuple[str, dict]] = []
@@ -2210,7 +2440,8 @@ def cmd_explain(args: argparse.Namespace) -> None:
     ds = MiRNAInteractionDataset(
         args.input, has_labels=True,
         mre_col=args.mre_col, mirna_col=args.mirna_col,
-        cache=not args.no_cache)
+        cache=not args.no_cache,
+        **_cons_kwargs_for_ckpt(args, model))
     loader = DataLoader(ds, batch_size=args.batch_size, shuffle=False,
                         num_workers=args.num_workers, pin_memory=True)
 
@@ -2220,10 +2451,12 @@ def cmd_explain(args: argparse.Namespace) -> None:
     mat_batches: Optional[list[np.ndarray]] = [] if args.dump_matrix else None
 
     with torch.no_grad():
-        for mi, ti, _labels in loader:
+        for mi, ti, cm, ct, _labels in loader:
             mi  = mi.to(device,  non_blocking=True)
             ti  = ti.to(device,  non_blocking=True)
-            wc  = model.build_pair_matrix(mi, ti)              # (B, C, 30, 50)
+            cm  = cm.to(device,  non_blocking=True)
+            ct  = ct.to(device,  non_blocking=True)
+            wc  = model.build_pair_matrix(mi, ti, cm, ct)      # (B, C, 30, 50)
 
             logit = model.logits_from_matrix(wc)                   # (B,)
             base  = model.logits_from_matrix(torch.zeros_like(wc))
@@ -2333,6 +2566,27 @@ def main() -> int:
     tr.add_argument("--out",        default="checkpoints/cnn_mirbind.pt")
     tr.add_argument("--mre-col",    default="mre_sequence",   dest="mre_col")
     tr.add_argument("--mirna-col",  default="mirna_sequence", dest="mirna_col")
+    tr.add_argument("--seq-cons-channels", action="store_true",
+                    dest="seq_cons_channels",
+                    help="append two phastCons channels to the pairing matrix "
+                         "(miRNA conservation broadcast over the MRE axis, MRE "
+                         "conservation broadcast over the miRNA axis). Early fusion, "
+                         "so a 5x5 kernel sees pairing and conservation in one "
+                         "receptive field. Off by default; enabling it widens the "
+                         "first conv, so such checkpoints are not interchangeable.")
+    tr.add_argument("--mirna-cons-col", default=DEFAULT_MIRNA_CONS_COL,
+                    dest="mirna_cons_col",
+                    help="per-position miRNA phastCons column (already 5'->3')")
+    tr.add_argument("--mre-cons-col", default=DEFAULT_MRE_CONS_COL,
+                    dest="mre_cons_col",
+                    help="per-position MRE phastCons column")
+    tr.add_argument("--mre-cons-no-reverse", action="store_true",
+                    dest="mre_cons_no_reverse",
+                    help="do NOT reverse the MRE conservation vector on minus-strand "
+                         "rows. The v7 gene_phastCons column is stored in GENOMIC "
+                         "order while `gene` is transcript-oriented, so the default "
+                         "(reverse) is what aligns them. Pass this only for a column "
+                         "that is already transcript-oriented.")
     # Architecture
     tr.add_argument("--seq-filters",     type=int,   default=64,
                     dest="seq_filters",
@@ -2472,6 +2726,19 @@ def main() -> int:
     pr.add_argument("--num-workers", type=int,  default=4, dest="num_workers")
     pr.add_argument("--mre-col",   default="mre_sequence",   dest="mre_col")
     pr.add_argument("--mirna-col", default="mirna_sequence", dest="mirna_col")
+    pr.add_argument("--mirna-cons-col", default=DEFAULT_MIRNA_CONS_COL,
+                    dest="mirna_cons_col",
+                    help="per-position miRNA phastCons column (already 5'->3')")
+    pr.add_argument("--mre-cons-col", default=DEFAULT_MRE_CONS_COL,
+                    dest="mre_cons_col",
+                    help="per-position MRE phastCons column")
+    pr.add_argument("--mre-cons-no-reverse", action="store_true",
+                    dest="mre_cons_no_reverse",
+                    help="do NOT reverse the MRE conservation vector on minus-strand "
+                         "rows. The v7 gene_phastCons column is stored in GENOMIC "
+                         "order while `gene` is transcript-oriented, so the default "
+                         "(reverse) is what aligns them. Pass this only for a column "
+                         "that is already transcript-oriented.")
     pr.add_argument("--no-cache",  action="store_true", dest="no_cache",
                     help="Disable the preprocessing .cnncache.npz sidecar files.")
     pr.add_argument("--device",
@@ -2505,6 +2772,19 @@ def main() -> int:
     ex.add_argument("--num-workers", type=int, default=4, dest="num_workers")
     ex.add_argument("--mre-col",   default="mre_sequence",   dest="mre_col")
     ex.add_argument("--mirna-col", default="mirna_sequence", dest="mirna_col")
+    ex.add_argument("--mirna-cons-col", default=DEFAULT_MIRNA_CONS_COL,
+                    dest="mirna_cons_col",
+                    help="per-position miRNA phastCons column (already 5'->3')")
+    ex.add_argument("--mre-cons-col", default=DEFAULT_MRE_CONS_COL,
+                    dest="mre_cons_col",
+                    help="per-position MRE phastCons column")
+    ex.add_argument("--mre-cons-no-reverse", action="store_true",
+                    dest="mre_cons_no_reverse",
+                    help="do NOT reverse the MRE conservation vector on minus-strand "
+                         "rows. The v7 gene_phastCons column is stored in GENOMIC "
+                         "order while `gene` is transcript-oriented, so the default "
+                         "(reverse) is what aligns them. Pass this only for a column "
+                         "that is already transcript-oriented.")
     ex.add_argument("--no-cache",  action="store_true", dest="no_cache",
                     help="Disable the preprocessing .cnncache.npz sidecar files.")
     ex.add_argument("--device",
@@ -2525,6 +2805,19 @@ def main() -> int:
     pe.add_argument("--num-workers", type=int,  default=4, dest="num_workers")
     pe.add_argument("--mre-col",   default="mre_sequence",   dest="mre_col")
     pe.add_argument("--mirna-col", default="mirna_sequence", dest="mirna_col")
+    pe.add_argument("--mirna-cons-col", default=DEFAULT_MIRNA_CONS_COL,
+                    dest="mirna_cons_col",
+                    help="per-position miRNA phastCons column (already 5'->3')")
+    pe.add_argument("--mre-cons-col", default=DEFAULT_MRE_CONS_COL,
+                    dest="mre_cons_col",
+                    help="per-position MRE phastCons column")
+    pe.add_argument("--mre-cons-no-reverse", action="store_true",
+                    dest="mre_cons_no_reverse",
+                    help="do NOT reverse the MRE conservation vector on minus-strand "
+                         "rows. The v7 gene_phastCons column is stored in GENOMIC "
+                         "order while `gene` is transcript-oriented, so the default "
+                         "(reverse) is what aligns them. Pass this only for a column "
+                         "that is already transcript-oriented.")
     pe.add_argument("--no-cache",  action="store_true", dest="no_cache",
                     help="Disable the preprocessing .cnncache.npz sidecar files.")
     pe.add_argument("--device",
