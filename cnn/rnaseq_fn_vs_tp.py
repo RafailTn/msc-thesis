@@ -52,10 +52,10 @@ from scipy.stats import mannwhitneyu
 from sklearn.metrics import roc_auc_score
 
 try:
-    from rbp_enrichment_fn_vs_tp import bh_fdr, tsv_chrom_to_fa
+    from genomic_utils import bh_fdr, tsv_chrom_to_fa
     from binding_types import _MAX_MI, _MAX_TI, _tok, classify_index_arrays
 except ModuleNotFoundError:  # invoked as cnn.rnaseq_fn_vs_tp
-    from cnn.rbp_enrichment_fn_vs_tp import bh_fdr, tsv_chrom_to_fa
+    from cnn.genomic_utils import bh_fdr, tsv_chrom_to_fa
     from cnn.binding_types import _MAX_MI, _MAX_TI, _tok, classify_index_arrays
 
 # canonical seed classes: a contiguous seed match anchored near miRNA pos 2-8.
