@@ -5,7 +5,10 @@ Extract a fixed, pre-selected feature set for miRNA-MRE interactions.
 Combines logic from `classify_and_filter_sites_intarna.py` (IntaRNA + duplex +
 conservation features and binding-type classification) and
 `seq_features_ml.py` (region-specific sequence features), but writes ONLY the
-57 features in SELECTED_FEATURES to the output CSV.
+features in SELECTED_FEATURES to the output CSV.
+
+Stacking energies are derived from the IntaRNA duplex, not from the single
+strands: see `duplex_energy_steps`.
 
 Usage:
     python extract_selected_features.py \
@@ -34,6 +37,15 @@ try:
 except ImportError:
     HAS_PYBIGWIG = False
 
+try:
+    import RNA  # ViennaRNA python bindings; ships with the IntaRNA conda package
+except ImportError as _e:  # pragma: no cover
+    raise ImportError(
+        "ViennaRNA python bindings (module 'RNA') are required for the duplex "
+        "stacking energies. They come with the intarna conda package; if you are "
+        "outside the pixi env, install with `conda install -c bioconda viennarna`."
+    ) from _e
+
 
 # ============================================================================
 # SELECTED FEATURES (final output columns, in addition to identifiers + label)
@@ -46,14 +58,14 @@ SELECTED_FEATURES = [
     'mirna_3p_energy_gradient', 'mirna_3p_ggg_count',
     'five_prime_flank_conservation_mean', 'mirna_seed_energy_mean',
     'mirna_3p_YYR_freq', 'mirna_3p_energy_min', 'mirna_seed_RRY_freq',
-    'mre_5p_energy_max_jump', 'mirna_3p_energy_volatility',
+    'mirna_3p_energy_volatility',
     'seed_matches_2_8', 'total_gu_wobbles', 'binding_type_seedless',
     'mirna_seed_energy_range', 'seed_conservation_min',
-    'mirna_3p_energy_oscillation', 'mre_5p_energy_mean', 'Eall',
+    'mirna_3p_energy_oscillation', 'Eall',
     'seed_conservation_median', 'mirna_3p_3p_terminal_energy',
-    'mre_3p_energy_mean', 'mre_5p_energy_range', 'mirna_3p_RYY_freq',
+    'mirna_3p_RYY_freq',
     'binding_type_6mer.mirna.bulge.3prime', 'mirna_3p_YYY_freq',
-    'consecutive_matches_minus_seed', 'Eall1', 'mre_3p_energy_range',
+    'consecutive_matches_minus_seed', 'Eall1',
     'total_mre_bulges', 'mirna_seed_5p_terminal_energy',
     'mre_3p_unique_trinuc_ratio', 'mirna_seed_energy_volatility',
     'mirna_3p_energy_mean', 'downstream_max_consecutive_drop',
@@ -63,7 +75,7 @@ SELECTED_FEATURES = [
     'seed_conservation_max', 'total_matches', 'mirna_3p_energy_asymmetry',
     'mirna_seed_energy_asymmetry', 'mirna_3p_5p_terminal_energy',
     'downstream_gini', 'effective_3prime_matches', 'mirna_seed_RRR_freq',
-    'mre_3p_energy_max_jump', 'binding_type_5mer.mismatch.3prime',
+    'binding_type_5mer.mismatch.3prime',
     'conservation_range',
 ]
 
@@ -411,14 +423,11 @@ def extract_conservation_features(site_data, mirna_binding_start, flank_size=10)
 # SEQUENCE REGION FEATURES (subset from seq_features_ml.py)
 # ============================================================================
 
-DINUC_ENERGY = {
-    'AA': -0.93, 'AU': -1.10, 'AC': -2.24, 'AG': -2.08,
-    'UA': -1.33, 'UU': -0.93, 'UC': -2.35, 'UG': -1.30,
-    'CA': -2.11, 'CU': -2.08, 'CC': -3.26, 'CG': -2.36,
-    'GA': -2.35, 'GU': -1.30, 'GC': -3.42, 'GG': -3.26,
-}
-
 DEFAULT_VALUE = 0.0
+
+# miRNA seed = positions 2-8 (1-based, inclusive); the "3p" region is 9 -> 3' end.
+SEED_FIRST_POS = 2
+SEED_LAST_POS = 8
 
 
 def safe_divide(num, den, default=DEFAULT_VALUE):
@@ -428,6 +437,162 @@ def safe_divide(num, den, default=DEFAULT_VALUE):
     if np.isnan(r) or np.isinf(r):
         return default
     return r
+
+
+def duplex_energy_steps(site_data) -> List[tuple]:
+    """Nearest-neighbour (Turner 2004) decomposition of the IntaRNA duplex.
+
+    IntaRNA reports the duplex as `subseq_dp` ("target&query" subsequences) and
+    `hybrid_dp` (their dot-bracket, target using '(' and query using ')'). The two
+    strands are antiparallel, so the k-th '(' of the target pairs with the k-th
+    ')' of the query counted *from the end*.
+
+    Walking the base pairs 5'->3' along the miRNA, every consecutive pair of base
+    pairs encloses exactly one interior loop: a stack when the two pairs are
+    adjacent on both strands, otherwise a bulge or an internal loop. Its energy is
+    taken from ViennaRNA (the same Turner 2004 parameters IntaRNA itself uses), so
+    no thermodynamic constants are hardcoded here.
+
+    Returns one (mirna_pos_5p, mirna_pos_3p, dG) triple per loop, ordered 5'->3'
+    along the miRNA, with 1-based miRNA positions. Stacks come out negative
+    (stabilising), bulges and internal loops positive.
+
+    Note this is the *interior* of the duplex only. Duplex initiation, terminal
+    AU/GU penalties and dangling ends are per-duplex end terms, not per-position
+    ones -- they are already carried by the Eall / Eall1 features -- so summing
+    these steps does not reproduce E_hybrid.
+    """
+    subseq_dp = site_data.get('subseq_dp', '') or ''
+    hybrid_dp = site_data.get('hybrid_dp', '') or ''
+    if '&' not in subseq_dp or '&' not in hybrid_dp:
+        return []
+
+    t_seq, q_seq = subseq_dp.split('&', 1)
+    t_dp, q_dp = hybrid_dp.split('&', 1)
+    t_seq = t_seq.upper().replace('T', 'U')
+    q_seq = q_seq.upper().replace('T', 'U')
+    if len(t_seq) != len(t_dp) or len(q_seq) != len(q_dp):
+        return []
+
+    opens = [i for i, c in enumerate(t_dp) if c == '(']
+    closes = [j for j, c in enumerate(q_dp) if c == ')']
+    if len(opens) != len(closes) or len(opens) < 2:
+        return []
+
+    # 1-based indices into the concatenated "target&query" fold compound.
+    n1 = len(t_seq)
+    pairs = [(i + 1, n1 + j + 1) for i, j in zip(opens, reversed(closes))]
+    pairs.sort(key=lambda p: p[1])  # ascending query index == 5'->3' along the miRNA
+
+    q_start = safe_int(site_data.get('start_query', 1), 1)
+    fc = RNA.fold_compound(t_seq + '&' + q_seq)
+
+    steps = []
+    for (i_in, j_in), (i_out, j_out) in zip(pairs, pairs[1:]):
+        # (i_out, j_out) encloses (i_in, j_in); neither loop ever spans the strand
+        # break, so eval_int_loop is well defined across the '&'.
+        dg = fc.eval_int_loop(i_out, j_out, i_in, j_in) / 100.0
+        steps.append((j_in - n1 + q_start - 1, j_out - n1 + q_start - 1, dg))
+    return steps
+
+
+def _energy_series_features(energies, region_name: str, needed: set) -> Dict[str, float]:
+    """Reduce an ordered energy series to the per-region `needed` features.
+
+    A statistic that is *undefined* for the series at hand is emitted as NaN, not
+    0.0: the standard deviation of a single stack is undefined, not zero, and an
+    absent region has no energy profile at all. Using 0.0 would place "undefined"
+    mid-distribution (the energies span roughly -3.4 to +4.5), where no single tree
+    split can isolate it, and would make an unpaired region indistinguishable from
+    a paired one whose terms happen to cancel. NaN keeps it off the numeric axis,
+    which the gradient-boosted learners route explicitly.
+    """
+    out = {f'{region_name}_{f}': np.nan for f in needed}
+    n = len(energies)
+    if n == 0:
+        return out
+
+    # Defined for any non-empty series.
+    if 'energy_mean' in needed:
+        out[f'{region_name}_energy_mean'] = float(np.mean(energies))
+    if 'energy_min' in needed:
+        out[f'{region_name}_energy_min'] = float(np.min(energies))
+    if 'energy_max' in needed:
+        out[f'{region_name}_energy_max'] = float(np.max(energies))
+    if 'energy_range' in needed:
+        out[f'{region_name}_energy_range'] = float(np.max(energies) - np.min(energies))
+    if '5p_terminal_energy' in needed:
+        out[f'{region_name}_5p_terminal_energy'] = float(energies[0])
+    if '3p_terminal_energy' in needed:
+        out[f'{region_name}_3p_terminal_energy'] = float(energies[-1])
+
+    # Need a spread: >= 2 stacks.
+    if n >= 2:
+        if 'energy_std' in needed:
+            out[f'{region_name}_energy_std'] = float(np.std(energies))
+
+        changes = np.diff(energies)
+        if 'energy_volatility' in needed:
+            out[f'{region_name}_energy_volatility'] = float(np.mean(np.abs(changes)))
+        if 'energy_max_jump' in needed:
+            out[f'{region_name}_energy_max_jump'] = float(np.max(np.abs(changes)))
+        if 'energy_drift' in needed:
+            out[f'{region_name}_energy_drift'] = float(energies[-1] - energies[0])
+        if 'stability_run_frac' in needed:
+            stable_count = int(np.sum(np.abs(changes) < 0.3))
+            out[f'{region_name}_stability_run_frac'] = float(stable_count) / len(changes)
+
+        # Oscillation needs at least two non-flat changes to have a direction to reverse.
+        if 'energy_oscillation' in needed:
+            signs = np.sign(changes)
+            nonzero_signs = signs[signs != 0]
+            if len(nonzero_signs) > 1:
+                direction_changes = int(np.sum(np.abs(np.diff(nonzero_signs)) > 0))
+                out[f'{region_name}_energy_oscillation'] = (
+                    float(direction_changes) / (len(nonzero_signs) - 1))
+
+    # Need a trend: >= 3 stacks. Undefined (and numpy-nan) for a constant series.
+    if 'energy_gradient' in needed and n >= 3:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            cm = np.corrcoef(np.arange(n), energies)
+        corr = cm[0, 1] if cm.shape == (2, 2) else np.nan
+        out[f'{region_name}_energy_gradient'] = float(corr)
+
+    # Need two halves to compare: >= 4 stacks.
+    if 'energy_asymmetry' in needed and n >= 4:
+        half = n // 2
+        out[f'{region_name}_energy_asymmetry'] = float(
+            np.mean(energies[:half]) - np.mean(energies[half:]))
+
+    return out
+
+
+def extract_duplex_energy_features(site_data) -> Dict[str, float]:
+    """Duplex stacking-energy features for the miRNA seed and 3' regions.
+
+    A loop is assigned to a region only when *both* of the base pairs it lies
+    between fall inside that region, which reproduces the region boundaries of the
+    old single-strand dinucleotide windows (a step straddling position 8/9 belongs
+    to neither). A region with fewer than two base pairs has no loops, so all its
+    energy features are NaN -- for `mirna_3p` that is the common and meaningful
+    case "no 3' supplementary pairing".
+    """
+    steps = duplex_energy_steps(site_data)
+
+    seed_e, three_p_e = [], []
+    for p5, p3, dg in steps:
+        if SEED_FIRST_POS <= p5 and p3 <= SEED_LAST_POS:
+            seed_e.append(dg)
+        elif p5 > SEED_LAST_POS:
+            three_p_e.append(dg)
+
+    out = {}
+    out.update(_energy_series_features(seed_e, 'mirna_seed',
+                                       DUPLEX_ENERGY_FEATURE_SUBSET['mirna_seed']))
+    out.update(_energy_series_features(three_p_e, 'mirna_3p',
+                                       DUPLEX_ENERGY_FEATURE_SUBSET['mirna_3p']))
+    return out
 
 
 def get_regions(seq: str, is_mirna: bool = False) -> Dict[str, str]:
@@ -454,24 +619,29 @@ def get_regions(seq: str, is_mirna: bool = False) -> Dict[str, str]:
     return regions
 
 
-# Per-region feature subsets actually needed by SELECTED_FEATURES
-REGION_FEATURE_SUBSET = {
-    'mre_5p':     {'energy_max_jump', 'energy_mean', 'energy_range'},
-    'mre_3p':     {'energy_mean', 'energy_range', 'unique_trinuc_ratio', 'energy_max_jump'},
-    'mirna_seed': {'energy_mean', 'RRY_freq', 'energy_range', 'energy_volatility',
-                   '5p_terminal_energy', 'energy_min', 'energy_asymmetry', 'RRR_freq'},
-    'mirna_3p':   {'energy_max_jump', 'energy_max', 'YRR_freq', 'energy_std',
-                   'stability_run_frac', 'energy_gradient', 'ggg_count',
-                   'YYR_freq', 'energy_min', 'energy_volatility',
-                   'energy_oscillation', '3p_terminal_energy', 'RYY_freq',
-                   'YYY_freq', 'YRY_freq', 'energy_drift', 'energy_mean',
-                   'energy_asymmetry', '5p_terminal_energy'},
+# Energy features: computed from the IntaRNA duplex (see extract_duplex_energy_features).
+DUPLEX_ENERGY_FEATURE_SUBSET = {
+    'mirna_seed': {'energy_mean', 'energy_range', 'energy_volatility',
+                   '5p_terminal_energy', 'energy_min', 'energy_asymmetry'},
+    'mirna_3p':   {'energy_max_jump', 'energy_max', 'energy_std',
+                   'stability_run_frac', 'energy_gradient', 'energy_min',
+                   'energy_volatility', 'energy_oscillation', '3p_terminal_energy',
+                   'energy_drift', 'energy_mean', 'energy_asymmetry',
+                   '5p_terminal_energy'},
+}
+
+# Composition features: properties of a single strand, so they stay sequence-based.
+REGION_SEQ_FEATURE_SUBSET = {
+    'mre_3p':     {'unique_trinuc_ratio'},
+    'mirna_seed': {'RRY_freq', 'RRR_freq'},
+    'mirna_3p':   {'YRR_freq', 'YYR_freq', 'RYY_freq', 'YYY_freq', 'YRY_freq',
+                   'ggg_count'},
 }
 
 
 def extract_region_features(seq: str, region_name: str, needed: set) -> Dict[str, float]:
-    """Compute only the per-region features in `needed`. Keys returned are
-    `{region_name}_{feature}`."""
+    """Compute only the per-region composition features in `needed`. Keys returned
+    are `{region_name}_{feature}`."""
     out = {f'{region_name}_{f}': DEFAULT_VALUE for f in needed}
     if 'ggg_count' in needed:
         out[f'{region_name}_ggg_count'] = 0
@@ -479,87 +649,24 @@ def extract_region_features(seq: str, region_name: str, needed: set) -> Dict[str
     if not seq or len(seq) < 3:
         return out
 
-    n_dinuc = len(seq) - 1
     n_trinuc = len(seq) - 2
-    if n_dinuc < 1:
+    if n_trinuc < 1:
         return out
-
-    dinucs = [seq[i:i+2] for i in range(n_dinuc)]
-    energies = [DINUC_ENERGY.get(d, -1.5) for d in dinucs]
 
     # Purine/pyrimidine trinuc frequencies
     pur_keys_needed = {f for f in needed if f.endswith('_freq')}
-    if pur_keys_needed and n_trinuc >= 1:
+    if pur_keys_needed:
         pur_seq = ''.join('R' if nt in 'AG' else 'Y' for nt in seq)
-        if len(pur_seq) >= 3:
-            pur_trinucs = Counter(pur_seq[i:i+3] for i in range(len(pur_seq) - 2))
-            for f in pur_keys_needed:
-                pattern = f[:-len('_freq')]
-                out[f'{region_name}_{f}'] = safe_divide(pur_trinucs.get(pattern, 0), n_trinuc)
+        pur_trinucs = Counter(pur_seq[i:i+3] for i in range(len(pur_seq) - 2))
+        for f in pur_keys_needed:
+            pattern = f[:-len('_freq')]
+            out[f'{region_name}_{f}'] = safe_divide(pur_trinucs.get(pattern, 0), n_trinuc)
 
     # Trinucleotide unique ratio
-    if 'unique_trinuc_ratio' in needed and n_trinuc >= 1:
+    if 'unique_trinuc_ratio' in needed:
         trinucs = [seq[i:i+3] for i in range(n_trinuc)]
-        trinuc_counts = Counter(trinucs)
         out[f'{region_name}_unique_trinuc_ratio'] = safe_divide(
-            len(trinuc_counts), min(n_trinuc, 64))
-
-    # Thermodynamic
-    if energies:
-        if 'energy_mean' in needed:
-            out[f'{region_name}_energy_mean'] = float(np.mean(energies))
-        if 'energy_std' in needed:
-            out[f'{region_name}_energy_std'] = float(np.std(energies)) if len(energies) > 1 else DEFAULT_VALUE
-        if 'energy_min' in needed:
-            out[f'{region_name}_energy_min'] = float(np.min(energies))
-        if 'energy_max' in needed:
-            out[f'{region_name}_energy_max'] = float(np.max(energies))
-        if 'energy_range' in needed:
-            out[f'{region_name}_energy_range'] = float(np.max(energies) - np.min(energies))
-
-    if 'energy_asymmetry' in needed:
-        if n_dinuc >= 4:
-            half = n_dinuc // 2
-            out[f'{region_name}_energy_asymmetry'] = float(
-                np.mean(energies[:half]) - np.mean(energies[half:]))
-
-    if 'energy_gradient' in needed:
-        if n_dinuc >= 3:
-            x = np.arange(n_dinuc)
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                cm = np.corrcoef(x, energies)
-                corr = cm[0, 1] if cm.shape == (2, 2) else 0
-            out[f'{region_name}_energy_gradient'] = float(corr) if not np.isnan(corr) else DEFAULT_VALUE
-
-    # Stability dynamics
-    needs_dynamics = needed & {'energy_volatility', 'energy_max_jump',
-                               'stability_run_frac', 'energy_oscillation',
-                               'energy_drift'}
-    if needs_dynamics and len(energies) >= 2:
-        changes = np.diff(energies)
-        if 'energy_volatility' in needed:
-            out[f'{region_name}_energy_volatility'] = float(np.mean(np.abs(changes)))
-        if 'energy_max_jump' in needed:
-            out[f'{region_name}_energy_max_jump'] = float(np.max(np.abs(changes)))
-        if 'stability_run_frac' in needed:
-            stable_count = int(np.sum(np.abs(changes) < 0.3))
-            out[f'{region_name}_stability_run_frac'] = safe_divide(stable_count, len(changes))
-        if 'energy_oscillation' in needed:
-            signs = np.sign(changes)
-            nonzero_signs = signs[signs != 0]
-            if len(nonzero_signs) > 1:
-                direction_changes = int(np.sum(np.abs(np.diff(nonzero_signs)) > 0))
-                out[f'{region_name}_energy_oscillation'] = safe_divide(
-                    direction_changes, len(nonzero_signs) - 1)
-        if 'energy_drift' in needed:
-            out[f'{region_name}_energy_drift'] = float(energies[-1] - energies[0])
-
-    # Terminal energies
-    if '5p_terminal_energy' in needed:
-        out[f'{region_name}_5p_terminal_energy'] = energies[0] if energies else DEFAULT_VALUE
-    if '3p_terminal_energy' in needed:
-        out[f'{region_name}_3p_terminal_energy'] = energies[-1] if energies else DEFAULT_VALUE
+            len(Counter(trinucs)), min(n_trinuc, 64))
 
     # Motif counts
     if 'ggg_count' in needed:
@@ -573,14 +680,12 @@ def extract_sequence_region_features(mre_seq: str, mirna_seq: str) -> Dict[str, 
     mre_regions = get_regions(mre_seq, is_mirna=False) if mre_seq else {'5p': '', '3p': ''}
     mirna_regions = get_regions(mirna_seq, is_mirna=True) if mirna_seq else {'seed': '', '3p': ''}
 
-    out.update(extract_region_features(mre_regions.get('5p', ''), 'mre_5p',
-                                        REGION_FEATURE_SUBSET['mre_5p']))
     out.update(extract_region_features(mre_regions.get('3p', ''), 'mre_3p',
-                                        REGION_FEATURE_SUBSET['mre_3p']))
+                                        REGION_SEQ_FEATURE_SUBSET['mre_3p']))
     out.update(extract_region_features(mirna_regions.get('seed', ''), 'mirna_seed',
-                                        REGION_FEATURE_SUBSET['mirna_seed']))
+                                        REGION_SEQ_FEATURE_SUBSET['mirna_seed']))
     out.update(extract_region_features(mirna_regions.get('3p', ''), 'mirna_3p',
-                                        REGION_FEATURE_SUBSET['mirna_3p']))
+                                        REGION_SEQ_FEATURE_SUBSET['mirna_3p']))
     return out
 
 
@@ -718,6 +823,9 @@ def calculate_intarna_subset_features(site_data, flank_size=10):
     # effective_3prime_matches
     site_data['effective_3prime_matches'] = (site_data['total_matches_minus_seed']
                                              - site_data['gu_wobbles_minus_seed'])
+
+    # Duplex nearest-neighbour stacking energies (miRNA seed / 3' regions)
+    site_data.update(extract_duplex_energy_features(site_data))
 
     # Conservation features
     site_data.update(extract_conservation_features(site_data, mirna_binding_start, flank_size))

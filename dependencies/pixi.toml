@@ -12,6 +12,10 @@ autogluon = "1.4.0.*"
 polars = ">=1.38.1,<2"
 pandas = ">=2.3.3,<3"
 intarna = ">=3.4.1,<4"
+# Turner-2004 nearest-neighbour energies for the duplex stacking features in
+# src/feature_extraction.py. Comes in via intarna anyway, but it is imported
+# directly, so it is declared directly.
+viennarna = ">=2.7.0,<3"
 pybigwig = ">=0.3.23,<0.4"
 shap = ">=0.51.0,<0.52"
 
