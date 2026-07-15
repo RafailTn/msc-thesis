@@ -1,101 +1,160 @@
-from featurewiz import FeatureWiz
-import polars as pl
+#!/usr/bin/env python3
+"""
+Featurewiz feature selection over the full feature superset.
+
+RUNS IN ITS OWN ENVIRONMENT, not the pixi env: featurewiz pins dependencies that
+conflict with the rest of the pipeline. Hence this script only ever reads and writes
+CSV/JSON - it imports nothing from src/, so it needs neither IntaRNA nor ViennaRNA.
+Its dependencies are just featurewiz, polars, pandas, numpy and scikit-learn.
+
+Input:  the `--all-features` output of src/feature_extraction.py (train/test/leftout).
+Output: the features selected in *every* fold, written to --output as a JSON list
+        that `feature_extraction.py --features-file` reads back directly. Paste the
+        same list into SELECTED_FEATURES to make it the default.
+
+    python feature_selection_featurewiz/feature_selection.py \
+        --train   data/manakov_train_all.csv \
+        --test    data/manakov_test_all.csv \
+        --leftout data/manakov_leftout_all.csv \
+        --output  data/selected_features.json
+
+NaN handling. The duplex stacking energies are NaN wherever the statistic is
+genuinely undefined (no 3' supplementary pairing, std of a single stack, ...), which
+is a large fraction of `mirna_3p_*`. Featurewiz's XGBoost stage routes NaN natively,
+but the LogisticRegression probe used to score each fold does not, so the probe runs
+behind a median imputer. The imputation exists only to score the selection; it never
+touches the features written to --output, and AutoGluon handles the NaN itself.
+"""
+
+import json
+import argparse
+
 import numpy as np
 import pandas as pd
+import polars as pl
+from featurewiz import FeatureWiz
 from sklearn.model_selection import StratifiedGroupKFold
 from sklearn.linear_model import LogisticRegression
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import make_pipeline
 from sklearn.metrics import average_precision_score
 
-data = pl.read_csv('/home/adam/adam/data/AGO2eCLIPManakov2022trainimprovedwfeaturesaddconsplusseq.csv')
-data = data.drop(['target_id', 'query_id', 'hybrid_dp', 'subseq_dp', 'mre_sequence', 'mirna_sequence',
-                  'chimeric_sequence', 'gene', 'noncodingRNA', 'noncodingRNA_name', 'noncodingRNA_fam',
-                  'feature', 'label_right', 'chr', 'start', 'end', 'strand', 'gene_cluster_ID',
-                  'gene_phyloP', 'gene_phastCons'])
-data_test = pl.read_csv('/home/adam/adam/data/AGO2eCLIPManakov2022testimprovedwfeaturesaddconsplusseq.csv')
-data_test = data_test.drop(['target_id', 'query_id', 'hybrid_dp', 'subseq_dp', 'mre_sequence', 'mirna_sequence',
-                             'chimeric_sequence', 'gene', 'noncodingRNA', 'noncodingRNA_name', 'noncodingRNA_fam',
-                             'feature', 'label_right', 'chr', 'start', 'end', 'strand', 'gene_cluster_ID',
-                             'gene_phyloP', 'gene_phastCons'])
-data_leftout = pl.read_csv('/home/adam/adam/data/AGO2eCLIPManakov2022leftoutimprovedwfeaturesaddconsplusseq.csv')
-data_leftout = data_leftout.drop(['target_id', 'query_id', 'hybrid_dp', 'subseq_dp', 'mre_sequence', 'mirna_sequence',
-                                   'chimeric_sequence', 'gene', 'noncodingRNA', 'noncodingRNA_name', 'noncodingRNA_fam',
-                                   'feature', 'label_right', 'chr', 'start', 'end', 'strand', 'gene_cluster_ID',
-                                   'gene_phyloP', 'gene_phastCons'])
+# Identifiers, sequences and v7 passthrough columns: carried in the feature CSV for
+# traceability and error analysis, never fed to the model.
+NON_FEATURE_COLS = [
+    'target_id', 'query_id', 'hybrid_dp', 'subseq_dp',
+    'mre_sequence', 'mirna_sequence', 'chimeric_sequence', 'energy_source',
+    'gene', 'noncodingRNA', 'noncodingRNA_name', 'noncodingRNA_fam', 'feature',
+    'chr', 'start', 'end', 'strand', 'gene_cluster_ID',
+    'gene_phyloP', 'gene_phastCons', 'label_right',
+]
 
-# Convert to pandas — featurewiz requires it
-data_pd       = data.to_dummies('binding_type').to_pandas()
-data_test_pd  = data_test.to_dummies('binding_type').to_pandas()
-data_leftout_pd = data_leftout.to_dummies('binding_type').to_pandas()
 
-# Align test/leftout columns to training — fills any missing dummies with 0
-data_test_pd    = data_test_pd.reindex(columns=data_pd.columns, fill_value=0)
-data_leftout_pd = data_leftout_pd.reindex(columns=data_pd.columns, fill_value=0)
+def probe():
+    """Linear probe used to score a fold's selection. Imputes only for scoring."""
+    return make_pipeline(
+        SimpleImputer(strategy='median'),
+        StandardScaler(),
+        LogisticRegression(max_iter=1000),
+    )
 
-# Now safe to cast everything
-X_all        = data_pd.drop(columns=['label', 'mir_fam']).astype(np.float32)
-X_test_pd    = data_test_pd.drop(columns=['label', 'mir_fam']).astype(np.float32)
-X_leftout_pd = data_leftout_pd.drop(columns=['label', 'mir_fam']).astype(np.float32)
 
-y_all    = data_pd['label'].values
-groups   = data_pd['mir_fam'].values
-y_test        = data_test_pd['label'].values
-y_leftout     = data_leftout_pd['label'].values
+def load(path: str) -> pd.DataFrame:
+    df = pl.read_csv(path, infer_schema_length=10000)
+    df = df.drop([c for c in NON_FEATURE_COLS if c in df.columns])
+    return df.to_dummies('binding_type').to_pandas()
 
-sgkf = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=42)
-selected_features = []
-fwiz_all = None  # will hold last fold's lazy transformer
 
-for fold, (train_idx, val_idx) in enumerate(sgkf.split(X_all, y_all, groups)):
-    X_train_fold = X_all.iloc[train_idx]
-    y_train_fold = y_all[train_idx]
-    X_val_fold   = X_all.iloc[val_idx]
-    y_val_fold   = y_all[val_idx]
+def main():
+    p = argparse.ArgumentParser(description=__doc__,
+                                formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument('--train', required=True)
+    p.add_argument('--test', required=True)
+    p.add_argument('--leftout', required=True)
+    p.add_argument('--output', required=True, help='JSON list of selected features')
+    p.add_argument('--folds', type=int, default=5)
+    p.add_argument('--seed', type=int, default=42)
+    args = p.parse_args()
 
-    fwiz = FeatureWiz(feature_engg='', nrows=None, transform_target=True, scalers="std",
-                      category_encoders="auto", add_missing=False, verbose=0, imbalanced=False,
-                      ae_options={})
+    train = load(args.train)
+    test = load(args.test)
+    leftout = load(args.leftout)
 
-    # fit_transform expects a DataFrame for X and a Series/array for y
-    X_train_selected, y_train_selected = fwiz.fit_transform(
-        X_train_fold, pd.Series(y_train_fold, name='label'))
-    X_val_selected = fwiz.transform(X_val_fold)
+    # Align the binding_type dummies: a category absent from test/leftout becomes 0.
+    test = test.reindex(columns=train.columns, fill_value=0)
+    leftout = leftout.reindex(columns=train.columns, fill_value=0)
 
-    model = LogisticRegression(max_iter=1000)
-    model.fit(X_train_selected, y_train_selected)
-    y_proba = model.predict_proba(X_val_selected)[:, 1]
-    ap = average_precision_score(y_val_fold, y_proba)
-    print(f'Fold {fold + 1}: Validation APS = {ap:.4f}')
+    X = train.drop(columns=['label', 'mir_fam']).astype(np.float32)
+    X_test = test.drop(columns=['label', 'mir_fam']).astype(np.float32)
+    X_leftout = leftout.drop(columns=['label', 'mir_fam']).astype(np.float32)
 
-    selected_features.append(fwiz.features)
-    fwiz_all = fwiz  # keep last fold's transformer
+    y = train['label'].values
+    y_test = test['label'].values
+    y_leftout = leftout['label'].values
+    groups = train['mir_fam'].values
 
-# Most stable features: intersection across all folds
-common_features = list(set(selected_features[0]).intersection(*selected_features[1:]))
-print(f'\nCommon stable features: {len(common_features)}\n', common_features)
+    print(f"Train {X.shape}, test {X_test.shape}, leftout {X_leftout.shape}")
 
-# Transform full datasets with last fold's lazy transformer
-X_train_transformed  = fwiz_all.transform(X_all)
-X_test_transformed   = fwiz_all.transform(X_test_pd)
-X_leftout_transformed = fwiz_all.transform(X_leftout_pd)
+    nan_frac = X.isna().mean().sort_values(ascending=False)
+    nan_cols = nan_frac[nan_frac > 0]
+    print(f"\n{len(nan_cols)} feature(s) carry NaN (undefined statistics, expected):")
+    for name, frac in nan_cols.head(15).items():
+        print(f"  {frac:6.1%}  {name}")
+    if len(nan_cols) > 15:
+        print(f"  ... and {len(nan_cols) - 15} more")
 
-# Per-round evaluation
-aps_test, aps_leftout = [], []
-for i in range(5):
-    feats = selected_features[i]
-    model_round = LogisticRegression(max_iter=1000)
-    model_round.fit(X_train_transformed[feats], y_all)  # train on full train set
-    y_proba          = model_round.predict_proba(X_test_transformed[feats])[:, 1]
-    y_leftout_proba  = model_round.predict_proba(X_leftout_transformed[feats])[:, 1]
-    aps_test.append(average_precision_score(y_test, y_proba))
-    aps_leftout.append(average_precision_score(y_leftout, y_leftout_proba))
+    # A feature that is NaN everywhere carries nothing, and would break the probe's
+    # imputer (median of an empty column).
+    all_nan = [c for c in X.columns if X[c].isna().all()]
+    if all_nan:
+        print(f"\nWARNING: dropping {len(all_nan)} all-NaN feature(s): {all_nan}")
+        X, X_test, X_leftout = (d.drop(columns=all_nan) for d in (X, X_test, X_leftout))
 
-# Final model on common features
-model_final = LogisticRegression(max_iter=1000)
-model_final.fit(X_train_transformed[common_features], y_all)
-ap_test_final    = average_precision_score(y_test,    model_final.predict_proba(X_test_transformed[common_features])[:, 1])
-ap_leftout_final = average_precision_score(y_leftout, model_final.predict_proba(X_leftout_transformed[common_features])[:, 1])
+    sgkf = StratifiedGroupKFold(n_splits=args.folds, shuffle=True, random_state=args.seed)
+    per_fold, fwiz_last = [], None
 
-print(f'\nAverage APS test (5 rounds):     {np.mean(aps_test):.4f}')
-print(f'Final APS test (common features): {ap_test_final:.4f}')
-print(f'\nAverage APS leftout (5 rounds):     {np.mean(aps_leftout):.4f}')
-print(f'Final APS leftout (common features): {ap_leftout_final:.4f}')
+    for fold, (tr, va) in enumerate(sgkf.split(X, y, groups), 1):
+        fwiz = FeatureWiz(feature_engg='', nrows=None, transform_target=True, scalers="std",
+                          category_encoders="auto", add_missing=False, verbose=0,
+                          imbalanced=False, ae_options={})
+        X_tr_sel, y_tr_sel = fwiz.fit_transform(X.iloc[tr], pd.Series(y[tr], name='label'))
+        X_va_sel = fwiz.transform(X.iloc[va])
+
+        model = probe().fit(X_tr_sel, y_tr_sel)
+        ap = average_precision_score(y[va], model.predict_proba(X_va_sel)[:, 1])
+        print(f"Fold {fold}: {len(fwiz.features):3d} features, validation APS = {ap:.4f}")
+
+        per_fold.append(fwiz.features)
+        fwiz_last = fwiz
+
+    common = sorted(set(per_fold[0]).intersection(*per_fold[1:]))
+    print(f"\nStable across all {args.folds} folds: {len(common)} features")
+
+    X_t = fwiz_last.transform(X)
+    X_te = fwiz_last.transform(X_test)
+    X_lo = fwiz_last.transform(X_leftout)
+
+    aps_test, aps_leftout = [], []
+    for feats in per_fold:
+        m = probe().fit(X_t[feats], y)
+        aps_test.append(average_precision_score(y_test, m.predict_proba(X_te[feats])[:, 1]))
+        aps_leftout.append(average_precision_score(
+            y_leftout, m.predict_proba(X_lo[feats])[:, 1]))
+
+    m = probe().fit(X_t[common], y)
+    ap_test = average_precision_score(y_test, m.predict_proba(X_te[common])[:, 1])
+    ap_leftout = average_precision_score(y_leftout, m.predict_proba(X_lo[common])[:, 1])
+
+    print(f"\nAPS test    : per-fold mean {np.mean(aps_test):.4f} | common {ap_test:.4f}")
+    print(f"APS leftout : per-fold mean {np.mean(aps_leftout):.4f} | common {ap_leftout:.4f}")
+
+    with open(args.output, 'w') as f:
+        json.dump(common, f, indent=2)
+    print(f"\nWrote {len(common)} selected features to {args.output}")
+    print("Paste this list into SELECTED_FEATURES in src/feature_extraction.py to "
+          "make it the default.")
+
+
+if __name__ == '__main__':
+    main()

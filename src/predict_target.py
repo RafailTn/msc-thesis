@@ -377,9 +377,11 @@ def main() -> int:
             "--output", str(features_out),
         ]
         if args.conservation_tsv:
-            feat_cmd += ["--conservation", args.conservation_tsv]
+            feat_cmd += ["--v7", args.conservation_tsv]
         else:
-            feat_cmd += ["--conservation", str(best_out)]
+            # No conservation track: point --v7 at the IntaRNA table purely so the row
+            # count lines up, and let the conservation features fall back to 0.0.
+            feat_cmd += ["--v7", str(best_out), "--allow-missing-conservation"]
         if bigwig_path:
             feat_cmd += ["--bigwig", str(bigwig_path)]
         _run(feat_cmd, step="feature-extraction")

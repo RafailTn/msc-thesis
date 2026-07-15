@@ -200,43 +200,46 @@ def preprocess_dataframe(
 
 def main(
     train_df_path: str,
+    test_df_path: str,
+    leftout_df_path: str,
     model_path: str,
-    label_col: str, 
+    label_col: str,
     eval_metric: str,
     time_limit: int,
-    misclassified_output_dir: str = '/home/adam/adam/data/misclassified_analysis/',
-    results_output_path: str = '/home/adam/adam/data/manakov_results_addcons_fs.txt',
+    misclassified_output_dir: str,
+    results_output_path: str,
+    n_folds: int = 5,
 ):
     print("Starting Training...")
-   
+
     cols2drop = [
         'target_id', 'query_id', 'binding_type', 'noncodingRNA_fam',
-        'contrafold_struct', 'hybrid_dp', 'subseq_dp', 
-        'mre_sequence', 'mirna_sequence', 'chimeric_sequence', 'gene' , 'noncodingRNA' , 'noncodingRNA_name', 'feature', 'label_right', 'chr', 'start', 'end', 'strand', 'gene_cluster_ID', 'gene_phyloP', 'gene_phastCons']
-    
+        'contrafold_struct', 'hybrid_dp', 'subseq_dp',
+        'mre_sequence', 'mirna_sequence', 'chimeric_sequence', 'energy_source', 'gene' , 'noncodingRNA' , 'noncodingRNA_name', 'feature', 'label_right', 'chr', 'start', 'end', 'strand', 'gene_cluster_ID', 'gene_phyloP', 'gene_phastCons']
+
     # Sequence columns to preserve for misclassification analysis
     sequence_cols = [
-        'chimeric_sequence', 'mre_sequence', 'mirna_sequence', 
+        'chimeric_sequence', 'mre_sequence', 'mirna_sequence',
         'target_id', 'query_id', 'mir_fam'
     ]
-    
+
     # Load and preprocess training data
     df_raw = pd.read_csv(train_df_path)
     df, df_with_sequences = preprocess_dataframe(df_raw, cols2drop, sequence_cols)
     df_pl = pl.from_pandas(df)
-    
+
     # Load and preprocess test data
-    final_test_raw = pd.read_csv('/home/adam/adam/Final_fs_featurewiz_test_withids.csv')
+    final_test_raw = pd.read_csv(test_df_path)
     final_test_data, final_test_with_seq = preprocess_dataframe(
         final_test_raw, cols2drop, sequence_cols
     )
-    
-    final_final_test_raw = pd.read_csv('/home/adam/adam/Final_fs_featurewiz_leftout_withids.csv')
+
+    final_final_test_raw = pd.read_csv(leftout_df_path)
     final_final_test_data, final_final_test_with_seq = preprocess_dataframe(
         final_final_test_raw, cols2drop, sequence_cols
     )
     # Setup cross-validation
-    sgkf = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=42)
+    sgkf = StratifiedGroupKFold(n_splits=n_folds, shuffle=True, random_state=42)
     y = df_pl['label'].to_numpy()
     groups = df_pl['mir_fam'].to_numpy()
     X = df_pl.to_numpy()
@@ -327,7 +330,7 @@ def main(
     print("AGGREGATING MISCLASSIFIED SAMPLES ACROSS FOLDS")
     print(f"{'='*60}")
     
-    aggregated_results = aggregate_misclassified(misclassified_output_dir, n_folds=5)
+    aggregated_results = aggregate_misclassified(misclassified_output_dir, n_folds=n_folds)
     
     # Print summary
     print(f"\n{'='*60}")
@@ -346,30 +349,43 @@ def main(
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--input', type=str, help='Input file path')
-    parser.add_argument('--modelpath', type=str, default='/home/adam/eli-adam/models/', 
-                        help='Where to store the models')
-    parser.add_argument('--label', type=str, default='label', 
+    parser = argparse.ArgumentParser(
+        description='K-fold AutoGluon training on the selected-feature CSVs produced by '
+                    'src/feature_extraction.py (default mode, not --all-features).')
+    parser.add_argument('--input', type=str, required=True,
+                        help='Training CSV (selected features)')
+    parser.add_argument('--test', type=str, required=True,
+                        help='Held-out test CSV, scored every fold')
+    parser.add_argument('--leftout', type=str, required=True,
+                        help='Leftout CSV, scored every fold')
+    parser.add_argument('--modelpath', type=str, default='models/gluon_fold',
+                        help='Model path prefix; the fold number is appended')
+    parser.add_argument('--label', type=str, default='label',
                         help='Name of the column label')
-    parser.add_argument('--metric', type=str, default='f1', 
+    parser.add_argument('--metric', type=str, default='f1',
                         help='Metric to use for evaluation')
     parser.add_argument('--time', type=int, help='Time the gluon runs in seconds')
-    parser.add_argument('--misclassified_dir', type=str, 
-                        default='/home/adam/adam/data/misclassified_analysis/',
+    parser.add_argument('--folds', type=int, default=5)
+    parser.add_argument('--misclassified_dir', type=str,
+                        default='results/misclassified_analysis/',
                         help='Directory to save misclassified samples')
     parser.add_argument('--results_path', type=str,
-                        default='/home/adam/adam/data/manakov_results_seqft_improved_weighted.txt',
+                        default='results/gluon_kfold_results.txt',
                         help='Path to save evaluation results')
-    
+
     args = parser.parse_args()
-    
+
+    os.makedirs(os.path.dirname(args.results_path) or '.', exist_ok=True)
+
     main(
         train_df_path=args.input,
+        test_df_path=args.test,
+        leftout_df_path=args.leftout,
         model_path=args.modelpath,
         label_col=args.label,
         eval_metric=args.metric,
         time_limit=args.time,
         misclassified_output_dir=args.misclassified_dir,
         results_output_path=args.results_path,
+        n_folds=args.folds,
     )

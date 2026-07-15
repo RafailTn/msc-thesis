@@ -1,13 +1,80 @@
 #!/usr/bin/env python3
 """
-Merge MFE and ensemble IntaRNA outputs based on matching coordinates.
+Combine the MFE and ensemble IntaRNA runs into one row per pair.
 
-Keeps structure features from MFE, energies from ensemble.
+The two runs answer different questions, and the columns split cleanly along that line:
+
+  * The MFE run reports a concrete duplex - `hybrid_dp`, coordinates, and the energies
+    OF THAT DUPLEX (`E`, `E_hybrid`, `ED_target`, `ED_query`, `Energy_norm`,
+    `Energy_hybrid_norm`). Everything downstream - `total_vec`, the binding-type call,
+    the Turner stacking energies - is computed from this structure, so these energies are
+    taken from here and the `E` column means "the energy of the duplex we actually used".
+
+    (The ensemble run also emits an `E`, but it is NOT that: its `hybrid_dp` is degenerate
+    - `(......(&)......)`, just the outermost pair - because in partition-function mode
+    there is no single structure to report. Its `E` is the ensemble free energy of the
+    site. Taking it would put an energy in the row that describes a different object from
+    the `hybrid_dp` beside it, which is what the previous coordinate-based merge did.)
+
+  * The ensemble run contributes the partition-function quantities `Eall`, `Eall1`,
+    `Eall2`, `Ealltotal`. These are properties of the SEQUENCE PAIR, not of any duplex:
+    `Eall1`/`Eall2` are each strand's own intramolecular folding partition function, and
+    `Eall = -RT ln( sum over ALL interactions exp(-E_i/RT) )` already contains every
+    possible duplex, at every coordinate, with every structure. Verified: they are
+    bit-identical whether IntaRNA is asked for 1, 3 or 10 sites, while `E` fans out across
+    those sites; and the partial sum over the top-N reported sites converges up to `Eall`
+    from above (-6.68 at N=1 -> -6.8882 at N=400, against a reported Eall of -6.89).
+
+So the join is on the PAIR, not on coordinates. The old coordinate join demanded a
+positional match in order to fetch values that are constant across all positions, and
+silently dropped the ~3.5% of pairs where the MFE-best site happened not to appear among
+the ensemble's suboptimals - a biased loss, since those are exactly the pairs where the
+two models disagree about where the best site is.
+
+`E_total` is then IntaRNA's own documented identity, evaluated at our `E`:
+
+    E_total = E + Eall1 + Eall2          # IntaRNA: "total energy of an interaction including
+                                         # the ensemble energies of intra-molecular structure
+                                         # formation (E+Eall1+Eall2)"     [max err 0.000000]
+
+`P_duplex` is deliberately NOT called `P_E`, because it is not IntaRNA's `P_E`:
+
+    P_duplex = exp(-(E - Eall) / RT) = exp(-E/RT) / Zall
+
+IntaRNA's `P_E` is the "probability of an interaction (site) within the considered ensemble",
+i.e. `Z(S)/Zall`, where mode P reports `E(S) = -RT log Z(S)` - the partition function of the
+whole SITE, summed over every structure in it (which is also why mode P's `hybrid_dp` is
+degenerate: it "abstracts from individual inter-molecular base pairing"). Feeding the MFE
+structure's energy into that ratio instead gives the probability of THAT ONE DUPLEX, which is
+a different quantity - strictly smaller, since `Z(S) >= exp(-E_mfe/RT)`.
+
+That is the quantity we actually want here: every other feature in the row describes the MFE
+duplex, so its Boltzmann weight within the ensemble is the coherent companion. The ratio is
+legitimate because `ED1`/`ED2` are identical between the two modes (measured: 0.000 difference),
+so `E` and `Eall` are on the same energy scale. But it is a *different* number from IntaRNA's
+`P_E`, so it gets a different name.
+
+Coverage is 100% of pairs. A pair is only incomplete if the ensemble run found no
+interaction for it at all, in which case the four pair-level columns (and the two derived
+from them) are NaN and the row is tagged `energy_source == 'mfe_only'`;
+`feature_extraction.py --fallback-report` lists those by chimeric sequence.
 """
 
-import pandas as pd
 import argparse
-from pathlib import Path
+
+import numpy as np
+import pandas as pd
+
+# Gas constant x IntaRNA's default temperature (37 C), in kcal/mol.
+RT_37C = 0.0019872 * 310.15
+
+# Properties of the sequence pair, not of any one duplex. Fetched per pair.
+PAIR_LEVEL_COLS = ['Eall', 'Eall1', 'Eall2', 'Ealltotal']
+
+# Computed from the columns above rather than looked up. `P_duplex` is NOT IntaRNA's `P_E`
+# (see the module docstring); the MFE-mode `P_E` column is a 0.0 placeholder and is dropped.
+DERIVED_COLS = ['E_total', 'P_duplex']
+STALE_MFE_COLS = ['P_E']
 
 
 def merge_intarna_outputs(
@@ -15,159 +82,119 @@ def merge_intarna_outputs(
     ensemble_file: str,
     output_file: str,
     sep: str = '\t',
-    id_cols: list = None,
-    coord_cols: list = None,
-    ensemble_cols: list = None
-) -> dict:
-    """
-    Merge MFE and ensemble IntaRNA outputs on matching coordinates.
-    
-    Args:
-        mfe_file: Path to MFE mode output (has structure features)
-        ensemble_file: Path to ensemble mode output (has Eall, P_E, etc.)
-        output_file: Path for merged output
-        sep: Column separator
-        id_cols: Columns identifying the pair (e.g., ['id1', 'id2'])
-        coord_cols: Coordinate columns to match on
-        ensemble_cols: Columns to take from ensemble output
-    
-    Returns:
-        Stats dictionary
-    """
-    # Defaults
-    if coord_cols is None:
-        coord_cols = ['start1', 'end1', 'start2', 'end2']
-    
-    if ensemble_cols is None:
-        ensemble_cols = ['Eall', 'Eall1', 'Eall2', 'EallTotal', 'P_E']
-    
-    if id_cols is None:
-        id_cols = ['id1', 'id2']
-    
-    # Load files
-    print(f"Loading MFE file: {mfe_file}")
+    pair_cols: list = None,
+) -> tuple:
+    if pair_cols is None:
+        pair_cols = ['pair_index']
+
+    print(f"Loading MFE file:      {mfe_file}")
     mfe_df = pd.read_csv(mfe_file, sep=sep)
     print(f"  Rows: {len(mfe_df)}")
-    
+
     print(f"Loading ensemble file: {ensemble_file}")
     ens_df = pd.read_csv(ensemble_file, sep=sep)
     print(f"  Rows: {len(ens_df)}")
-    
-    # Check which columns exist
-    available_id_cols = [c for c in id_cols if c in mfe_df.columns and c in ens_df.columns]
-    available_coord_cols = [c for c in coord_cols if c in mfe_df.columns and c in ens_df.columns]
-    available_ensemble_cols = [c for c in ensemble_cols if c in ens_df.columns]
-    
-    print(f"\nID columns: {available_id_cols}")
-    print(f"Coordinate columns: {available_coord_cols}")
-    print(f"Ensemble columns to merge: {available_ensemble_cols}")
-    
-    if not available_coord_cols:
-        raise ValueError(f"No coordinate columns found. MFE has: {mfe_df.columns.tolist()}")
-    
-    if not available_ensemble_cols:
-        raise ValueError(f"No ensemble columns found. Ensemble has: {ens_df.columns.tolist()}")
-    
-    # Create merge key
-    merge_cols = available_id_cols + available_coord_cols
-    
-    # Prepare ensemble df - only keep merge keys + ensemble columns
-    ens_subset = ens_df[merge_cols + available_ensemble_cols].copy()
-    
-    # Remove duplicate ensemble columns from MFE if they exist
-    mfe_cols_to_drop = [c for c in available_ensemble_cols if c in mfe_df.columns]
-    if mfe_cols_to_drop:
-        print(f"\nDropping from MFE (will use ensemble values): {mfe_cols_to_drop}")
-        mfe_df = mfe_df.drop(columns=mfe_cols_to_drop)
-    
-    # Merge
-    print(f"\nMerging on: {merge_cols}")
-    merged_df = pd.merge(
-        mfe_df,
-        ens_subset,
-        on=merge_cols,
-        how='inner'
-    )
-    
-    # Stats
+
+    missing = [c for c in pair_cols if c not in mfe_df.columns or c not in ens_df.columns]
+    if missing:
+        raise ValueError(f"Pair key column(s) {missing} not present in both files. "
+                         f"MFE has {mfe_df.columns.tolist()}")
+
+    if 'status' in ens_df.columns:
+        ens_df = ens_df[ens_df['status'] != 'no_interactions']
+
+    available = [c for c in PAIR_LEVEL_COLS if c in ens_df.columns]
+    if not available:
+        raise ValueError(f"None of {PAIR_LEVEL_COLS} in the ensemble file. Was it run "
+                         f"with --ensemble? MFE mode does not compute them.")
+
+    # The pair-level claim is load-bearing, so check it rather than trust it: if any of
+    # these varies across a pair's suboptimal sites, it is not pair-level and this whole
+    # merge is invalid.
+    nunique = ens_df.groupby(pair_cols)[available].nunique()
+    varying = {c: int((nunique[c] > 1).sum()) for c in available if (nunique[c] > 1).any()}
+    if varying:
+        raise ValueError(
+            f"Expected {available} to be constant within a pair, but they vary: {varying}. "
+            f"They would then be site-specific and a pair-level join would mix sites. "
+            f"Investigate before proceeding."
+        )
+    print(f"  Verified pair-level (constant across each pair's sites): {available}")
+
+    ens_pair = ens_df[pair_cols + available].drop_duplicates(subset=pair_cols)
+
+    # Take nothing else from the ensemble: E/E_hybrid/ED_* stay as the MFE run reported
+    # them, so they describe the same duplex as hybrid_dp. The MFE run's placeholder 0.0
+    # columns for the ensemble-only quantities are dropped rather than carried.
+    drop = [c for c in available + STALE_MFE_COLS if c in mfe_df.columns]
+    merged_df = pd.merge(mfe_df.drop(columns=drop), ens_pair, on=pair_cols, how='left')
+
+    has_ens = merged_df['Eall'].notna()
+    merged_df['energy_source'] = np.where(has_ens, 'ensemble', 'mfe_only')
+
+    # IntaRNA's own identity, evaluated at our E (the MFE duplex).
+    merged_df['E_total'] = merged_df['E'] + merged_df['Eall1'] + merged_df['Eall2']
+
+    # Boltzmann weight of THIS duplex within the whole interaction ensemble. Not IntaRNA's
+    # site-level P_E - see the module docstring. Eall <= E by construction, so the exponent
+    # is <= 0; the clip only guards 2-decimal storage rounding pushing E a hair below Eall.
+    merged_df['P_duplex'] = np.clip(
+        np.exp(-(merged_df['E'] - merged_df['Eall']) / RT_37C), 0.0, 1.0)
+
+    n_missing = int((~has_ens).sum())
     stats = {
         'mfe_rows': len(mfe_df),
-        'ensemble_rows': len(ens_df),
         'merged_rows': len(merged_df),
-        'mfe_only': len(mfe_df) - len(merged_df),
-        'ensemble_only': len(ens_df) - len(merged_df),
-        'match_rate_mfe': len(merged_df) / len(mfe_df) * 100 if len(mfe_df) > 0 else 0,
-        'match_rate_ensemble': len(merged_df) / len(ens_df) * 100 if len(ens_df) > 0 else 0,
+        'with_ensemble': int(has_ens.sum()),
+        'mfe_only': n_missing,
     }
-    
-    print(f"\n{'='*50}")
+
+    print(f"\n{'=' * 50}")
     print("RESULTS")
-    print(f"{'='*50}")
-    print(f"MFE rows:      {stats['mfe_rows']}")
-    print(f"Ensemble rows: {stats['ensemble_rows']}")
-    print(f"Merged rows:   {stats['merged_rows']}")
-    print(f"Match rate:    {stats['match_rate_mfe']:.1f}% of MFE, {stats['match_rate_ensemble']:.1f}% of ensemble")
-    
-    # Save
-    merged_df.to_csv(output_file, sep=sep, index=False)
+    print(f"{'=' * 50}")
+    print(f"Pairs in:              {stats['mfe_rows']}")
+    print(f"Pairs out:             {stats['merged_rows']}  (pair-level join, nothing dropped)")
+    print(f"  with ensemble terms: {stats['with_ensemble']} "
+          f"({stats['with_ensemble'] / max(len(merged_df), 1):.1%})")
+    print(f"  mfe_only:            {n_missing}"
+          + (f"  -> no ensemble interaction found; {PAIR_LEVEL_COLS + DERIVED_COLS} are NaN"
+             if n_missing else ""))
+    print("Duplex energies (E, E_hybrid, ED_*) taken from MFE, matching hybrid_dp.")
+    print("E_total = E + Eall1 + Eall2 (IntaRNA's identity).")
+    print("P_duplex = exp(-(E - Eall)/RT): Boltzmann weight of THIS duplex in the ensemble. "
+          "Not IntaRNA's site-level P_E, which is dropped.")
+
+    # na_rep so NaN survives the round-trip through csv.DictReader in feature_extraction;
+    # an empty field would be read back as 0.0.
+    merged_df.to_csv(output_file, sep=sep, index=False, na_rep='nan')
     print(f"\nSaved to: {output_file}")
-    
+
     return merged_df, stats
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Merge MFE and ensemble IntaRNA outputs on matching coordinates"
-    )
-    parser.add_argument(
-        "--mfe", "-m",
-        required=True,
-        help="MFE mode output file (has structure)"
-    )
-    parser.add_argument(
-        "--ensemble", "-e",
-        required=True,
-        help="Ensemble mode output file (has Eall, P_E)"
-    )
-    parser.add_argument(
-        "--output", "-o",
-        required=True,
-        help="Output merged file"
-    )
-    parser.add_argument(
-        "--sep",
-        default="\t",
-        help="Column separator (default: tab)"
-    )
-    parser.add_argument(
-        "--id-cols",
-        nargs="+",
-        default=["target_id", "query_id"],
-        help="ID columns (default: id1 id2)"
-    )
-    parser.add_argument(
-        "--coord-cols",
-        nargs="+",
-        default=["start_target", "end_target", "start_query", "end_query"],
-        help="Coordinate columns (default: start1 end1 start2 end2)"
-    )
-    parser.add_argument(
-        "--ensemble-cols",
-        nargs="+",
-        default=["E", "E_hybrid", "ED_target", "ED_query", "Eall", "Eall1", "Eall2", "E_total", "Ealltotal", "P_E", "Energy_hybrid_norm", "Energy_norm"],
-        help="Columns to take from ensemble output"
-    )
-    
+        description="Combine MFE and ensemble IntaRNA outputs on the sequence pair.")
+    parser.add_argument("--mfe", "-m", required=True,
+                        help="MFE-mode output, one best duplex per pair (best_intarna.py)")
+    parser.add_argument("--ensemble", "-e", required=True,
+                        help="Ensemble-mode output (intarna_parallel.py --ensemble). Only the "
+                             "pair-level columns are read, and those are identical on every "
+                             "reported site, so `-n 1` is sufficient - suboptimals here are "
+                             "wasted work. A larger -n is accepted and ignored.")
+    parser.add_argument("--output", "-o", required=True)
+    parser.add_argument("--sep", default="\t")
+    parser.add_argument("--pair-cols", nargs="+", default=["pair_index"],
+                        help="Columns identifying a sequence pair (default: pair_index)")
+
     args = parser.parse_args()
-    
+
     merge_intarna_outputs(
         mfe_file=args.mfe,
         ensemble_file=args.ensemble,
         output_file=args.output,
         sep=args.sep,
-        id_cols=args.id_cols,
-        coord_cols=args.coord_cols,
-        ensemble_cols=args.ensemble_cols
+        pair_cols=args.pair_cols,
     )
 
 
