@@ -2,3 +2,7 @@ models/
 mamba/mamba_siamese.py
 results/
 data/
+chimeric_eclip/
+errors/
+external/
+CLAUDE.md
