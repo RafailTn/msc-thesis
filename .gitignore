@@ -1,1 +1,7 @@
 models/autogluon_final_model/
+results/
+data/
+chimeric_eclip/
+data/
+errors/
+external/
