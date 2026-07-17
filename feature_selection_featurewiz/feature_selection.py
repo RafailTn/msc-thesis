@@ -112,7 +112,7 @@ def main():
         X, X_test, X_leftout = (d.drop(columns=all_nan) for d in (X, X_test, X_leftout))
 
     sgkf = StratifiedGroupKFold(n_splits=args.folds, shuffle=True, random_state=args.seed)
-    per_fold, fwiz_last = [], None
+    per_fold = []
 
     for fold, (tr, va) in enumerate(sgkf.split(X, y, groups), 1):
         fwiz = FeatureWiz(feature_engg='', nrows=None, transform_target=True, scalers="std",
@@ -126,25 +126,26 @@ def main():
         print(f"Fold {fold}: {len(fwiz.features):3d} features, validation APS = {ap:.4f}")
 
         per_fold.append(fwiz.features)
-        fwiz_last = fwiz
 
     common = sorted(set(per_fold[0]).intersection(*per_fold[1:]))
     print(f"\nStable across all {args.folds} folds: {len(common)} features")
 
-    X_t = fwiz_last.transform(X)
-    X_te = fwiz_last.transform(X_test)
-    X_lo = fwiz_last.transform(X_leftout)
-
+    # Score each fold's selection on test/leftout. Index the raw aligned matrices
+    # directly: with feature_engg='' every selected name is an original column of X,
+    # and X_test/X_leftout were reindexed to X's columns, so X[feats] is valid for
+    # every fold. (fwiz_last.transform() returns only the LAST fold's columns, so it
+    # would KeyError on any feature a different fold selected.) The probe imputes and
+    # scales internally, so raw columns are the right input.
     aps_test, aps_leftout = [], []
     for feats in per_fold:
-        m = probe().fit(X_t[feats], y)
-        aps_test.append(average_precision_score(y_test, m.predict_proba(X_te[feats])[:, 1]))
+        m = probe().fit(X[feats], y)
+        aps_test.append(average_precision_score(y_test, m.predict_proba(X_test[feats])[:, 1]))
         aps_leftout.append(average_precision_score(
-            y_leftout, m.predict_proba(X_lo[feats])[:, 1]))
+            y_leftout, m.predict_proba(X_leftout[feats])[:, 1]))
 
-    m = probe().fit(X_t[common], y)
-    ap_test = average_precision_score(y_test, m.predict_proba(X_te[common])[:, 1])
-    ap_leftout = average_precision_score(y_leftout, m.predict_proba(X_lo[common])[:, 1])
+    m = probe().fit(X[common], y)
+    ap_test = average_precision_score(y_test, m.predict_proba(X_test[common])[:, 1])
+    ap_leftout = average_precision_score(y_leftout, m.predict_proba(X_leftout[common])[:, 1])
 
     print(f"\nAPS test    : per-fold mean {np.mean(aps_test):.4f} | common {ap_test:.4f}")
     print(f"APS leftout : per-fold mean {np.mean(aps_leftout):.4f} | common {ap_leftout:.4f}")

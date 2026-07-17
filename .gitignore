@@ -1,9 +1,10 @@
 models/
-mamba/mamba_siamese.py
 results/
 data/
 external/
 errors/
 chimeric_eclip/
 checkpoints/
+transformers/
+mamba/
 CLAUDE.md
