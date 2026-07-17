@@ -65,8 +65,11 @@ import argparse
 import numpy as np
 import pandas as pd
 
-# Gas constant x IntaRNA's default temperature (37 C), in kcal/mol.
-RT_37C = 0.0019872 * 310.15
+# Gas constant x IntaRNA's default temperature (37 C), in kcal/mol. These are the exact
+# constants IntaRNA/ViennaRNA use (RNA.GASCONST = 1.98717 cal/(mol K), RNA.K0 = 273.15),
+# verified by solving RT = -Eall / ln(Zall) from IntaRNA's own output: 0.616321 across every
+# row, matching this value. Getting them right makes P_duplex reproduce IntaRNA's P_E to ~1e-4.
+RT_37C = 1.98717e-3 * (273.15 + 37.0)
 
 # Properties of the sequence pair, not of any one duplex. Fetched per pair.
 PAIR_LEVEL_COLS = ['Eall', 'Eall1', 'Eall2', 'Ealltotal']
