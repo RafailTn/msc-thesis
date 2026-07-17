@@ -50,7 +50,7 @@ import random
 import sys
 import time
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -450,6 +450,26 @@ def _parse_vector_exact(raw) -> np.ndarray:
             except ValueError:
                 vals.append(0.0)
     return np.asarray(vals, dtype=np.float32)
+
+
+CONS_MODES = ("none", "both", "mre")
+
+
+def _norm_cons_mode(v) -> str:
+    """Normalise a --seq-cons-channels value to one of CONS_MODES.
+
+    Accepts the legacy booleans so checkpoints predating the mode — which stored
+    seq_cons_channels as a bool — keep reconstructing: False was "no channels",
+    True was "miRNA + MRE".
+    """
+    if isinstance(v, bool):
+        return "both" if v else "none"
+    if v is None:
+        return "none"
+    v = str(v)
+    if v not in CONS_MODES:
+        raise ValueError(f"seq_cons_channels must be one of {CONS_MODES}, got {v!r}")
+    return v
 
 
 def _cons_spec(mirna_cons_col: Optional[str], mre_cons_col: Optional[str],
@@ -929,14 +949,20 @@ class MiRBindCNN(nn.Module):
     pair_stack_learnable : bool
         Make that stacking table an nn.Parameter initialised to the Turner values
         instead of a frozen buffer. Requires pair_stack_channel.
-    seq_cons_channels : bool
-        Append two phastCons channels to the pairing matrix: cell (i,j) carries the
+    seq_cons_channels : {"none", "both", "mre"} or bool
+        Append phastCons channels to the pairing matrix: cell (i,j) carries the
         miRNA conservation at position i in one channel and the MRE conservation at
         position j in the other. Early fusion is the point — a 5x5 kernel then sees
         pairing and conservation at the *same* cell, so "a conserved seed pair counts
         for more than a conserved 3' tail" is expressible. A separate branch could
         not represent that: its features never meet the pairing at cell level.
         Off by default, keeping the state_dict byte-identical to older checkpoints.
+
+        "mre" appends *only* the MRE channel (one channel, not two). Besides being the
+        MRE-conservation ablation, it is the only mode that runs on a plain v7 file:
+        the miRNA vector needs the `*_v7_mirnacons.tsv` inputs from
+        cnn/add_mirna_phastcons.py, while the MRE one is v7's own gene_phastCons.
+        Accepts the legacy bools for old checkpoints: False -> "none", True -> "both".
 
         Be aware of the ceiling before reading much into a null result. The MRE
         vector is *constant* across a positive and its negative twin (they share the
@@ -960,7 +986,7 @@ class MiRBindCNN(nn.Module):
         pair_random_init:     bool = False,
         pair_stack_channel:   bool = False,
         pair_stack_learnable: bool = False,
-        seq_cons_channels:    bool = False,
+        seq_cons_channels:    Union[bool, str] = False,
         seq_pool:         str   = "gem",
         n_conv_blocks:    int   = 6,
         n_pool_blocks:    int   = 4,
@@ -1066,10 +1092,16 @@ class MiRBindCNN(nn.Module):
 
         # Optional extra channels: per-position phastCons, broadcast into the matrix.
         # Appended *after* the stacking channel so the indices of every existing
-        # channel are unchanged and older checkpoints keep loading.
-        self.seq_cons_channels = bool(seq_cons_channels)
-        if self.seq_cons_channels:
-            n_pair_ch += 2
+        # channel are unchanged and older checkpoints keep loading.  In "mre" mode the
+        # miRNA channel is not appended at all rather than zero-filled: a dead channel
+        # would leave the state_dict shaped exactly like a "both" model, so the two
+        # would load into each other silently and one of them would be fed a vector it
+        # never trained on.  Different widths make that mismatch a loud error.
+        self.seq_cons_mode = _norm_cons_mode(seq_cons_channels)
+        # Kept as the bool it has always been, so `if model.seq_cons_channels` still
+        # means "is conservation on at all" — every existing caller reads it that way.
+        self.seq_cons_channels = self.seq_cons_mode != "none"
+        n_pair_ch += {"none": 0, "mre": 1, "both": 2}[self.seq_cons_mode]
 
         # ── miRBind 2D sequence branch ───────────────────────────────────────
         self.seq_branch = MiRBindSeqBranch(
@@ -1146,15 +1178,19 @@ class MiRBindCNN(nn.Module):
             wc_mat = torch.cat([wc_mat, stack.unsqueeze(1).to(wc_mat.dtype)], dim=1)
 
         if self.seq_cons_channels:
-            if cm is None or ct is None:
+            need_mirna = self.seq_cons_mode == "both"
+            if ct is None or (need_mirna and cm is None):
                 raise ValueError(
-                    "seq_cons_channels=True but no conservation vectors were passed; "
-                    "the dataset must be built with --mirna-cons-col/--mre-cons-col")
+                    f"seq_cons_channels={self.seq_cons_mode!r} but no conservation "
+                    "vectors were passed; the dataset must be built with "
+                    "--mre-cons-col" + (" and --mirna-cons-col" if need_mirna else ""))
             valid = ((mi < 4)[:, :, None] & (ti < 4)[:, None, :])  # (B, 30, 50)
             valid = valid.to(wc_mat.dtype)
-            cm_ch = cm.to(wc_mat.dtype)[:, :, None] * valid        # broadcast over j
-            ct_ch = ct.to(wc_mat.dtype)[:, None, :] * valid        # broadcast over i
-            wc_mat = torch.cat([wc_mat, cm_ch.unsqueeze(1), ct_ch.unsqueeze(1)], dim=1)
+            extra = []
+            if need_mirna:
+                extra.append((cm.to(wc_mat.dtype)[:, :, None] * valid))  # over j
+            extra.append((ct.to(wc_mat.dtype)[:, None, :] * valid))      # over i
+            wc_mat = torch.cat([wc_mat] + [e.unsqueeze(1) for e in extra], dim=1)
         return wc_mat
 
     def logits_from_matrix(
@@ -1586,10 +1622,22 @@ def _cons_kwargs(args: argparse.Namespace) -> dict:
     Returning None columns (rather than omitting them) keeps the .cnncache.npz key
     distinct between a cons-enabled and a cons-disabled run of the same file.
     """
-    if not getattr(args, "seq_cons_channels", False):
+    return _cons_kwargs_for_mode(
+        _norm_cons_mode(getattr(args, "seq_cons_channels", False)), args)
+
+
+def _cons_kwargs_for_mode(mode: str, args: argparse.Namespace) -> dict:
+    """Column kwargs for a conservation mode.
+
+    In "mre" mode the miRNA column is None, not merely unused: that makes
+    _cons_vectors return zeros without touching the dataframe, so MRE-only training
+    runs on a plain v7 file and does not demand the mirna_phastCons100way column that
+    only the *_v7_mirnacons.tsv inputs carry.
+    """
+    if mode == "none":
         return {"mirna_cons_col": None, "mre_cons_col": None}
     return {
-        "mirna_cons_col":   args.mirna_cons_col,
+        "mirna_cons_col":   args.mirna_cons_col if mode == "both" else None,
         "mre_cons_col":     args.mre_cons_col,
         "mre_cons_reverse": not args.mre_cons_no_reverse,
     }
@@ -1603,13 +1651,7 @@ def _cons_kwargs_for_ckpt(args: argparse.Namespace, model: "MiRBindCNN") -> dict
     and would then either blow up on the first conv's in_channels or — worse —
     silently feed zeros where the model expects signal.
     """
-    if not getattr(model, "seq_cons_channels", False):
-        return {"mirna_cons_col": None, "mre_cons_col": None}
-    return {
-        "mirna_cons_col":   args.mirna_cons_col,
-        "mre_cons_col":     args.mre_cons_col,
-        "mre_cons_reverse": not args.mre_cons_no_reverse,
-    }
+    return _cons_kwargs_for_mode(getattr(model, "seq_cons_mode", "none"), args)
 
 
 def _model_args_from_cli(args: argparse.Namespace) -> dict:
@@ -1622,7 +1664,7 @@ def _model_args_from_cli(args: argparse.Namespace) -> dict:
         "pair_random_init":     args.pair_random_init,
         "pair_stack_channel":   args.pair_stack_channel,
         "pair_stack_learnable": args.pair_stack_learnable,
-        "seq_cons_channels":    args.seq_cons_channels,
+        "seq_cons_channels":    _norm_cons_mode(args.seq_cons_channels),
         "seq_pool":         args.seq_pool,
         "n_conv_blocks":    args.n_conv_blocks,
         "n_pool_blocks":    args.n_pool_blocks,
@@ -2566,14 +2608,16 @@ def main() -> int:
     tr.add_argument("--out",        default="checkpoints/cnn_mirbind.pt")
     tr.add_argument("--mre-col",    default="mre_sequence",   dest="mre_col")
     tr.add_argument("--mirna-col",  default="mirna_sequence", dest="mirna_col")
-    tr.add_argument("--seq-cons-channels", action="store_true",
-                    dest="seq_cons_channels",
-                    help="append two phastCons channels to the pairing matrix "
-                         "(miRNA conservation broadcast over the MRE axis, MRE "
-                         "conservation broadcast over the miRNA axis). Early fusion, "
-                         "so a 5x5 kernel sees pairing and conservation in one "
-                         "receptive field. Off by default; enabling it widens the "
-                         "first conv, so such checkpoints are not interchangeable.")
+    tr.add_argument("--seq-cons-channels", nargs="?", const="both", default=None,
+                    choices=CONS_MODES, dest="seq_cons_channels",
+                    help="append phastCons channels to the pairing matrix. Bare (or "
+                         "'both'): two channels, miRNA conservation broadcast over the "
+                         "MRE axis and MRE conservation over the miRNA axis. 'mre': the "
+                         "MRE channel only (one channel) — the ablation, and the only "
+                         "mode that needs no *_v7_mirnacons.tsv input. Early fusion, so "
+                         "a 5x5 kernel sees pairing and conservation in one receptive "
+                         "field. Off by default; each mode widens the first conv "
+                         "differently, so their checkpoints are not interchangeable.")
     tr.add_argument("--mirna-cons-col", default=DEFAULT_MIRNA_CONS_COL,
                     dest="mirna_cons_col",
                     help="per-position miRNA phastCons column (already 5'->3')")

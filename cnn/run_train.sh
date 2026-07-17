@@ -47,8 +47,11 @@ PAIR_EMBED_DIM="${PAIR_EMBED_DIM:-16}" # learned pair-embed dim (embed/dinuc onl
 PAIR_RANDOM_INIT="${PAIR_RANDOM_INIT:-0}"  # 1 -> learnable table from noise, no chem prior
 PAIR_STACK="${PAIR_STACK:-0}"          # 1 -> extra Turner-2004 NN stacking channel
 PAIR_STACK_LEARN="${PAIR_STACK_LEARN:-0}"  # 1 -> learn that table from its Turner init
-SEQ_CONS="${SEQ_CONS:-0}"              # 1 -> +2 phastCons channels on the pairing matrix
-                                       #      (needs the *_v7_mirnacons.tsv inputs)
+SEQ_CONS="${SEQ_CONS:-0}"              # 0 -> off; 1|both -> +2 phastCons channels on the
+                                       #      pairing matrix (miRNA + MRE; needs the
+                                       #      *_v7_mirnacons.tsv inputs)
+                                       # mre -> +1 channel, MRE conservation only: the
+                                       #      ablation, and runs on a plain v7 file
 SEQ_POOL="${SEQ_POOL:-gem}"            # avg | gem
 ACTIVATION="${ACTIVATION:-relu}"       # leaky_relu | relu | gelu | silu | elu | selu
 FOCAL_GAMMA="${FOCAL_GAMMA:-2.0}"      # 0 = BCE; 2 = standard focal
@@ -72,7 +75,12 @@ model_flags=(
 [[ "$PAIR_RANDOM_INIT" == "1" ]] && model_flags+=( --pair-random-init )
 [[ "$PAIR_STACK" == "1" ]]       && model_flags+=( --pair-stack-channel )
 [[ "$PAIR_STACK_LEARN" == "1" ]] && model_flags+=( --pair-stack-learnable )
-[[ "$SEQ_CONS" == "1" ]]         && model_flags+=( --seq-cons-channels )
+case "$SEQ_CONS" in
+  0)          ;;
+  1|both)     model_flags+=( --seq-cons-channels both ) ;;
+  mre)        model_flags+=( --seq-cons-channels mre )  ;;
+  *) echo "SEQ_CONS must be 0, 1, both or mre (got '$SEQ_CONS')" >&2; exit 1 ;;
+esac
 [[ "$DETERMINISTIC" == "1" ]]   && model_flags+=( --deterministic )
 
 # ── assemble argv (kfold | full) ───────────────────────────────────────────
