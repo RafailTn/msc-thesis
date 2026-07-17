@@ -5,3 +5,4 @@ chimeric_eclip/
 data/
 errors/
 external/
+transformers/smoke_test_two_tower.py
