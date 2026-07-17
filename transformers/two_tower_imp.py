@@ -36,6 +36,8 @@ channel, so the dataset/collate stay untouched (no new batch schema).
 
 from __future__ import annotations
 
+import argparse
+
 import torch
 import polars as ps
 from torch import nn
@@ -565,15 +567,85 @@ def build_model(name: str = "two_tower", **cfg) -> pl.LightningModule:
     return MODEL_REGISTRY[name](**cfg)
 
 
-def main():
-    # Mirrors transformer_imp.main(); swap `build_model('two_tower', ...)` in for
-    # `TransformerDNALightning()`. Kept identical otherwise so it is a drop-in.
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """CLI for the two-tower training run.
+
+    Every model/loss knob defaults to the ``TwoTowerLightning.__init__``
+    default, so passing no flags reproduces the original hardcoded behavior.
+    """
+    p = argparse.ArgumentParser(
+        description="Train the two-tower miRNA-MRE model (StratifiedGroupKFold over mir_fam).",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+
+    # Loss / label noise (the reason the CLI exists)
+    g = p.add_argument_group("loss")
+    g.add_argument("--loss", choices=["bce", "gce", "sce"], default="bce",
+                   help="bce=BCE(+label smoothing); gce=Generalized CE; sce=Symmetric CE (noise-robust)")
+    g.add_argument("--label-smoothing", type=float, default=0.0, help="only used by --loss bce")
+    g.add_argument("--gce-q", type=float, default=0.7, help="only used by --loss gce")
+    g.add_argument("--sce-alpha", type=float, default=1.0, help="only used by --loss sce")
+    g.add_argument("--sce-beta", type=float, default=1.0, help="only used by --loss sce")
+
+    # Architecture / regularization
+    g = p.add_argument_group("model")
+    g.add_argument("--mre-orientation", choices=["native", "rc"], default="native",
+                   help="native = feed MRE as stored (5'->3'); rc = reverse-complement it")
+    g.add_argument("--bottleneck-dim", type=int, default=64, help="main capacity control")
+    g.add_argument("--fusion", choices=["cross_attention", "concat_mlp"], default="cross_attention")
+    g.add_argument("--fusion-dropout", type=float, default=0.3)
+    g.add_argument("--tower-dropout", type=float, default=0.3)
+    g.add_argument("--head-dropout", type=float, default=0.3)
+
+    # Run / trainer
+    g = p.add_argument_group("run")
+    g.add_argument("--data-dir", default="../data", help="dir holding the AGO2_eCLIP_Manakov2022_*_v7.tsv files")
+    g.add_argument("--out-dir", default="../models", help="where checkpoints are written")
+    g.add_argument("--epochs", type=int, default=25)
+    g.add_argument("--batch-size", type=int, default=256)
+    g.add_argument("--lr", type=float, default=1e-3)
+    g.add_argument("--weight-decay", type=float, default=1e-2)
+    g.add_argument("--num-workers", type=int, default=4)
+    g.add_argument("--n-splits", type=int, default=5)
+    g.add_argument("--folds", type=int, default=None,
+                   help="run only the first N folds (default: all n_splits)")
+    g.add_argument("--limit-rows", type=int, default=None,
+                   help="subsample the train df to N rows (quick local test runs)")
+    g.add_argument("--precision", default="auto",
+                   help="Lightning precision; 'auto' = 16-mixed on GPU, 32-true on CPU")
+    g.add_argument("--wandb", dest="wandb", action="store_true", default=True, help="log to Weights & Biases (default)")
+    g.add_argument("--no-wandb", dest="wandb", action="store_false", help="disable W&B logging")
+    g.add_argument("--wandb-project", default="two-tower-mirna-bottleneck")
+
+    return p.parse_args(argv)
+
+
+def main(argv: list[str] | None = None):
+    # Mirrors transformer_imp.main() but CLI-driven; swap in for the single-stream
+    # model by pointing the training loop at build_model('two_tower', ...).
     #
     # Reads the local v7 TSVs. Their columns differ from OneHotDataset's
     # expectations, so rename: gene -> mre_sequence (the MRE target site, stored
     # native 5'->3', transcript-oriented), noncodingRNA -> mirna_sequence,
     # noncodingRNA_fam -> mir_fam (StratifiedGroupKFold grouping key).
-    DATA_DIR = '../data'
+    args = parse_args(argv)
+
+    # Model config assembled from the CLI; unspecified knobs fall back to the
+    # TwoTowerLightning defaults.
+    model_cfg = dict(
+        loss=args.loss, label_smoothing=args.label_smoothing,
+        gce_q=args.gce_q, sce_alpha=args.sce_alpha, sce_beta=args.sce_beta,
+        mre_orientation=args.mre_orientation,
+        bottleneck_dim=args.bottleneck_dim,
+        fusion=args.fusion, fusion_dropout=args.fusion_dropout,
+        tower_dropout=args.tower_dropout, head_dropout=args.head_dropout,
+        learning_rate=args.lr, weight_decay=args.weight_decay,
+    )
+
+    # 'auto' precision: 16-mixed only makes sense on GPU; use 32-true on CPU.
+    precision = args.precision
+    if precision == "auto":
+        precision = "16-mixed" if torch.cuda.is_available() else "32-true"
 
     def load_v7(path: str, with_fam: bool):
         rename = {'gene': 'mre_sequence', 'noncodingRNA': 'mirna_sequence'}
@@ -584,22 +656,33 @@ def main():
         d = ps.read_csv(path, separator='\t', columns=cols).rename(rename)
         return d.unique(subset=['mre_sequence', 'mirna_sequence'], keep='none')
 
-    df            = load_v7(f'{DATA_DIR}/AGO2_eCLIP_Manakov2022_train_v7.tsv',   with_fam=True)
-    test_df       = load_v7(f'{DATA_DIR}/AGO2_eCLIP_Manakov2022_test_v7.tsv',    with_fam=False)
-    final_test_df = load_v7(f'{DATA_DIR}/AGO2_eCLIP_Manakov2022_leftout_v7.tsv', with_fam=False)
+    df            = load_v7(f'{args.data_dir}/AGO2_eCLIP_Manakov2022_train_v7.tsv',   with_fam=True)
+    test_df       = load_v7(f'{args.data_dir}/AGO2_eCLIP_Manakov2022_test_v7.tsv',    with_fam=False)
+    final_test_df = load_v7(f'{args.data_dir}/AGO2_eCLIP_Manakov2022_leftout_v7.tsv', with_fam=False)
+    if args.limit_rows is not None:
+        # Random sample, not head(): the TSVs are sorted by miRNA family, so the
+        # first N rows collapse to a few families / one class and produce an
+        # empty val fold. Sampling keeps the subset representative. Applied to
+        # all splits so a quick run also has a quick test phase.
+        def _subsample(d):
+            return d.sample(n=min(args.limit_rows, d.height), shuffle=True, seed=42)
+        df, test_df, final_test_df = _subsample(df), _subsample(test_df), _subsample(final_test_df)
 
     # NOTE (cold-split): the split below is cold-miRNA-*family* (groups=mir_fam)
     # but NOT cold-target. Genes/MREs can recur across train and val. See the
     # task summary for the flag.
-    sgkf = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=42)
+    n_folds = args.n_splits if args.folds is None else min(args.folds, args.n_splits)
+    sgkf = StratifiedGroupKFold(n_splits=args.n_splits, shuffle=True, random_state=42)
     for i, (train_idx, val_idx) in enumerate(sgkf.split(df, df['label'], groups=df['mir_fam'])):
+        if i >= n_folds:
+            break
         final_train_data, final_val_data = df[train_idx], df[val_idx]
 
         early_stop_callback = EarlyStopping(monitor="val_ap", patience=7, mode="max")
         checkpoint_callback = ModelCheckpoint(
             monitor="val_ap", mode="max",
-            dirpath="/home/adam/eli-adam/models/",
-            filename=f"TwoTower-chim-OH_dropout03_bottleneck_fold{i}"
+            dirpath=args.out_dir,
+            filename=f"TwoTower-{args.fusion}-{args.loss}-{args.mre_orientation}-bn{args.bottleneck_dim}_fold{i}"
         )
 
         train_dataset      = OneHotDataset(final_train_data)
@@ -607,29 +690,32 @@ def main():
         test_dataset       = OneHotDataset(test_df)
         final_test_dataset = OneHotDataset(final_test_df)
 
-        train_dataloader      = DataLoader(train_dataset,      batch_size=256, collate_fn=collate_fn_onehot, shuffle=True,  num_workers=4)
-        val_dataloader        = DataLoader(eval_dataset,       batch_size=256, collate_fn=collate_fn_onehot, shuffle=False, num_workers=4)
-        test_dataloader       = DataLoader(test_dataset,       batch_size=256, collate_fn=collate_fn_onehot, shuffle=False, num_workers=4)
-        final_test_dataloader = DataLoader(final_test_dataset, batch_size=256, collate_fn=collate_fn_onehot, shuffle=False, num_workers=4)
+        train_dataloader      = DataLoader(train_dataset,      batch_size=args.batch_size, collate_fn=collate_fn_onehot, shuffle=True,  num_workers=args.num_workers)
+        val_dataloader        = DataLoader(eval_dataset,       batch_size=args.batch_size, collate_fn=collate_fn_onehot, shuffle=False, num_workers=args.num_workers)
+        test_dataloader       = DataLoader(test_dataset,       batch_size=args.batch_size, collate_fn=collate_fn_onehot, shuffle=False, num_workers=args.num_workers)
+        final_test_dataloader = DataLoader(final_test_dataset, batch_size=args.batch_size, collate_fn=collate_fn_onehot, shuffle=False, num_workers=args.num_workers)
 
-        wandb_logger = WandbLogger(
-            project="two-tower-mirna-bottleneck",
-            name=f"fold-{i}",
-            log_model=False,
-        )
+        logger = False
+        if args.wandb:
+            logger = WandbLogger(
+                project=args.wandb_project,
+                name=f"fold-{i}",
+                log_model=False,
+            )
 
-        model = build_model("two_tower")
+        model = build_model("two_tower", **model_cfg)
         trainer = pl.Trainer(
-            max_epochs=25,
+            max_epochs=args.epochs,
             callbacks=[early_stop_callback, checkpoint_callback],
             accelerator='auto',
-            precision='16-mixed',
-            logger=wandb_logger,
+            precision=precision,
+            logger=logger,
         )
 
         trainer.fit(model, train_dataloader, val_dataloader)
         trainer.test(model, [test_dataloader, final_test_dataloader])
-        wandb_logger.experiment.finish()
+        if args.wandb:
+            logger.experiment.finish()
 
 
 if __name__ == "__main__":
