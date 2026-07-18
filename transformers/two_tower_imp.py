@@ -49,7 +49,6 @@ from sklearn.model_selection import StratifiedGroupKFold
 from torch.utils.data import DataLoader
 
 from utils import OneHotDataset, collate_fn_onehot, DnaOneHotEncoder, AttentionPool
-from transformer_imp import TransformerBlock  # reuse the repo's pre-norm block
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -134,6 +133,32 @@ def _reverse_complement(nuc: torch.Tensor, lengths: torch.Tensor) -> torch.Tenso
     idx = rev_src.unsqueeze(-1).expand(-1, -1, comp.size(-1))
     return torch.gather(comp, 1, idx)
 
+class TransformerBlock(nn.Module):
+    """
+    Single pre-LayerNorm transformer block:
+      x → norm → MHA → residual → norm → FFN → residual
+    """
+    def __init__(self, d_model: int, nhead: int, dim_feedforward: int, dropout: float):
+        super().__init__()
+        self.norm1 = nn.LayerNorm(d_model)
+        self.norm2 = nn.LayerNorm(d_model)
+        self.attn  = nn.MultiheadAttention(d_model, nhead, dropout=dropout, batch_first=True)
+        self.ffn   = nn.Sequential(
+            nn.Linear(d_model, dim_feedforward),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(dim_feedforward, d_model),
+        )
+        self.drop = nn.Dropout(dropout)
+
+    def forward(self, x: torch.Tensor, key_padding_mask: torch.Tensor | None = None) -> torch.Tensor:
+        # Self-attention with pre-norm
+        normed = self.norm1(x)
+        attn_out, _ = self.attn(normed, normed, normed, key_padding_mask=key_padding_mask)
+        x = x + self.drop(attn_out)
+        # FFN with pre-norm
+        x = x + self.drop(self.ffn(self.norm2(x)))
+        return x
 
 # --------------------------------------------------------------------------- #
 # Towers
