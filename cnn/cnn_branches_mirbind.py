@@ -1292,14 +1292,49 @@ def _make_loader(dataset: MiRNAInteractionDataset, batch_size: int,
 
 def _compute_loss(logits: torch.Tensor, labels: torch.Tensor,
                   pos_weight: Optional[torch.Tensor],
-                  gamma: float) -> torch.Tensor:
-    """BCE with optional focal modulation.
+                  gamma: float,
+                  loss_type: str = "bce",
+                  gce_q: float = 0.7,
+                  sce_alpha: float = 1.0,
+                  sce_beta: float = 1.0,
+                  eps: float = 1e-7) -> torch.Tensor:
+    """Classification loss for the CNN.
 
-    gamma=0  → standard BCEWithLogitsLoss (identical to before).
-    gamma>0  → focal loss: (1-pt)^gamma * BCE per sample, then mean.
-               Compatible with pos_weight: the class weight is applied
-               inside BCE before the focal factor scales each sample.
+    loss_type="bce" (default) → BCE with optional focal modulation, matching
+        the original behaviour exactly:
+          gamma=0  → standard BCEWithLogitsLoss.
+          gamma>0  → focal loss: (1-pt)^gamma * BCE per sample, then mean.
+                     Compatible with pos_weight (class weight applied inside BCE
+                     before the focal factor scales each sample).
+
+    loss_type="gce" → Generalized Cross Entropy (Zhang & Sabuncu 2018): a
+        noise-robust loss interpolating MAE (q→1) and CE (q→0). Tolerant of
+        mislabeled negatives that carry accidental seed matches. Ignores
+        pos_weight and gamma (they don't compose with the MAE interpolation).
+
+    loss_type="sce" → Symmetric Cross Entropy (Wang et al. 2019):
+        alpha*CE + beta*RCE, where RCE swaps the roles of prediction and
+        (clamped) target. Ignores pos_weight and gamma.
+
+    Ported from the two-tower model (transformers/two_tower_imp.py) so the same
+    noise-robust losses can be tried here.
     """
+    if loss_type == "gce":
+        p  = torch.sigmoid(logits)
+        pt = labels * p + (1.0 - labels) * (1.0 - p)     # prob of the true class
+        pt = pt.clamp(min=eps, max=1.0)
+        return ((1.0 - pt.pow(gce_q)) / gce_q).mean()
+
+    if loss_type == "sce":
+        ce  = F.binary_cross_entropy_with_logits(logits, labels)
+        p   = torch.sigmoid(logits).clamp(min=eps, max=1.0 - eps)
+        y   = labels.clamp(min=eps, max=1.0 - eps)
+        rce = -(p * torch.log(y) + (1.0 - p) * torch.log(1.0 - y)).mean()
+        return sce_alpha * ce + sce_beta * rce
+
+    if loss_type != "bce":
+        raise ValueError(f"loss_type must be 'bce', 'gce' or 'sce', got {loss_type!r}")
+
     if gamma == 0.0:
         return F.binary_cross_entropy_with_logits(
             logits, labels, pos_weight=pos_weight)
@@ -1314,7 +1349,11 @@ def _compute_loss(logits: torch.Tensor, labels: torch.Tensor,
 def evaluate(model: MiRBindCNN, loader: DataLoader,
              device: torch.device,
              pos_weight: Optional[torch.Tensor] = None,
-             gamma: float = 0.0) -> dict:
+             gamma: float = 0.0,
+             loss_type: str = "bce",
+             gce_q: float = 0.7,
+             sce_alpha: float = 1.0,
+             sce_beta: float = 1.0) -> dict:
     model.eval()
     all_logits, all_labels = [], []
     total_loss, n_batches  = 0.0, 0
@@ -1327,7 +1366,8 @@ def evaluate(model: MiRBindCNN, loader: DataLoader,
         labels = labels.to(device, non_blocking=True).float()
 
         logits = model(mi, ti, cm, ct)
-        loss   = _compute_loss(logits, labels, pos_weight, gamma)
+        loss   = _compute_loss(logits, labels, pos_weight, gamma,
+                               loss_type, gce_q, sce_alpha, sce_beta)
         total_loss += loss.item()
         n_batches  += 1
         all_logits.append(logits.cpu().numpy())
@@ -1730,9 +1770,18 @@ def _train_one_run(
     out_path: Path,
 ) -> float:
     gamma = getattr(args, "focal_gamma", 0.0)
+    loss_type = getattr(args, "loss", "bce")
+    loss_kwargs = dict(
+        loss_type=loss_type,
+        gce_q=getattr(args, "gce_q", 0.7),
+        sce_alpha=getattr(args, "sce_alpha", 1.0),
+        sce_beta=getattr(args, "sce_beta", 1.0),
+    )
 
+    # pos_weight and focal gamma only apply to the BCE loss; the noise-robust
+    # losses (gce/sce) ignore them, so skip the pos_weight computation there.
     pos_weight: Optional[torch.Tensor] = None
-    if not args.balance and gamma == 0.0:
+    if loss_type == "bce" and not args.balance and gamma == 0.0:
         n_pos = int(train_ds.labels.sum())
         n_neg = len(train_ds.labels) - n_pos
         if n_pos > 0 and n_neg > 0:
@@ -1740,7 +1789,13 @@ def _train_one_run(
             pos_weight = torch.tensor([pw], device=device)
             print(f"  BCEWithLogitsLoss pos_weight = {pw:.3f}")
 
-    if gamma > 0.0:
+    if loss_type == "gce":
+        print(f"  Generalized CE loss enabled (q={loss_kwargs['gce_q']}, "
+              f"pos_weight/focal disabled)")
+    elif loss_type == "sce":
+        print(f"  Symmetric CE loss enabled (alpha={loss_kwargs['sce_alpha']}, "
+              f"beta={loss_kwargs['sce_beta']}, pos_weight/focal disabled)")
+    elif gamma > 0.0:
         print(f"  Focal loss enabled (gamma={gamma}, pos_weight disabled)")
 
     optim = torch.optim.AdamW(
@@ -1785,7 +1840,7 @@ def _train_one_run(
             labels = labels.to(device, non_blocking=True).float()
 
             logits = model(mi, ti, cm, ct)
-            loss   = _compute_loss(logits, labels, pos_weight, gamma)
+            loss   = _compute_loss(logits, labels, pos_weight, gamma, **loss_kwargs)
 
             optim.zero_grad(set_to_none=True)
             loss.backward()
@@ -1841,7 +1896,7 @@ def _train_one_run(
                       f"no validation): {out_path}")
             continue
 
-        val_metrics   = evaluate(model, val_loader, device, pos_weight, gamma)
+        val_metrics   = evaluate(model, val_loader, device, pos_weight, gamma, **loss_kwargs)
 
         def _ckpt_val(vm: dict) -> float:
             return vm.get(args.checkpoint_metric, -vm["loss"])
@@ -1852,7 +1907,7 @@ def _train_one_run(
         val_metrics_ema = None
         if ema is not None:
             ema.apply_to(model)
-            val_metrics_ema = evaluate(model, val_loader, device, pos_weight, gamma)
+            val_metrics_ema = evaluate(model, val_loader, device, pos_weight, gamma, **loss_kwargs)
             ema.restore(model)
             if _ckpt_val(val_metrics_ema) > _ckpt_val(val_metrics):
                 sel_variant, sel_metrics = "ema", val_metrics_ema
@@ -2711,6 +2766,19 @@ def main() -> int:
                          "When gamma>0, the loss-level pos_weight is disabled "
                          "(focal already handles imbalance); pass --balance to "
                          "use sampler oversampling instead.")
+    tr.add_argument("--loss", choices=["bce", "gce", "sce"], default="bce",
+                    help="Classification loss. bce=BCE(+focal gamma/pos_weight); "
+                         "gce=Generalized CE (Zhang & Sabuncu 2018); "
+                         "sce=Symmetric CE (Wang et al. 2019). gce/sce are "
+                         "noise-robust (mislabeled negatives with accidental seed "
+                         "matches) and ignore --focal-gamma / pos_weight.")
+    tr.add_argument("--gce-q", type=float, default=0.7, dest="gce_q",
+                    help="GCE q in (0,1]: q->0 behaves like CE, q->1 like MAE "
+                         "(more noise-robust). Only used with --loss gce.")
+    tr.add_argument("--sce-alpha", type=float, default=1.0, dest="sce_alpha",
+                    help="SCE weight on the forward CE term. Only used with --loss sce.")
+    tr.add_argument("--sce-beta", type=float, default=1.0, dest="sce_beta",
+                    help="SCE weight on the reverse CE (RCE) term. Only used with --loss sce.")
     tr.add_argument("--balance",      action="store_true")
     tr.add_argument("--undersample-neg-type", nargs="+", default=None,
                     metavar="TYPE[:FACTOR]", dest="undersample_neg_type",
