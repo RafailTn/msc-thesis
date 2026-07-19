@@ -772,12 +772,17 @@ class Conv2dBlock(nn.Module):
     """One miRBind-style 2D convolutional block.
 
     Conv2d (5×5, same padding) → BatchNorm2d → activation →
-    [MaxPool2d / GeMDownsample2d (2,2)] → Dropout.
+    [MaxPool2d / AvgPool2d / GeMDownsample2d (2,2)] → Dropout.
 
-    BatchNorm precedes the activation so the (non-negative) activation output —
-    not the zero-centred BN output — is what feeds the pool; this keeps GeM's
-    non-negativity assumption intact. The conv runs bias-free since the following
-    BatchNorm re-centres and makes a conv bias redundant.
+    BatchNorm precedes the activation so the activation output — not the
+    zero-centred BN output — is what feeds the pool.  For a ReLU activation this
+    keeps GeM's non-negativity assumption intact; note the default `leaky_relu`
+    (and the other signed activations) still emit negatives, which "gem" floors
+    to eps but "avg" averages faithfully.  Use "avg" when a true, sign-preserving
+    mean is wanted (e.g. to keep the distributed signal of seedless / 3'-comp
+    duplexes) instead of GeM's power-mean of the positive part.  The conv runs
+    bias-free since the following BatchNorm re-centres and makes a conv bias
+    redundant.
     """
 
     def __init__(self, in_ch: int, out_ch: int, dropout: float = 0.3,
@@ -794,9 +799,11 @@ class Conv2dBlock(nn.Module):
                 layers.append(GeMDownsample2d(2, 2))
             elif block_pool == "max":
                 layers.append(nn.MaxPool2d(2, 2))
+            elif block_pool == "avg":
+                layers.append(nn.AvgPool2d(2, 2))
             else:
                 raise ValueError(
-                    f"block_pool must be 'max' or 'gem', got {block_pool!r}")
+                    f"block_pool must be 'max', 'avg' or 'gem', got {block_pool!r}")
         layers.append(nn.Dropout2d(dropout))
         self.net = nn.Sequential(*layers)
 
@@ -848,6 +855,55 @@ class GeM2d(nn.Module):
         return x.pow(1.0 / self.p)
 
 
+class MultiStatPool2d(nn.Module):
+    """Global pool concatenating three complementary spatial statistics.
+
+    Maps (B, C, H, W) -> (B, 3C) by stacking, per channel, the max, the mean and
+    the sum of the feature map.  Where GeM exposes a single learnable exponent p
+    that must *choose* how peaky the summary is — and, being one shared scalar,
+    settles on the dominant (canonical-seed) regime's preference — this hands the
+    classifier a peaky statistic (max), a diffuse one (mean) and a magnitude /
+    count-like one (sum) at once, and lets the downstream weights read each per
+    channel.  So the two error-heavy binding types (seedless, 3'-compensatory),
+    whose evidence is spread rather than peaked, can be scored off the mean/sum
+    features instead of hoping one shared exponent averaged the right amount.
+
+    A validity ``mask`` (B, 1, H, W in {0,1}) makes all three stats ignore
+    padding: max/mean are taken only over real cells and sum accumulates only
+    them, so sum tracks the real duplex extent (and max/mean are not diluted by
+    the non-zero BatchNorm bias in padding-derived cells).
+
+    IMPORTANT — sum is only non-redundant while padding survives at this depth.
+    On a fixed 30x50 canvas an *unmasked* sum is exactly H*W*mean and carries
+    nothing mean does not.  Masking breaks that collinearity only if the pooled
+    map still contains pad cells: with the default n_pool_blocks=4 the miRNA axis
+    collapses to a 1x3 map whose every cell spans real sequence, so the mask is
+    all-ones and sum falls back to ~mean.  For sum to add signal, pool less
+    aggressively (n_pool_blocks <= 3, leaving a >=3x6 map with real padding).  The
+    max||mean pair, by contrast, is informative at any depth.  The whole-map
+    (mask=None) fallback exists for callers such as attribution that pass a bare
+    matrix.
+    """
+
+    def forward(self, x: torch.Tensor,
+                mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+        if mask is None:
+            mx   = F.adaptive_max_pool2d(x, 1).flatten(1)         # (B, C)
+            mean = F.adaptive_avg_pool2d(x, 1).flatten(1)         # (B, C)
+            summ = mean * float(x.shape[-1] * x.shape[-2])        # = H*W*mean
+        else:
+            m     = mask.to(x.dtype)                              # (B, 1, H, W)
+            neg   = torch.finfo(x.dtype).min
+            cnt   = m.sum(dim=(-2, -1))                           # (B, 1) real cells
+            summ  = (x * m).sum(dim=(-2, -1))                     # (B, C)
+            mean  = summ / cnt.clamp(min=1.0)
+            mx    = x.masked_fill(m == 0, neg).amax(dim=(-2, -1)) # (B, C)
+            # A fully padded row has no real cell: its max is -inf, so floor it to
+            # 0 (sum/mean are already 0 there via the count clamp).
+            mx    = torch.where(cnt <= 0, torch.zeros_like(mx), mx)
+        return torch.cat([mx, mean, summ], dim=1)                 # (B, 3C)
+
+
 class MiRBindSeqBranch(nn.Module):
     """miRBind-style sequence branch.
 
@@ -856,7 +912,7 @@ class MiRBindSeqBranch(nn.Module):
 
     Architecture (mirroring Klimentova et al. 2022):
       - n_conv_blocks Conv2d blocks (5×5, BN2d, activation, Dropout)
-        First n_pool_blocks blocks downsample (MaxPool2d or GeMDownsample2d 2×2)
+        First n_pool_blocks blocks downsample (Max/Avg/GeM 2×2, per block_pool)
         Remaining blocks have no pooling (spatial dims small by this point)
       - global pool (GeM or adaptive-avg) → flatten
       - 2 dense blocks → out_dim
@@ -902,9 +958,14 @@ class MiRBindSeqBranch(nn.Module):
             self.global_pool: nn.Module = GeM2d()
         elif pool == "avg":
             self.global_pool = nn.AdaptiveAvgPool2d((1, 1))
+        elif pool in ("multistat", "maxmeansum"):
+            self.global_pool = MultiStatPool2d()
         else:
-            raise ValueError(f"pool must be 'gem' or 'avg', got {pool!r}")
-        pooled_dim = n_filters
+            raise ValueError(
+                f"pool must be 'gem', 'avg' or 'multistat', got {pool!r}")
+        # multistat concatenates max/mean/sum, so the flat vector is 3x as wide.
+        pooled_dim = n_filters * 3 if isinstance(self.global_pool,
+                                                 MultiStatPool2d) else n_filters
 
         hidden = max(n_filters * 2, out_dim)
         self.dense = nn.Sequential(
@@ -912,10 +973,18 @@ class MiRBindSeqBranch(nn.Module):
             DenseBlock(hidden,    out_dim, dropout=dropout, activation=activation),
         )
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # x: (B, 1, MAX_MIRNA, MRE_LEN)
+    def forward(self, x: torch.Tensor,
+                mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+        # x: (B, C_pair, MAX_MIRNA, MRE_LEN); mask: (B, 1, MAX_MIRNA, MRE_LEN)
         h = self.conv_blocks(x)                # (B, n_filters, H', W')
-        h = self.global_pool(h).flatten(1)     # (B, n_filters)
+        if isinstance(self.global_pool, MultiStatPool2d):
+            # Downsample the validity mask to the (pooled) feature-map size so the
+            # pool ignores padding-derived cells; a cell is valid if any input cell
+            # in its receptive footprint was real.  None -> whole-map fallback.
+            m = None if mask is None else F.adaptive_max_pool2d(mask, h.shape[-2:])
+            h = self.global_pool(h, m)         # (B, 3*n_filters)
+        else:
+            h = self.global_pool(h).flatten(1)  # (B, n_filters)
         return self.dense(h)                   # (B, out_dim)
 
 
@@ -973,7 +1042,8 @@ class MiRBindCNN(nn.Module):
         is strictly more general than that product, so this is not a refutation —
         but it is not encouragement either.
     seq_pool : str
-        Global pool for the sequence branch: "gem" or "avg".
+        Global pool for the sequence branch: "gem", "avg", or "multistat"
+        (concat of padding-masked max/mean/sum; widens the classifier input 3x).
     """
 
     def __init__(
@@ -1195,10 +1265,17 @@ class MiRBindCNN(nn.Module):
 
     def logits_from_matrix(
         self,
-        wc_mat: torch.Tensor,           # (B, C_pair, MAX_MIRNA, MRE_LEN)
+        wc_mat: torch.Tensor,                        # (B, C_pair, MAX_MIRNA, MRE_LEN)
+        mask: Optional[torch.Tensor] = None,         # (B, 1, MAX_MIRNA, MRE_LEN)
     ) -> torch.Tensor:                  # (B,) logits
-        """Run the sequence branch + classifier head from a pairing matrix."""
-        h_seq = self.seq_branch(wc_mat)         # (B, seq_dim)
+        """Run the sequence branch + classifier head from a pairing matrix.
+
+        ``mask`` marks real (non-pad) cells; only the ``multistat`` pool uses it,
+        to keep padding out of its max/mean/sum.  Left ``None`` by attribution
+        callers that pass a bare matrix — the pool then falls back to the whole
+        map (see ``MultiStatPool2d``).
+        """
+        h_seq = self.seq_branch(wc_mat, mask)   # (B, seq_dim)
         return self.classifier(h_seq).squeeze(-1)
 
     def forward(
@@ -1211,7 +1288,11 @@ class MiRBindCNN(nn.Module):
         # Assemble the pairing matrix on-device (keeps the per-sample CPU work in
         # the data loader down to a slice copy), then run the head.
         wc_mat = self.build_pair_matrix(mi, ti, cm, ct)
-        return self.logits_from_matrix(wc_mat)
+        # Per-cell validity (real miRNA base x real MRE base); only the multistat
+        # pool consumes it, but it is cheap and the branch ignores it otherwise.
+        mask = ((mi.long() < 4)[:, None, :, None]
+                & (ti.long() < 4)[:, None, None, :]).to(wc_mat.dtype)
+        return self.logits_from_matrix(wc_mat, mask)
 
 
 # ---------------------------------------------------------------------------
@@ -2727,20 +2808,25 @@ def main() -> int:
                     dest="pair_stack_learnable",
                     help="Let the stacking table be learned, initialised to the "
                          "Turner values. Requires --pair-stack-channel.")
-    tr.add_argument("--seq-pool", choices=["avg", "gem"], default="gem",
-                    dest="seq_pool",
-                    help="Global pooling for the 2D sequence branch: average or "
-                         "GeM (learnable power-mean).")
+    tr.add_argument("--seq-pool", choices=["avg", "gem", "multistat"],
+                    default="gem", dest="seq_pool",
+                    help="Global pooling for the 2D sequence branch: 'avg' "
+                         "(mean), 'gem' (learnable power-mean), or 'multistat' "
+                         "(concat of padding-masked max/mean/sum -> 3x wider head "
+                         "so the classifier reads a peaky, a diffuse and a "
+                         "count-like statistic at once).")
     tr.add_argument("--n-conv-blocks", type=int, default=6, dest="n_conv_blocks",
                     help="Number of Conv2d blocks in the 2D sequence branch.")
     tr.add_argument("--n-pool-blocks", type=int, default=4, dest="n_pool_blocks",
                     help="How many of the first conv blocks downsample (2×2). "
                          "Must be <= --n-conv-blocks and <= 4 (the miRNA-axis "
                          "height of 30 only halves to 1 after 4 poolings).")
-    tr.add_argument("--block-pool", choices=["max", "gem"], default="max",
+    tr.add_argument("--block-pool", choices=["max", "avg", "gem"], default="max",
                     dest="block_pool",
-                    help="Downsampling pool inside the conv blocks: max pooling "
-                         "or a strided learnable GeM.")
+                    help="Downsampling pool inside the conv blocks: 'max', 'avg' "
+                         "(true sign-preserving mean — keeps distributed pairing "
+                         "that max discards), or a strided learnable GeM (power-mean "
+                         "of the positive part; floors negatives under leaky_relu).")
     tr.add_argument("--activation",
                     choices=["leaky_relu", "relu", "gelu", "silu", "elu", "selu"],
                     default="leaky_relu",
