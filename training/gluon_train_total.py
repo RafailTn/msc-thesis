@@ -1,5 +1,6 @@
 import argparse
 import ast
+import sys
 import pandas as pd
 import polars as pl
 import numpy as np
@@ -12,6 +13,13 @@ from sklearn.metrics import average_precision_score
 from sklearn.model_selection import GroupShuffleSplit
 from typing import List, Optional, Dict, Tuple
 
+# Shared with gluon_training_kfold.py so a model compared under one feature-set
+# definition and retrained under another cannot silently be a different experiment.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from feature_sets import (  # noqa: E402
+    FEATURE_SETS, feature_set, select_feature_columns, COLS2DROP, SEQUENCE_COLS,
+)
+
 def evaluate_df(df: pd.DataFrame, predictor: TabularPredictor) -> Tuple[dict, float]:
     """Evaluate a dataframe and return metrics including average precision score."""
     eval_metrics = predictor.evaluate(df)
@@ -21,13 +29,16 @@ def evaluate_df(df: pd.DataFrame, predictor: TabularPredictor) -> Tuple[dict, fl
     return eval_metrics, ap_score
 
 def preprocess_dataframe(
-    df: pd.DataFrame, 
-    cols2drop: List[str], 
-    sequence_cols: List[str]
+    df: pd.DataFrame,
+    cols2drop: List[str],
+    sequence_cols: List[str],
+    features: Optional[List[str]] = None,
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Preprocess dataframe: drop duplicates, drop columns, preserve sequences.
-    
+
+    `features` None keeps every column except cols2drop; a list selects exactly those.
+
     Returns:
         Tuple of (processed_df, df_with_sequences)
     """
@@ -35,9 +46,12 @@ def preprocess_dataframe(
     # Preserve sequences BEFORE dropping columns
     available_seq_cols = [c for c in sequence_cols if c in df.columns]
     df_with_sequences = df[available_seq_cols + ['label']].copy()
-    # Drop columns that exist in the dataframe
-    cols_to_drop = [c for c in cols2drop if c in df.columns]
-    df = df.drop(columns=cols_to_drop)
+    if features is not None:
+        df = select_feature_columns(df, features)
+    else:
+        # Drop columns that exist in the dataframe
+        cols_to_drop = [c for c in cols2drop if c in df.columns]
+        df = df.drop(columns=cols_to_drop)
     family_counts = df['mir_fam'].value_counts().clip(lower=100)
     total_samples = len(df) 
     # Weight = Total / (n_families * count_of_this_family)
@@ -130,32 +144,31 @@ def evaluate_gluon(
 
 def main(
     train_df_path: str,
+    test_df_path: str,
+    leftout_df_path: str,
     model_path: str,
-    label_col: str, 
+    label_col: str,
     eval_metric: str,
     time_limit: int,
-    misclassified_output_dir: str = '/home/adam/adam/data/misclassified_analysis/',
-    results_output_path: str = '/home/adam/adam/data/manakov_results_seqfs.txt',
+    misclassified_output_dir: str,
+    results_output_path: str,
+    feature_set_name: str = 'all',
 ):
     print("Starting Training...")
-   
-    cols2drop = [
-        'target_id', 'query_id', 'noncodingRNA_fam',
-        'contrafold_struct', 'hybrid_dp', 'subseq_dp', 
-        'mre_sequence', 'mirna_sequence', 'chimeric_sequence', 
-        'gene' , 'noncodingRNA' , 'noncodingRNA_name', 
-        'feature', 'label_right', 'chr', 'binding_type', 
-        'start', 'end', 'strand', 'gene_cluster_ID', 'gene_phyloP', 'gene_phastCons'
-    ]
-    
-    sequence_cols = [
-        'chimeric_sequence', 'mre_sequence', 'mirna_sequence', 
-        'target_id', 'query_id', 'mir_fam'
-    ]
-    
+
+    features = feature_set(feature_set_name)
+    print(f"Feature set: {feature_set_name} "
+          f"({'all columns present' if features is None else str(len(features)) + ' features'})")
+
+    # Shared with gluon_training_kfold. This script's own copy used to omit
+    # `energy_source`, which feature_extraction writes as an identifier and which would
+    # therefore have reached AutoGluon as a categorical feature.
+    cols2drop = COLS2DROP
+    sequence_cols = SEQUENCE_COLS
+
     # Load and preprocess training data
     df_raw = pd.read_csv(train_df_path)
-    df, df_with_sequences = preprocess_dataframe(df_raw, cols2drop, sequence_cols)
+    df, df_with_sequences = preprocess_dataframe(df_raw, cols2drop, sequence_cols, features)
 
     # GroupShuffleSplit: 10% tuning set, groups by mir_fam
     gss = GroupShuffleSplit(n_splits=1, test_size=0.1, random_state=42)
@@ -176,15 +189,15 @@ def main(
           f"{set(df.iloc[tune_idx]['mir_fam']) - set(df.iloc[train_idx]['mir_fam'])}")
 
     # Load and preprocess test data
-    final_test_raw = pd.read_csv('/home/adam/adam/Final_fs_featurewiz_test_withids.csv')
+    final_test_raw = pd.read_csv(test_df_path)
     final_test_data, final_test_with_seq = preprocess_dataframe(
-        final_test_raw, cols2drop, sequence_cols
+        final_test_raw, cols2drop, sequence_cols, features
     )
     final_test_data = final_test_data.drop(columns=['mir_fam'], errors='ignore')
 
-    final_final_test_raw = pd.read_csv('/home/adam/adam/Final_fs_featurewiz_leftout_withids.csv')
+    final_final_test_raw = pd.read_csv(leftout_df_path)
     final_final_test_data, final_final_test_with_seq = preprocess_dataframe(
-        final_final_test_raw, cols2drop, sequence_cols
+        final_final_test_raw, cols2drop, sequence_cols, features
     )
     final_final_test_data = final_final_test_data.drop(columns=['mir_fam'], errors='ignore')
 
@@ -238,30 +251,44 @@ def main(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--input', type=str, help='Input file path')
-    parser.add_argument('--modelpath', type=str, default='/home/adam/eli-adam/models/', 
+    parser.add_argument('--input', type=str, required=True,
+                        help='Training CSV from src/feature_extraction.py')
+    parser.add_argument('--test', type=str, required=True,
+                        help='Held-out test CSV')
+    parser.add_argument('--leftout', type=str, required=True,
+                        help='Leftout CSV')
+    parser.add_argument('--modelpath', type=str, default='models/gluon_total',
                         help='Where to store the model')
-    parser.add_argument('--label', type=str, default='label', 
+    parser.add_argument('--label', type=str, default='label',
                         help='Name of the column label')
-    parser.add_argument('--metric', type=str, default='f1', 
+    parser.add_argument('--metric', type=str, default='f1',
                         help='Metric to use for evaluation')
     parser.add_argument('--time', type=int, help='Time the gluon runs in seconds')
-    parser.add_argument('--misclassified_dir', type=str, 
-                        default='/home/adam/adam/data/misclassified_analysis/',
+    parser.add_argument('--misclassified_dir', type=str,
+                        default='results/misclassified_analysis_total/',
                         help='Directory to save misclassified samples')
     parser.add_argument('--results_path', type=str,
-                        default='/home/adam/adam/data/manakov_results_seqft_final.txt',
+                        default='results/gluon_total_results.txt',
                         help='Path to save evaluation results')
-    
+    parser.add_argument('--feature-set', type=str, default='all',
+                        choices=sorted(FEATURE_SETS),
+                        help="Which columns to train on. Use the set that won the k-fold "
+                             "A/B, otherwise the final model is not the model you "
+                             "compared. Defined in src/feature_extraction.FEATURE_SETS.")
+
     args = parser.parse_args()
-    
+
+    os.makedirs(os.path.dirname(args.results_path) or '.', exist_ok=True)
+
     main(
         train_df_path=args.input,
+        test_df_path=args.test,
+        leftout_df_path=args.leftout,
         model_path=args.modelpath,
         label_col=args.label,
         eval_metric=args.metric,
         time_limit=args.time,
         misclassified_output_dir=args.misclassified_dir,
         results_output_path=args.results_path,
+        feature_set_name=args.feature_set,
     )
-

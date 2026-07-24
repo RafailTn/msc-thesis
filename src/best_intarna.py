@@ -18,6 +18,7 @@ Usage:
 import argparse
 import sys
 import csv
+import math
 from dataclasses import dataclass, field
 from typing import Iterator, List, Optional, Dict
 
@@ -83,6 +84,92 @@ class PairResult:
     interactions: List[IntaRNAInteraction] = field(default_factory=list)
     best_interaction: Optional[IntaRNAInteraction] = None
     status: str = "success"
+
+
+# =============================================================================
+# SUB-OPTIMAL SITE STATISTICS
+# =============================================================================
+#
+# IntaRNA is run with `-n 10 --outDeltaE 100`, so it reports up to ten sub-optimal
+# sites per pair. Everything but the winner used to be discarded. These columns
+# summarise the discarded ones: how many alternative sites the pair has, how
+# dominant the chosen one is, and how dispersed they are along the target.
+#
+# CAVEAT for interpretation: `subopt_n_sites` saturates at IntaRNA's `-n`, so it is
+# "number of sites, censored at 10", not an unbounded count. Any comparison across
+# runs is only valid if `-n` and `--outDeltaE` match.
+
+# Energy window (kcal/mol) for "how many sites are nearly as good as the best one".
+NEAR_OPTIMAL_KCAL = 1.0
+
+# A site counts as seed-like at >= 6 paired bases in the seed region (a 6mer seed),
+# using the same extended-seed definition as calculate_interaction_score.
+SEEDLIKE_MIN_MATCHES = 6
+
+SUBOPT_STAT_COLS = [
+    'subopt_n_sites',
+    'subopt_E_min',
+    'subopt_E_gap',
+    'subopt_E_mean',
+    'subopt_E_std',
+    'subopt_n_within_1kcal',
+    'subopt_E_delta_selected',
+    'subopt_priority_gap',
+    'subopt_frac_seedlike',
+    'subopt_target_span',
+    'subopt_n_distinct_starts',
+]
+
+
+def compute_subopt_stats(interactions: List[IntaRNAInteraction],
+                         best: Optional[IntaRNAInteraction]) -> Dict[str, float]:
+    """Summarise the full set of sub-optimal sites reported for one pair.
+
+    All interactions must already have been scored (calculate_interaction_score
+    mutates them in place, so a prior select_best_interaction call is enough).
+
+    Statistics that need at least two sites to be defined (a gap, a spread) are
+    emitted as NaN when the pair has only one, matching the convention in
+    feature_extraction._energy_series_features: NaN keeps "undefined" off the
+    numeric axis instead of parking it mid-distribution at 0.0. Counts and spans
+    are genuinely 0 for a single site and are emitted as such.
+
+    Note that `best` is selected by priority_score, not by energy, so the selected
+    site need not be the energy-minimal one - `subopt_E_delta_selected` measures
+    exactly that disagreement, in kcal/mol.
+    """
+    out = {c: float('nan') for c in SUBOPT_STAT_COLS}
+    if not interactions:
+        return out
+
+    energies = sorted(i.energy_total for i in interactions)
+    n = len(energies)
+    e_min = energies[0]
+
+    out['subopt_n_sites'] = n
+    out['subopt_E_min'] = round(e_min, 4)
+    out['subopt_E_mean'] = round(sum(energies) / n, 4)
+    out['subopt_n_within_1kcal'] = sum(1 for e in energies if e <= e_min + NEAR_OPTIMAL_KCAL)
+
+    if n >= 2:
+        out['subopt_E_gap'] = round(energies[1] - e_min, 4)
+        mean = sum(energies) / n
+        out['subopt_E_std'] = round(math.sqrt(sum((e - mean) ** 2 for e in energies) / n), 4)
+
+        priorities = sorted((i.priority_score for i in interactions), reverse=True)
+        out['subopt_priority_gap'] = round(priorities[0] - priorities[1], 4)
+
+    if best is not None:
+        out['subopt_E_delta_selected'] = round(best.energy_total - e_min, 4)
+
+    out['subopt_frac_seedlike'] = round(
+        sum(1 for i in interactions if i.seed_matches >= SEEDLIKE_MIN_MATCHES) / n, 4)
+
+    starts = [i.start_target for i in interactions]
+    out['subopt_target_span'] = max(starts) - min(starts)
+    out['subopt_n_distinct_starts'] = len(set(starts))
+
+    return out
 
 
 # =============================================================================
@@ -173,12 +260,22 @@ def get_paired_bases(total_vec: str, target_seq: str, query_seq: str,
 def calculate_interaction_score(interaction: IntaRNAInteraction,
                                  full_target_seq: str,
                                  full_query_seq: str,
-                                 seed_length: int = 9) -> IntaRNAInteraction:
+                                 seed_last_pos: int = 8) -> IntaRNAInteraction:
     """
     Calculate scoring features for an IntaRNA interaction.
-    
+
+    `seed_last_pos` is the LAST miRNA position counted as seed, 1-based and inclusive -
+    not a length, despite what this parameter used to be called. The distinction is not
+    academic: the formula below is `end - start + 1`, so the two readings agree only when
+    the duplex starts at miRNA position 1, which is 33% of real duplexes. Naming it a
+    length is what let 8 and 9 both look defensible in different parts of this file.
+
+    8 means positions 1-8, matching feature_extraction's `seed_matches`
+    (`get_mirna_region_vector(total_vec, 0, 8, ...)`). Position 9 belongs to the separate
+    9mer test there, not to the seed.
+
     Scoring logic matches the original R implementation exactly:
-    1. binding.seed.region = seed.length - mirna.start + 1 (adjusted for where binding starts)
+    1. binding.seed.region = seed_last_pos - mirna.start + 1 (adjusted for where binding starts)
     2. priority.seed = matches in seed region
        - Extended by target bulge count (max 2)
        - Only subtract G:U wobbles at positions 2-8 if count > 1
@@ -230,8 +327,8 @@ def calculate_interaction_score(interaction: IntaRNAInteraction,
     # binding.seed.region := seed.length - mirna.start + 1
     # [mirna.end < seed.length, binding.seed.region := mirna.end - mirna.start + 2]
     # [binding.seed.region <= 0, binding.seed.region := 1]
-    binding_seed_region = seed_length - mirna_start + 1
-    if mirna_end < seed_length:
+    binding_seed_region = seed_last_pos - mirna_start + 1
+    if mirna_end < seed_last_pos:
         binding_seed_region = mirna_end - mirna_start + 2
     if binding_seed_region <= 0:
         binding_seed_region = 1
@@ -355,24 +452,31 @@ def calculate_interaction_score(interaction: IntaRNAInteraction,
 def select_best_interaction(interactions: List[IntaRNAInteraction],
                             full_target_seq: str,
                             full_query_seq: str,
-                            ensemble:bool = True,
-                            seed_length: int = 8) -> Optional[IntaRNAInteraction]:
+                            ensemble: bool = True,
+                            seed_last_pos: int = 8) -> Optional[IntaRNAInteraction]:
     """
     Score all interactions and select the best one.
-    
+
     Selection priority (sorted descending):
     1. priority_score
     2. total_matches
     3. -energy_total (more negative = better)
+
+    `ensemble` only swaps which energy breaks a tie. In an MFE-mode run it is a
+    distinction without a difference: `Ealltotal` is not in that run's requested column
+    set, so it parses as 0.0 on every interaction (verified across 40,000 of them) and
+    the ensemble branch sorts on a constant. Ties then fall through to Python's stable
+    sort, i.e. IntaRNA's emission order, i.e. ascending E - which is exactly what the
+    non-ensemble branch computes. Both branches select the same duplex.
     """
     if not interactions:
         return None
-    
+
     # Score all interactions
     scored = []
     for inter in interactions:
         scored_inter = calculate_interaction_score(
-            inter, full_target_seq, full_query_seq, seed_length
+            inter, full_target_seq, full_query_seq, seed_last_pos
         )
         scored.append(scored_inter)
     
@@ -537,7 +641,18 @@ def parse_intarna_csv(filepath: str, verbose: bool = False) -> Dict[int, List[In
 # =============================================================================
 
 def write_best_results_tsv(results: List[PairResult], output_file: str):
-    """Write best interaction per pair to TSV file."""
+    """Write best interaction per pair to TSV file.
+
+    Rows are built by column name rather than positionally: the no-interaction
+    branch used to emit 25 fields against a 30-column header, which silently shifted
+    `status` into the `gu_wobbles_seed` column. Those rows are dropped downstream
+    (feature_extraction skips `status == 'no_interactions'`), so it never bit, but
+    adding columns positionally would have made the drift worse.
+
+    Undefined numeric values are written as the literal `nan`, not `NA`: that is what
+    merge_intarna's `na_rep='nan'` round-trips and what feature_extraction's
+    safe_float parses back to NaN. `NA` would be coerced to 0.0 there.
+    """
     headers = [
         'pair_index',
         'target_id', 'query_id',
@@ -550,54 +665,68 @@ def write_best_results_tsv(results: List[PairResult], output_file: str):
         'Energy_norm', 'Energy_hybrid_norm',
         'priority_score', 'total_matches', 'seed_matches',
         'gu_wobbles_seed', 'gu_wobbles_other',
+    ] + SUBOPT_STAT_COLS + [
         'total_vec',
         'status'
     ]
-    
+
+    def fmt(value):
+        if isinstance(value, float) and math.isnan(value):
+            return 'nan'
+        return value
+
     with open(output_file, 'w', newline='') as f:
-        writer = csv.writer(f, delimiter='\t')
-        writer.writerow(headers)
-        
+        writer = csv.DictWriter(f, fieldnames=headers, delimiter='\t',
+                                restval='nan', extrasaction='ignore')
+        writer.writeheader()
+
         for pair in results:
-            if pair.best_interaction:
-                inter = pair.best_interaction
-                writer.writerow([
-                    pair.pair_index,
-                    inter.target_id, inter.query_id,
-                    pair.target_length, pair.query_length,
-                    inter.start_target, inter.end_target,
-                    inter.start_query, inter.end_query,
-                    inter.subseq_dp, inter.hybrid_dp,
-                    f"{inter.energy_total:.2f}",
-                    f"{inter.energy_hybrid:.2f}",
-                    f"{inter.energy_ED1:.2f}",
-                    f"{inter.energy_ED2:.2f}",
-                    f"{inter.energy_total_total:.2f}",
-                    f"{inter.energy_all:.2f}",
-                    f"{inter.energy_all1:.2f}",
-                    f"{inter.energy_all2:.2f}",
-                    f"{inter.energy_all_total:.2f}",
-                    f"{inter.p_e:.2f}",
-                    f"{inter.energy_norm:.2f}",
-                    f"{inter.energy_hybrid_norm:.2f}",
-                    f"{inter.priority_score:.2f}",
-                    inter.total_matches,
-                    inter.seed_matches,
-                    inter.gu_wobbles_seed,
-                    inter.gu_wobbles_other,
-                    inter.total_vec,
-                    pair.status
-                ])
-            else:
-                writer.writerow([
-                    pair.pair_index,
-                    pair.target_id, pair.query_id,
-                    pair.target_length, pair.query_length,
-                    'NA', 'NA', 'NA', 'NA', 'NA',
-                    'NA', 'NA', 'NA', 'NA', 'NA',
-                    'NA', 'NA', 'NA', 'NA', 'NA',
-                    pair.status
-                ])
+            row = {
+                'pair_index': pair.pair_index,
+                'target_id': pair.target_id,
+                'query_id': pair.query_id,
+                'target_length': pair.target_length,
+                'query_length': pair.query_length,
+                'status': pair.status,
+            }
+            # Present for every pair, including those with no interaction at all
+            # (all-NaN there, since there is nothing to summarise).
+            row.update({k: fmt(v) for k, v in
+                        compute_subopt_stats(pair.interactions,
+                                             pair.best_interaction).items()})
+
+            inter = pair.best_interaction
+            if inter:
+                row.update({
+                    'target_id': inter.target_id,
+                    'query_id': inter.query_id,
+                    'start_target': inter.start_target,
+                    'end_target': inter.end_target,
+                    'start_query': inter.start_query,
+                    'end_query': inter.end_query,
+                    'subseq_dp': inter.subseq_dp,
+                    'hybrid_dp': inter.hybrid_dp,
+                    'E': f"{inter.energy_total:.2f}",
+                    'E_hybrid': f"{inter.energy_hybrid:.2f}",
+                    'ED_target': f"{inter.energy_ED1:.2f}",
+                    'ED_query': f"{inter.energy_ED2:.2f}",
+                    'E_total': f"{inter.energy_total_total:.2f}",
+                    'Eall': f"{inter.energy_all:.2f}",
+                    'Eall1': f"{inter.energy_all1:.2f}",
+                    'Eall2': f"{inter.energy_all2:.2f}",
+                    'Ealltotal': f"{inter.energy_all_total:.2f}",
+                    'P_E': f"{inter.p_e:.2f}",
+                    'Energy_norm': f"{inter.energy_norm:.2f}",
+                    'Energy_hybrid_norm': f"{inter.energy_hybrid_norm:.2f}",
+                    'priority_score': f"{inter.priority_score:.2f}",
+                    'total_matches': inter.total_matches,
+                    'seed_matches': inter.seed_matches,
+                    'gu_wobbles_seed': inter.gu_wobbles_seed,
+                    'gu_wobbles_other': inter.gu_wobbles_other,
+                    'total_vec': inter.total_vec,
+                })
+
+            writer.writerow(row)
 
 
 def print_summary(results: List[PairResult]):
@@ -693,8 +822,10 @@ Examples:
         '--output', '-o', required=True,
         help='Path for output TSV file with best selections')
     parser.add_argument(
-        '--seed-length', type=int, default=9,
-        help='Seed region length for scoring (default: 9)')
+        '--seed-last-pos', '--seed-length', type=int, default=8, dest='seed_last_pos',
+        help='Last miRNA position counted as seed when scoring; 1-based and inclusive, '
+             'NOT a length (default: 8, i.e. positions 1-8, matching '
+             'feature_extraction seed_matches). --seed-length is kept as an alias.')
     parser.add_argument(
         '-v', '--verbose', action='store_true',
         help='Print progress information')
@@ -753,7 +884,14 @@ Examples:
         query_id = first_inter.query_id or query_ids_by_idx.get(pair_idx, f'query_{pair_idx}')
         
         # Select best
-        best = select_best_interaction(interactions, target_seq, query_seq, args.seed_length)
+        # Keyword arguments, deliberately. This call used to pass args.seed_length
+        # positionally into `ensemble`, so the flag never reached seed_length at all and
+        # every run to date used the default 8. That is why the flag's default is now 8:
+        # wiring it up while leaving it at 9 would have silently re-picked the duplex on
+        # 14% of rows and invalidated every feature CSV. Verified byte-identical.
+        best = select_best_interaction(interactions, target_seq, query_seq,
+                                       ensemble=args.ensemble,
+                                       seed_last_pos=args.seed_last_pos)
         
         pair_result = PairResult(
             pair_index=pair_idx,

@@ -1,16 +1,22 @@
 #!/usr/bin/env python3
 """
-Featurewiz feature selection over the full feature superset.
+Featurewiz feature selection over whatever the extractor wrote.
 
 RUNS IN ITS OWN ENVIRONMENT, not the pixi env: featurewiz pins dependencies that
 conflict with the rest of the pipeline. Hence this script only ever reads and writes
 CSV/JSON - it imports nothing from src/, so it needs neither IntaRNA nor ViennaRNA.
 Its dependencies are just featurewiz, polars, pandas, numpy and scikit-learn.
 
-Input:  the `--all-features` output of src/feature_extraction.py (train/test/leftout).
+Input:  a src/feature_extraction.py output (train/test/leftout). That is now
+        DEFAULT_FEATURES - the previous selection plus the candidates under test - not
+        the old `--all-features` superset, which no longer exists. Selection therefore
+        narrows an already-narrowed set; to reconsider a feature dropped by an earlier
+        run, extract with `--list-features > superset.txt` and `--features-file
+        superset.txt` first.
 Output: the features selected in *every* fold, written to --output as a JSON list
         that `feature_extraction.py --features-file` reads back directly. Paste the
-        same list into SELECTED_FEATURES to make it the default.
+        same list into SELECTED_FEATURES, and empty NEW_CANDIDATE_FEATURES of whatever
+        this run has now judged.
 
     python feature_selection_featurewiz/feature_selection.py \
         --train   data/manakov_train_all.csv \

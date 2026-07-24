@@ -16,35 +16,43 @@ all. This module computes them from the actual IntaRNA duplex instead - see
 `duplex_energy_steps`. Keeping one module means the training features and the
 inference features cannot diverge again.
 
-Two output modes:
+ONE OUTPUT MODE. The extractor writes DEFAULT_FEATURES - the featurewiz selection plus
+whatever new candidates are under test - and computes only those. The old
+`--all-features` superset mode is gone: featurewiz has already judged the superset, and
+from here on selection runs against DEFAULT_FEATURES instead, so the ~120 rejected
+features cost inference time and feed nothing. `--features-file` overrides the list, and
+`--list-features` prints the full vocabulary, so any rejected feature is still reachable
+by name (see the DEFAULT_FEATURES comment for why that escape hatch matters).
 
-  * default        - writes only SELECTED_FEATURES. This is what training and
-                     `predict_target.py` consume.
-  * --all-features - writes the full superset. This is the input to
-                     `feature_selection_featurewiz/feature_selection.py`.
-
-Both modes run the identical computation; they differ only in which columns are
-written, so a feature cannot mean one thing during selection and another during
-training.
+Computation is GATED to the requested list: whole conservation windows, composition
+regions and the duplex-energy block are skipped when nothing asks for them. The gating is
+derived from the feature names rather than hand-maintained, and only skips units computed
+independently of one another, so a retained feature runs byte-identical code either way.
+`--verify-gating` proves it on a sample; `--no-feature-gating` computes everything as a
+reference. This is what keeps the single-source-of-truth property that merging the two
+predecessor scripts bought: a feature cannot mean one thing during selection and another
+during training.
 
 Usage:
-    # superset, for feature selection
+    # the normal path - training, selection and inference all use this
     python feature_extraction.py --intarna best.tsv --mre-fasta mre.fa \
         --mirna-fasta mirna.fa --v7 data/..._train_v7.tsv \
-        --output train_all.csv --all-features
+        --mirna-background data/mirna_background.tsv \
+        --output train.csv
 
-    # selected features only, for training / inference
-    python feature_extraction.py --intarna best.tsv --mre-fasta mre.fa \
-        --mirna-fasta mirna.fa --v7 data/..._train_v7.tsv \
-        --output train_selected.csv
+    # reconsider a feature featurewiz rejected, or rebuild the old superset
+    python feature_extraction.py --list-features > superset.txt
+    python feature_extraction.py ... --features-file superset.txt
 """
 
+import os
 import re
 import sys
 import csv
 import json
 import argparse
 import warnings
+import multiprocessing as mp
 from collections import Counter
 from typing import Optional, Dict, List
 
@@ -71,14 +79,19 @@ except ImportError as _e:  # pragma: no cover
 # SELECTED FEATURES
 # ============================================================================
 #
-# The output of `feature_selection.py` (the intersection of the featurewiz
-# selections across the 5 folds). Regenerate it with --all-features -> featurewiz,
-# then paste the new list here.
+# The output of `feature_selection.py` - the intersection of the featurewiz selections
+# across the 5 folds. Current as of the rerun that followed the duplex-energy + phyloP
+# rewrite (commit "added selected features after rerun"), so the names here mean what
+# this module computes today. Mirrored in
+# feature_selection_featurewiz/selected_features.json.
 #
-# STALE as of the duplex-energy + phyloP rewrite: the `mirna_*_energy_*` names
-# survive but now mean something different, and the `*_gini` conservation features
-# no longer exist (Gini is undefined on signed phyloP - see _CONS_SHAPE_KEYS).
-# Until feature selection is rerun, only --all-features is trustworthy.
+# This list is the RECORD of what feature selection chose, not the list the extractor
+# writes - that is DEFAULT_FEATURES, which adds the candidates still under test. Keeping
+# them separate is what lets the training-side A/B hold the selection fixed, and what
+# tells the next featurewiz run which features it has already judged.
+#
+# To refresh: run featurewiz against a DEFAULT_FEATURES extraction, paste the survivors
+# here, and empty NEW_CANDIDATE_FEATURES of anything that was kept or dropped.
 
 SELECTED_FEATURES = [
   "Eall",
@@ -438,33 +451,44 @@ def conservation_feature_names() -> List[str]:
     ]
 
 
-def _compute_vector_shape_features(scores, prefix: str, hist_range) -> dict:
+def _compute_vector_shape_features(scores, prefix: str, hist_range, want=None) -> dict:
     n = len(scores)
     if n < 2:
         return {f"{prefix}_{k}": DEFAULT_VALUE for k in _CONS_SHAPE_KEYS}
+
+    def wanted(key: str) -> bool:
+        return want is None or f"{prefix}_{key}" in want
 
     arr = np.asarray(scores, dtype=float)
     mean, std = float(np.mean(arr)), float(np.std(arr))
     out = {}
 
-    if std > 0:
-        out[f"{prefix}_skewness"] = round(float(np.mean(((arr - mean) / std) ** 3)), 4)
-        out[f"{prefix}_kurtosis"] = round(float(np.mean(((arr - mean) / std) ** 4) - 3.0), 4)
-    else:
-        out[f"{prefix}_skewness"] = DEFAULT_VALUE
-        out[f"{prefix}_kurtosis"] = DEFAULT_VALUE
+    if wanted('skewness') or wanted('kurtosis'):
+        if std > 0:
+            out[f"{prefix}_skewness"] = round(float(np.mean(((arr - mean) / std) ** 3)), 4)
+            out[f"{prefix}_kurtosis"] = round(float(np.mean(((arr - mean) / std) ** 4) - 3.0), 4)
+        else:
+            out[f"{prefix}_skewness"] = DEFAULT_VALUE
+            out[f"{prefix}_kurtosis"] = DEFAULT_VALUE
 
     # Fixed histogram range keeps entropy comparable across sites; phyloP tails are
-    # clipped into the outermost bins rather than dropped.
-    counts, _ = np.histogram(np.clip(arr, hist_range[0], hist_range[1]),
-                             bins=10, range=hist_range)
-    s = counts.sum()
-    if s > 0:
-        probs = counts / s
-        probs = probs[probs > 0]
-        out[f"{prefix}_entropy"] = round(float(-np.sum(probs * np.log2(probs))), 4)
-    else:
-        out[f"{prefix}_entropy"] = DEFAULT_VALUE
+    # clipped into the outermost bins rather than dropped. The histogram is the single
+    # most expensive operation in this function and feeds nothing but entropy, so it is
+    # the first thing worth gating.
+    if wanted('entropy'):
+        counts, _ = np.histogram(np.clip(arr, hist_range[0], hist_range[1]),
+                                 bins=10, range=hist_range)
+        s = counts.sum()
+        if s > 0:
+            probs = counts / s
+            probs = probs[probs > 0]
+            out[f"{prefix}_entropy"] = round(float(-np.sum(probs * np.log2(probs))), 4)
+        else:
+            out[f"{prefix}_entropy"] = DEFAULT_VALUE
+
+    if not (wanted('slope') or wanted('roughness')
+            or wanted('max_consecutive_drop') or wanted('max_consecutive_rise')):
+        return out
 
     positions = np.arange(1, n + 1, dtype=float)
     pos_mean = positions.mean()
@@ -481,8 +505,13 @@ def _compute_vector_shape_features(scores, prefix: str, hist_range) -> dict:
 
 
 def extract_conservation_features(site_data, mirna_binding_start, flank_size=10,
-                                  hist_range=PHYLOP_HIST_RANGE) -> Dict[str, float]:
-    """Full conservation superset: seed/flank summaries + shape over 4 windows."""
+                                  hist_range=PHYLOP_HIST_RANGE, want=None) -> Dict[str, float]:
+    """Full conservation superset: seed/flank summaries + shape over 4 windows.
+
+    `want` is the set of feature names the caller will actually use; None means all of
+    them. Whole shape windows that contribute nothing to it are skipped - see
+    `_resolve_wanted` for why this cannot silently change a retained value.
+    """
     features = {k: DEFAULT_VALUE for k in conservation_feature_names()}
 
     scores = parse_conservation_scores(site_data.get('conservation_vector'))
@@ -531,7 +560,9 @@ def extract_conservation_features(site_data, mirna_binding_start, flank_size=10,
         features['flank_conservation_diff'] = round(
             features['seed_conservation_mean'] - flank_mean, 4)
 
-    # Shape over the seed sub-vector and the three positional tertiles.
+    # Shape over the seed sub-vector and the three positional tertiles. Each window is
+    # independent of the others, so one contributing nothing to `want` can be skipped
+    # outright.
     n = len(scores)
     t1, t2 = n // 3, 2 * (n // 3)
     for window_scores, prefix in [
@@ -540,8 +571,11 @@ def extract_conservation_features(site_data, mirna_binding_start, flank_size=10,
         (scores[t1:t2], 'central'),
         (scores[t2:n], 'downstream'),
     ]:
+        if want is not None and not any(f'{prefix}_{k}' in want for k in _CONS_SHAPE_KEYS):
+            continue
         if window_scores:
-            features.update(_compute_vector_shape_features(window_scores, prefix, hist_range))
+            features.update(
+                _compute_vector_shape_features(window_scores, prefix, hist_range, want))
 
     return features
 
@@ -551,6 +585,7 @@ def extract_conservation_features(site_data, mirna_binding_start, flank_size=10,
 # ============================================================================
 
 _ENERGY_KEYS = [
+    'energy_sum', 'n_steps',
     'energy_mean', 'energy_std', 'energy_min', 'energy_max', 'energy_range',
     'energy_asymmetry', 'energy_gradient', 'energy_volatility', 'energy_max_jump',
     'stability_run_frac', 'energy_oscillation', 'energy_drift',
@@ -561,9 +596,14 @@ _ENERGY_KEYS = [
 # (the axis the duplex is walked along). The MRE regions keep composition only.
 _ENERGY_REGIONS = ['mirna_seed', 'mirna_3p']
 
+# Cross-region terms. The seed/3' split is only meaningful when compared, and the
+# number of loops differs between rows, so neither region's *mean* carries it.
+_ENERGY_CROSS_KEYS = ['duplex_energy_sum_total', 'seed_vs_3p_energy_diff']
+
 
 def duplex_energy_feature_names() -> List[str]:
-    return [f'{r}_{k}' for r in _ENERGY_REGIONS for k in _ENERGY_KEYS]
+    return ([f'{r}_{k}' for r in _ENERGY_REGIONS for k in _ENERGY_KEYS]
+            + list(_ENERGY_CROSS_KEYS))
 
 
 def duplex_energy_steps(site_data) -> List[tuple]:
@@ -633,9 +673,26 @@ def _energy_series_features(energies, region_name: str) -> Dict[str, float]:
     split can isolate it, and would make an unpaired region indistinguishable from
     a paired one whose terms happen to cancel. NaN keeps it off the numeric axis,
     which the gradient-boosted learners route explicitly.
+
+    `energy_sum` and `n_steps` are the two deliberate exceptions: they are 0 rather
+    than NaN on an empty series, because they are not undefined there. A region spanned
+    by fewer than two base pairs encloses no interior loop, so it contributes exactly
+    0 kcal/mol of interior stacking energy and has exactly 0 of them. `n_steps` sitting
+    beside the sum is what keeps "no pairing" distinguishable from "pairing whose terms
+    happen to cancel", which is the ambiguity the NaN policy above exists to avoid.
+
+    The sum matters separately from the mean because the number of loops varies row to
+    row: a seed with 6 loops averaging -1.5 and a seed with 2 loops averaging -1.5 share
+    a mean but total -9.0 against -3.0 kcal/mol. Nothing else in the feature set recovers
+    the count - it was previously only implicit in *which* statistics came back NaN.
     """
     out = {f'{region_name}_{k}': np.nan for k in _ENERGY_KEYS}
     n = len(energies)
+
+    # True of the empty series too - see the docstring.
+    out[f'{region_name}_n_steps'] = n
+    out[f'{region_name}_energy_sum'] = float(np.sum(energies)) if n else 0.0
+
     if n == 0:
         return out
 
@@ -683,7 +740,7 @@ def _energy_series_features(energies, region_name: str) -> Dict[str, float]:
     return out
 
 
-def extract_duplex_energy_features(site_data) -> Dict[str, float]:
+def extract_duplex_energy_features(site_data, want=None) -> Dict[str, float]:
     """Duplex stacking-energy features for the miRNA seed and 3' regions.
 
     A loop is assigned to a region only when *both* of the base pairs it lies
@@ -696,6 +753,11 @@ def extract_duplex_energy_features(site_data) -> Dict[str, float]:
     for an asymmetry. The seed is the *more* NaN-prone of the two regions in practice,
     since it spans only positions 2-8 and so can hold at most six loops.
     """
+    # The ViennaRNA loop decomposition is shared by both regions and by the cross terms,
+    # so it is gated only when the whole block is unused - there is no cheaper partial.
+    if want is not None and not any(f in want for f in duplex_energy_feature_names()):
+        return {}
+
     seed_e, three_p_e = [], []
     for p5, p3, dg in duplex_energy_steps(site_data):
         if SEED_FIRST_POS <= p5 and p3 <= SEED_LAST_POS:
@@ -706,6 +768,95 @@ def extract_duplex_energy_features(site_data) -> Dict[str, float]:
     out = {}
     out.update(_energy_series_features(seed_e, 'mirna_seed'))
     out.update(_energy_series_features(three_p_e, 'mirna_3p'))
+
+    # A *difference*, not the seed's share of the total. The steps are signed - bulges
+    # and internal loops come out positive - so the denominator of a share crosses zero,
+    # where the ratio explodes and then flips sign. This is the same call already made
+    # for `flank_conservation_diff` on signed phyloP, and it answers the same question:
+    # how much of the interior binding energy sits in the seed rather than in 3'
+    # supplementary pairing. Both terms are 0-safe, so neither is ever NaN.
+    seed_sum = out['mirna_seed_energy_sum']
+    three_p_sum = out['mirna_3p_energy_sum']
+    out['duplex_energy_sum_total'] = seed_sum + three_p_sum
+    out['seed_vs_3p_energy_diff'] = seed_sum - three_p_sum
+    return out
+
+
+# ============================================================================
+# SHUFFLE-NORMALISED (z-SCORED) BINDING ENERGIES
+# ============================================================================
+#
+# Raw `E` conflates "this is a good site" with "this miRNA binds everything strongly".
+# The second term is large: mean energy against shuffled targets spans -10.05 to -1.14
+# kcal/mol across the 1,227 train miRNAs. The z-score against a fixed panel of
+# dinucleotide-shuffled targets removes it, leaving how much better this target is than
+# generic sequence of the same composition, in units of this miRNA's own spread:
+#
+#     E_z_mirna = (E - E_bg_mean) / E_bg_sd
+#
+# WHAT IT BUYS. miRBench samples negatives per miRNA family, from target clusters that
+# family does not bind - the loop is over miRNAs, the sampling over MREs, and there are no
+# decoy miRNAs. So `E_bg_mean`/`E_bg_sd` are constant within one miRNA's rows, and the
+# z-score is an affine transform of `E` there: it adds nothing to ranking targets for a
+# fixed miRNA. It pays off across same-target/different-miRNA pairs (75.7% of rows sit on
+# a target carrying both labels) and, mostly, in pooling - one tree split then means the
+# same thing for a GC-rich and an AU-rich miRNA. Measured pooled: miRNA-identity eta^2 on
+# `E` drops 0.183 -> 0.074 (null 0.057), univariate AUROC 0.705 -> 0.729.
+#
+# `E_bg_mean` / `E_bg_sd` ride along as features in their own right: they are a property
+# of the miRNA *sequence*, not an identifier, so they stay meaningful under the
+# cold-miRNA-family split. Expect them to carry almost nothing alone (`E_bg_mean_mirna`
+# measured 0.524 AUROC) - miRBench balances families across labels, so miRNA avidity is
+# not label-predictive. That is the point: the table normalises, it does not smuggle in a
+# miRNA prior.
+#
+# See src/shuffle_background.py for the panel construction and for why only the miRNA side
+# is normalised (~111M IntaRNA calls the other way, off ~2.25 rows per target).
+
+_ZSCORE_KEYS = ['E_z_mirna', 'E_hybrid_z_mirna', 'E_bg_mean_mirna', 'E_bg_sd_mirna']
+
+
+def shuffle_zscore_feature_names() -> List[str]:
+    return list(_ZSCORE_KEYS)
+
+
+def load_mirna_background(path: str) -> Dict[str, dict]:
+    """Read shuffle_background.py's table, keyed on the miRNA sequence."""
+    background = {}
+    with open(path) as f:
+        for row in csv.DictReader(f, delimiter='\t'):
+            seq = (row.get('mirna_sequence') or '').upper().replace('T', 'U')
+            if seq:
+                background[seq] = row
+    return background
+
+
+def extract_shuffle_zscore_features(site_data, background: Optional[Dict[str, dict]]
+                                    ) -> Dict[str, float]:
+    out = {k: np.nan for k in _ZSCORE_KEYS}
+    if not background:
+        return out
+
+    entry = background.get((site_data.get('mirna_seq') or '').upper().replace('T', 'U'))
+    if entry is None:
+        return out
+
+    mean = safe_float(entry.get('E_bg_mean'), np.nan)
+    sd = safe_float(entry.get('E_bg_sd'), np.nan)
+    hybrid_mean = safe_float(entry.get('E_hybrid_bg_mean'), np.nan)
+    hybrid_sd = safe_float(entry.get('E_hybrid_bg_sd'), np.nan)
+
+    out['E_bg_mean_mirna'] = mean
+    out['E_bg_sd_mirna'] = sd
+
+    # A zero spread means every panel target gave the identical energy, so "how many
+    # standard deviations out" has no answer. NaN, not a division by zero.
+    if sd and sd > 0:
+        out['E_z_mirna'] = (safe_float(site_data.get('E'), np.nan) - mean) / sd
+    if hybrid_sd and hybrid_sd > 0:
+        out['E_hybrid_z_mirna'] = (
+            safe_float(site_data.get('E_hybrid'), np.nan) - hybrid_mean) / hybrid_sd
+
     return out
 
 
@@ -800,15 +951,22 @@ def extract_region_features(seq: str, region_name: str) -> Dict[str, float]:
     return out
 
 
-def extract_sequence_region_features(mre_seq: str, mirna_seq: str) -> Dict[str, float]:
+def extract_sequence_region_features(mre_seq: str, mirna_seq: str, want=None) -> Dict[str, float]:
+    """Composition over the four regions. Regions contributing nothing to `want` are
+    skipped; they are computed independently, so dropping one cannot affect another."""
     mre_regions = get_regions(mre_seq) if mre_seq else {'5p': '', '3p': ''}
     mirna_regions = get_regions(mirna_seq, is_mirna=True) if mirna_seq else {'seed': '', '3p': ''}
 
     out = {}
-    out.update(extract_region_features(mre_regions.get('5p', ''), 'mre_5p'))
-    out.update(extract_region_features(mre_regions.get('3p', ''), 'mre_3p'))
-    out.update(extract_region_features(mirna_regions.get('seed', ''), 'mirna_seed'))
-    out.update(extract_region_features(mirna_regions.get('3p', ''), 'mirna_3p'))
+    for regions, key, name in [
+        (mre_regions, '5p', 'mre_5p'),
+        (mre_regions, '3p', 'mre_3p'),
+        (mirna_regions, 'seed', 'mirna_seed'),
+        (mirna_regions, '3p', 'mirna_3p'),
+    ]:
+        if want is not None and not any(f'{name}_{k}' in want for k in _COMP_KEYS):
+            continue
+        out.update(extract_region_features(regions.get(key, ''), name))
     return out
 
 
@@ -852,6 +1010,28 @@ INTARNA_ENERGY_FEATURES = [
     'Energy_norm', 'Energy_hybrid_norm',
 ]
 
+# Summaries of the sub-optimal sites IntaRNA reported for the pair but which the
+# priority-score selection discarded. Computed in best_intarna.py (SUBOPT_STAT_COLS -
+# the two lists must agree, and _check_subopt_columns below fails loudly if they do
+# not) and carried through merge_intarna.py untouched, so they are read straight off
+# the row here rather than recomputed.
+#
+# They are censored at IntaRNA's `-n` (10 in intarna_parallel.py), so `subopt_n_sites`
+# means "sites, capped at 10". Only comparable across runs sharing `-n`/`--outDeltaE`.
+SUBOPT_STAT_FEATURES = [
+    'subopt_n_sites',
+    'subopt_E_min',
+    'subopt_E_gap',
+    'subopt_E_mean',
+    'subopt_E_std',
+    'subopt_n_within_1kcal',
+    'subopt_E_delta_selected',
+    'subopt_priority_gap',
+    'subopt_frac_seedlike',
+    'subopt_target_span',
+    'subopt_n_distinct_starts',
+]
+
 DUPLEX_STAT_FEATURES = [
     'total_matches', 'total_mismatches', 'total_bulges', 'total_mre_bulges',
     'total_mirna_bulges', 'total_gu_wobbles', 'interaction_length', 'match_fraction',
@@ -863,7 +1043,39 @@ DUPLEX_STAT_FEATURES = [
 ]
 
 
-def calculate_intarna_features(site_data, flank_size=10, hist_range=PHYLOP_HIST_RANGE):
+def _resolve_wanted(features: Optional[List[str]]) -> Optional[set]:
+    """The set of feature names computation may be restricted to, or None for all.
+
+    WHY THIS IS SAFE. Skipping work risks train/serve skew - the exact failure this
+    module was merged to prevent - so the gating obeys two rules:
+
+      1. It is DERIVED from the requested names, never hand-maintained. Add a feature to
+         the selection and its block switches itself back on; there is no mapping to
+         forget to update.
+      2. It only ever skips units that are computed *independently* of one another - a
+         conservation shape window, a composition region, the duplex-energy block. A
+         retained feature is produced by byte-identical code either way, because nothing
+         it depends on is shared with what was skipped.
+
+    Rule 2 is what makes the claim checkable rather than merely argued, and it is checked:
+    `--verify-gating` recomputes every row ungated and asserts the retained columns match
+    exactly. Anything the gating cannot prove safe belongs outside it.
+
+    The duplex-stat block is deliberately NOT gated. `classify_binding_type_detailed`
+    reads nine of its intermediates, so `binding_type_*` alone requires essentially all
+    of it, and the block is cheap arithmetic over an already-built duplex vector.
+    """
+    if features is None:
+        return None
+    wanted = set(features)
+    # binding_type_<value> columns are one-hots of the classifier, which needs the whole
+    # duplex-stat block - so asking for one means asking for that block, not for a
+    # feature named `binding_type_<value>`.
+    return wanted
+
+
+def calculate_intarna_features(site_data, flank_size=10, hist_range=PHYLOP_HIST_RANGE,
+                               want=None):
     hybrid_dp = site_data.get('hybrid_dp', '') or ''
     mre_struct, mirna_struct = hybrid_dp.split('&', 1) if '&' in hybrid_dp else ('', '')
 
@@ -981,9 +1193,9 @@ def calculate_intarna_features(site_data, flank_size=10, hist_range=PHYLOP_HIST_
     site_data['effective_3prime_matches'] = (site_data['total_matches_minus_seed']
                                              - site_data['gu_wobbles_minus_seed'])
 
-    site_data.update(extract_duplex_energy_features(site_data))
+    site_data.update(extract_duplex_energy_features(site_data, want))
     site_data.update(extract_conservation_features(
-        site_data, mirna_binding_start, flank_size, hist_range))
+        site_data, mirna_binding_start, flank_size, hist_range, want))
 
     return site_data
 
@@ -1046,12 +1258,78 @@ def classify_binding_type_detailed(d):
 # ============================================================================
 
 def all_feature_names() -> List[str]:
-    """The full numeric superset, in a stable order. Input to feature selection."""
+    """Every feature this module knows how to compute, in a stable order.
+
+    No longer what gets written by default - see DEFAULT_FEATURES. This is now the
+    *vocabulary*: it validates requested names, sizes the gating report, and is what
+    `--list-features` prints so a superset run remains one pipe away.
+    """
     return (INTARNA_ENERGY_FEATURES
+            + SUBOPT_STAT_FEATURES
             + DUPLEX_STAT_FEATURES
             + conservation_feature_names()
             + composition_feature_names()
-            + duplex_energy_feature_names())
+            + duplex_energy_feature_names()
+            + shuffle_zscore_feature_names())
+
+
+# Features added after the featurewiz run that produced SELECTED_FEATURES, so featurewiz
+# has never seen them and cannot have rejected them. Kept OUT of SELECTED_FEATURES on
+# purpose: that list is the record of what feature selection actually chose, and folding
+# these in would erase the distinction the next selection run needs.
+#
+# Derived rather than written out, so it cannot drift from the blocks it names.
+#
+# `subopt_n_sites` is excluded: IntaRNA is run with `-n 10 --outDeltaE 100`, which always
+# fills the quota, so the column is constant at 10 on every row (measured) and can only
+# ever vary if those flags change.
+NEW_CANDIDATE_FEATURES = (
+    [c for c in SUBOPT_STAT_FEATURES if c != 'subopt_n_sites']
+    + [f'{r}_{k}' for r in _ENERGY_REGIONS for k in ('energy_sum', 'n_steps')]
+    + list(_ENERGY_CROSS_KEYS)
+    + list(_ZSCORE_KEYS)
+)
+
+
+# What the extractor writes, and computes, unless told otherwise.
+#
+# The full superset is no longer produced by default. featurewiz has already judged it
+# (commit "added selected features after rerun"), and from here on selection runs against
+# this list instead: the survivors plus whatever new candidates are under test. So the
+# ~120 features it rejected are no longer computed, which is the whole point - they cost
+# time at inference and nothing consumes them.
+#
+# THE ONE THING TO KNOW. featurewiz's rejections were conditional on the set it saw: a
+# feature dropped because a correlated competitor beat it may be the better choice once
+# that competitor is gone. So this is a ratchet - but a soft one, deliberately. Every
+# extraction function is still here and every name is still in all_feature_names(), so any
+# rejected feature can be brought back by name:
+#
+#     python feature_extraction.py --list-features > superset.txt
+#     python feature_extraction.py ... --features-file superset.txt
+#
+# Promote a candidate into SELECTED_FEATURES (and drop it from NEW_CANDIDATE_FEATURES)
+# only after a featurewiz run has actually kept it.
+DEFAULT_FEATURES = list(SELECTED_FEATURES) + list(NEW_CANDIDATE_FEATURES)
+
+
+# Named column sets for the training-side A/B, resolved against a default-mode CSV.
+# `None` means "every feature column present in the CSV" - which is now DEFAULT_FEATURES,
+# so 'all' and 'baseline+new' select the same columns unless you extracted with an
+# explicit --features-file. 'baseline' is still the strict subset featurewiz chose, which
+# is what makes the A/B meaningful.
+FEATURE_SETS = {
+    'baseline': lambda: list(SELECTED_FEATURES),
+    'baseline+new': lambda: list(SELECTED_FEATURES) + list(NEW_CANDIDATE_FEATURES),
+    'all': lambda: None,
+}
+
+
+def feature_set(name: str) -> Optional[List[str]]:
+    """Resolve a FEATURE_SETS name to its column list (None = keep everything)."""
+    if name not in FEATURE_SETS:
+        raise KeyError(f"unknown feature set {name!r}; have {sorted(FEATURE_SETS)}")
+    return FEATURE_SETS[name]()
 
 
 # Identifier / passthrough columns, written in both modes. `energy_source` rides along so
@@ -1066,21 +1344,170 @@ ID_COLS = ['target_id', 'query_id', 'binding_type', 'hybrid_dp', 'subseq_dp',
 # MAIN
 # ============================================================================
 
+def compute_site_features(site, flank_size, hist_range, background, want=None):
+    """Compute one site's features in place.
+
+    The single entry point for per-site computation, so the gated and ungated paths are
+    the same code with a different `want` rather than two code paths that could drift.
+    """
+    calculate_intarna_features(site, flank_size=flank_size, hist_range=hist_range,
+                               want=want)
+    # Always: `binding_type_*` one-hots are derived from it, and it is cheap.
+    site['binding_type'] = classify_binding_type_detailed(site)
+    site.update(extract_sequence_region_features(
+        site.get('mre_seq', ''), site.get('mirna_seq', ''), want))
+    site.update(extract_shuffle_zscore_features(site, background))
+    site['mre_sequence'] = site['mre_seq']
+    site['mirna_sequence'] = site['mirna_seq']
+    return site
+
+
+# ============================================================================
+# PARALLEL EXECUTION
+# ============================================================================
+#
+# The per-site computation is embarrassingly parallel: sites share no state, and
+# compute_site_features touches nothing outside the dict it is handed.
+#
+# PROCESSES, NOT THREADS. The work is numpy reductions over 50-element arrays plus
+# SWIG-wrapped ViennaRNA calls. The arrays are far too small for numpy to profitably
+# release the GIL, and the ViennaRNA bindings hold it throughout, so a thread pool would
+# serialise almost perfectly. Processes cost pickling, which chunking amortises.
+#
+# Below PARALLEL_MIN_ROWS the pool costs more to start than it saves, so the serial path
+# is used - which matters for inference, where a handful of pairs is a normal request.
+
+PARALLEL_MIN_ROWS = 2000
+CHUNK_ROWS = 500
+
+# Set once per worker by _worker_init. Read-only after that.
+_WORKER_CFG: dict = {}
+
+
+def _worker_init(flank_size, hist_range, background, want):
+    """Ship the read-only config to each worker once, rather than with every chunk."""
+    _WORKER_CFG.update(flank_size=flank_size, hist_range=hist_range,
+                       background=background, want=want)
+
+
+def _worker_chunk(chunk):
+    return [compute_site_features(s, _WORKER_CFG['flank_size'], _WORKER_CFG['hist_range'],
+                                  _WORKER_CFG['background'], _WORKER_CFG['want'])
+            for s in chunk]
+
+
+def compute_all_sites(sites, flank_size, hist_range, background, want, processes=1):
+    """Compute every site's features, in parallel when it is worth it.
+
+    Results are written back in input order (`imap` preserves it), so the output is
+    identical to the serial path regardless of how many processes are used - there is no
+    ordering nondeterminism to reason about downstream.
+    """
+    if processes <= 1 or len(sites) < PARALLEL_MIN_ROWS:
+        if processes > 1:
+            print(f"  {len(sites)} rows is below the {PARALLEL_MIN_ROWS}-row threshold; "
+                  f"running serially (pool startup would cost more than it saves)")
+        for s in sites:
+            compute_site_features(s, flank_size, hist_range, background, want)
+        return sites
+
+    chunks = (sites[i:i + CHUNK_ROWS] for i in range(0, len(sites), CHUNK_ROWS))
+    n_chunks = (len(sites) + CHUNK_ROWS - 1) // CHUNK_ROWS
+    print(f"  {processes} processes, {n_chunks} chunks of {CHUNK_ROWS}")
+
+    with mp.Pool(processes=processes, initializer=_worker_init,
+                 initargs=(flank_size, hist_range, background, want)) as pool:
+        done_rows = 0
+        for k, done in enumerate(pool.imap(_worker_chunk, chunks)):
+            sites[k * CHUNK_ROWS:k * CHUNK_ROWS + len(done)] = done
+            done_rows += len(done)
+            if (k + 1) % 20 == 0 or done_rows == len(sites):
+                print(f"\r  {done_rows}/{len(sites)}", end='', file=sys.stderr, flush=True)
+    print(file=sys.stderr)
+    return sites
+
+
+def _verify_gating(sites, features, flank_size, hist_range, background, sample_size=200):
+    """Recompute a sample ungated and assert every retained column is unchanged.
+
+    This is what turns "skipping that block is safe" from an argument into a check. A
+    mismatch means the gating dropped something a retained feature depended on, which is
+    train/serve skew - so it aborts rather than warns.
+    """
+    import random
+    subset = sites if len(sites) <= sample_size else random.Random(0).sample(sites, sample_size)
+
+    mismatches = []
+    for site in subset:
+        # A plain copy, with nothing stripped. Removing "output" names would also remove
+        # the pass-through inputs that share them - `Eall` and the `subopt_*` columns are
+        # read off the IntaRNA row, not computed - and zero them. Recomputation overwrites
+        # every retained feature regardless, so stripping buys nothing.
+        reference = compute_site_features(
+            dict(site), flank_size, hist_range, background, want=None)
+        for feature in features:
+            got, expected = site.get(feature), reference.get(feature)
+            if got != expected and not (
+                    isinstance(got, float) and isinstance(expected, float)
+                    and np.isnan(got) and np.isnan(expected)):
+                mismatches.append((feature, got, expected))
+
+    if mismatches:
+        shown = mismatches[:10]
+        sys.exit(f"ERROR: feature gating changed {len(mismatches)} value(s) across "
+                 f"{len(subset)} sampled rows. This is a gating bug - rerun with "
+                 f"--no-feature-gating and report it.\n" +
+                 "\n".join(f"  {f}: gated={g!r} ungated={e!r}" for f, g, e in shown))
+    print(f"  Gating verified: {len(features)} features identical to the ungated "
+          f"computation across {len(subset)} sampled rows")
+
+
+def _check_subopt_columns(intarna_results):
+    """Warn loudly when the IntaRNA table predates the sub-optimal statistics.
+
+    An older best_intarna.py emits none of SUBOPT_STAT_FEATURES. Those rows would read
+    back as NaN, which is the right value - but silently, and a whole feature block
+    being NaN across a training set is worth one line of output rather than a discovery
+    made later from a model that ignores eleven columns.
+    """
+    if not intarna_results:
+        return
+    present = set(intarna_results[0].keys())
+    missing = [c for c in SUBOPT_STAT_FEATURES if c not in present]
+    if missing:
+        print(f"  WARNING: {len(missing)}/{len(SUBOPT_STAT_FEATURES)} sub-optimal-site "
+              f"columns absent from the IntaRNA table (e.g. {missing[:3]}); they will be "
+              f"NaN. Regenerate with the current src/best_intarna.py to populate them.")
+    else:
+        print(f"  Sub-optimal site statistics: all {len(SUBOPT_STAT_FEATURES)} columns present")
+
+
 def main():
     parser = argparse.ArgumentParser(
-        description='Extract features for miRNA-MRE pairs from an IntaRNA duplex.')
+        description='Extract features for miRNA-MRE pairs from an IntaRNA duplex. '
+                    'Writes and computes DEFAULT_FEATURES (the featurewiz selection plus '
+                    'the candidates under test) unless --features-file says otherwise.')
+    # --list-features exits before anything else is read, so the required arguments below
+    # must not be enforced for it.
+    if '--list-features' in sys.argv:
+        for name in all_feature_names():
+            print(name)
+        return 0
+
     parser.add_argument('--intarna', required=True, help='best_intarna results TSV')
     parser.add_argument('--mre-fasta', required=True)
     parser.add_argument('--mirna-fasta', required=True)
     parser.add_argument('--v7', required=True,
                         help='v7 TSV: conservation vector, family, label, coordinates')
     parser.add_argument('--output', required=True)
-    parser.add_argument('--all-features', action='store_true',
-                        help='write the full superset (input to feature selection) '
-                             'instead of only SELECTED_FEATURES')
+    parser.add_argument('--list-features', action='store_true',
+                        help='print every computable feature name, one per line, and exit. '
+                             'Pipe into a file and pass it back with --features-file to '
+                             'reproduce the old --all-features superset.')
     parser.add_argument('--features-file', default=None,
                         help='JSON/newline list of features to write, overriding '
-                             'SELECTED_FEATURES (e.g. a fresh feature_selection.py run)')
+                             'DEFAULT_FEATURES (e.g. a fresh feature_selection.py run, or '
+                             'the --list-features superset)')
     parser.add_argument('--cons-col', default=DEFAULT_CONS_COL,
                         help=f'conservation column in the v7 TSV (default {DEFAULT_CONS_COL})')
     parser.add_argument('--cons-no-reverse', action='store_true',
@@ -1093,10 +1520,29 @@ def main():
                         help='TSV listing, by chimeric sequence, the pairs for which the '
                              'ensemble run found no interaction, so the partition-function '
                              'energies are NaN (energy_source == "mfe_only")')
+    parser.add_argument('--mirna-background', default=None,
+                        help='per-miRNA shuffled-target background table from '
+                             'src/shuffle_background.py. Without it the four '
+                             'shuffle-z-score features are NaN.')
+    parser.add_argument('--threads', type=int, default=0,
+                        help='worker processes for the per-site computation. 0 (default) '
+                             'uses every core; 1 forces the serial path. Output is '
+                             'identical either way - results are reordered to match the '
+                             'input.')
+    parser.add_argument('--no-feature-gating', action='store_true',
+                        help='compute every feature even when only a subset is written. '
+                             'The gated path is verified identical, so this is an escape '
+                             'hatch for debugging, not a correctness switch.')
+    parser.add_argument('--verify-gating', action='store_true',
+                        help='recompute a sample of rows with gating off and abort if any '
+                             'written value differs. Use after changing the feature list.')
     parser.add_argument('--flank-size', type=int, default=10)
     parser.add_argument('--bigwig', default=None,
                         help='read conservation from a bigwig instead of the v7 column')
     args = parser.parse_args()
+
+    if args.threads <= 0:
+        args.threads = os.cpu_count() or 1
 
     hist_range = (PHASTCONS_HIST_RANGE if 'phastcons' in args.cons_col.lower()
                   else PHYLOP_HIST_RANGE)
@@ -1130,6 +1576,16 @@ def main():
 
     print(f"  Conservation track: {args.cons_col} (entropy histogram range {hist_range})")
 
+    _check_subopt_columns(intarna_results)
+
+    background = None
+    if args.mirna_background:
+        background = load_mirna_background(args.mirna_background)
+        print(f"  miRNA background: {len(background)} miRNAs from {args.mirna_background}")
+    else:
+        print(f"  WARNING: no --mirna-background; {shuffle_zscore_feature_names()} "
+              f"will be NaN.")
+
     print("\n--- Building site data ---")
     sites = []
     for pos, row in enumerate(intarna_results):
@@ -1151,6 +1607,9 @@ def main():
                 ('target_id', 'query_id', 'start_target', 'end_target',
                  'start_query', 'end_query', 'subseq_dp', 'hybrid_dp')}
         site.update({k: row.get(k, 0) for k in INTARNA_ENERGY_FEATURES})
+        # Computed in best_intarna.py, carried through the merge untouched. NaN (not 0)
+        # when the column is absent, which _check_subopt_columns has already warned about.
+        site.update({k: safe_float(row.get(k), np.nan) for k in SUBOPT_STAT_FEATURES})
         site.update({
             'mre_seq': mre_seqs[i],
             'mirna_seq': mirna_seqs[i],
@@ -1168,35 +1627,55 @@ def main():
 
     print(f"  Valid sites: {len(sites)}")
 
-    print("\n--- Computing features ---")
-    for s in sites:
-        calculate_intarna_features(s, flank_size=args.flank_size, hist_range=hist_range)
-        s['binding_type'] = classify_binding_type_detailed(s)
-        s.update(extract_sequence_region_features(s.get('mre_seq', ''), s.get('mirna_seq', '')))
-        s['mre_sequence'] = s['mre_seq']
-        s['mirna_sequence'] = s['mirna_seq']
-
-    # Which feature columns to write.
-    if args.all_features:
-        features = all_feature_names()
-        binding_type_cols = []
+    # Which feature columns to write. Resolved BEFORE the compute loop, because it is
+    # also what the loop is allowed to skip computing (see _resolve_wanted).
+    if args.features_file:
+        text = open(args.features_file).read()
+        features = (json.loads(text) if text.lstrip().startswith('[')
+                    else [ln.strip() for ln in text.splitlines() if ln.strip()])
+        source = args.features_file
     else:
-        if args.features_file:
-            text = open(args.features_file).read()
-            features = (json.loads(text) if text.lstrip().startswith('[')
-                        else [ln.strip() for ln in text.splitlines() if ln.strip()])
-        else:
-            features = list(SELECTED_FEATURES)
-        # binding_type is one-hot encoded at selection time, so the selected list can
-        # contain `binding_type_<value>` columns that no computation produces.
-        binding_type_cols = [c for c in features if c.startswith('binding_type_')]
-        features = [c for c in features if not c.startswith('binding_type_')]
+        features = list(DEFAULT_FEATURES)
+        source = (f"DEFAULT_FEATURES ({len(SELECTED_FEATURES)} selected + "
+                  f"{len(NEW_CANDIDATE_FEATURES)} candidates)")
 
-        known = set(all_feature_names())
-        unknown = [c for c in features if c not in known]
-        if unknown:
-            sys.exit(f"ERROR: {len(unknown)} selected feature(s) are not produced by this "
-                     f"extractor: {unknown}\nRerun feature selection against --all-features.")
+    # binding_type is one-hot encoded at selection time, so the list can contain
+    # `binding_type_<value>` columns that no computation produces.
+    binding_type_cols = [c for c in features if c.startswith('binding_type_')]
+    features = [c for c in features if not c.startswith('binding_type_')]
+
+    known = set(all_feature_names())
+    unknown = [c for c in features if c not in known]
+    if unknown:
+        sys.exit(f"ERROR: {len(unknown)} requested feature(s) are not produced by this "
+                 f"extractor: {unknown}\nRun --list-features to see the full vocabulary.")
+
+    # Restrict computation to what will actually be written. --no-feature-gating computes
+    # everything anyway, which is the reference the gating is verified against.
+    want = None if args.no_feature_gating else _resolve_wanted(features)
+
+    print("\n--- Computing features ---")
+    print(f"  Feature list: {source}")
+    if want is not None:
+        total = len(all_feature_names())
+        print(f"  Computing {len(features)} of {total} known features "
+              f"({total - len(features)} skipped; --no-feature-gating to compute all)")
+
+    compute_all_sites(sites, args.flank_size, hist_range, background, want,
+                      processes=args.threads)
+
+    if args.verify_gating and want is not None:
+        _verify_gating(sites, features, args.flank_size, hist_range, background)
+    elif args.verify_gating:
+        print("  --verify-gating is a no-op with gating already off")
+
+    if background:
+        matched = sum(1 for s in sites if not np.isnan(s['E_bg_mean_mirna']))
+        print(f"  Shuffle background: {matched}/{len(sites)} rows matched a miRNA "
+              f"({matched / max(len(sites), 1):.1%})")
+        if matched < len(sites):
+            print("    Unmatched rows get NaN z-scores. Rebuild the background from a "
+                  "miRNA FASTA covering this split if the gap is large.")
 
     v7_cols = [c for c in V7_PASSTHROUGH if c in v7.columns]
     headers = ID_COLS + v7_cols + features + binding_type_cols + ['label']
@@ -1219,7 +1698,7 @@ def main():
                 row[col] = 1 if btype == col[len('binding_type_'):] else 0
             writer.writerow(row)
 
-    mode = "full superset" if args.all_features else "selected"
+    mode = "from " + ("--features-file" if args.features_file else "DEFAULT_FEATURES")
     print(f"Done. Wrote {len(sites)} rows, {len(features) + len(binding_type_cols)} "
           f"features ({mode}).")
 

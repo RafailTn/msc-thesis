@@ -375,6 +375,9 @@ def main() -> int:
             "--mre-fasta", args.target_fasta,
             "--mirna-fasta", args.query_fasta,
             "--output", str(features_out),
+            # Same budget as the IntaRNA steps. Extraction falls back to a serial path
+            # under its own row threshold, so a small query set pays no pool startup.
+            "--threads", str(args.threads),
         ]
         if args.conservation_tsv:
             feat_cmd += ["--v7", args.conservation_tsv]

@@ -1,5 +1,6 @@
 import argparse
 import ast
+import sys
 import pandas as pd
 import polars as pl
 import numpy as np
@@ -10,8 +11,14 @@ from sklearn.model_selection import train_test_split
 from autogluon.core.metrics import make_scorer
 from sklearn.metrics import fbeta_score, average_precision_score
 from sklearn.model_selection import GroupShuffleSplit, StratifiedGroupKFold, StratifiedKFold
-from metrics4gluon import f2_metric, aps
 from typing import List, Optional, Dict, Tuple
+
+# Shared with gluon_train_total.py so the two entry points cannot disagree about what a
+# named feature set means; the definitions themselves live in src/feature_extraction.py.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from feature_sets import (  # noqa: E402
+    FEATURE_SETS, feature_set, select_feature_columns, COLS2DROP, SEQUENCE_COLS,
+)
 
 
 def get_misclassified(
@@ -171,13 +178,17 @@ def evaluate_gluon(
 
 
 def preprocess_dataframe(
-    df: pd.DataFrame, 
-    cols2drop: List[str], 
-    sequence_cols: List[str]
+    df: pd.DataFrame,
+    cols2drop: List[str],
+    sequence_cols: List[str],
+    features: Optional[List[str]] = None,
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Preprocess dataframe: drop duplicates, drop columns, preserve sequences.
-    
+
+    `features` None keeps every column except cols2drop (the historical behaviour);
+    a list selects exactly those instead.
+
     Returns:
         Tuple of (processed_df, df_with_sequences)
     """
@@ -185,9 +196,12 @@ def preprocess_dataframe(
     # Preserve sequences BEFORE dropping columns
     available_seq_cols = [c for c in sequence_cols if c in df.columns]
     df_with_sequences = df[available_seq_cols + ['label']].copy()
-    # Drop columns that exist in the dataframe
-    cols_to_drop = [c for c in cols2drop if c in df.columns]
-    df = df.drop(columns=cols_to_drop)
+    if features is not None:
+        df = select_feature_columns(df, features)
+    else:
+        # Drop columns that exist in the dataframe
+        cols_to_drop = [c for c in cols2drop if c in df.columns]
+        df = df.drop(columns=cols_to_drop)
     family_counts = df['mir_fam'].value_counts().clip(lower=100)
     total_samples = len(df)
     # Weight = Total / (n_families * count_of_this_family)
@@ -209,34 +223,32 @@ def main(
     misclassified_output_dir: str,
     results_output_path: str,
     n_folds: int = 5,
+    feature_set_name: str = 'all',
 ):
     print("Starting Training...")
 
-    cols2drop = [
-        'target_id', 'query_id', 'binding_type', 'noncodingRNA_fam',
-        'contrafold_struct', 'hybrid_dp', 'subseq_dp',
-        'mre_sequence', 'mirna_sequence', 'chimeric_sequence', 'energy_source', 'gene' , 'noncodingRNA' , 'noncodingRNA_name', 'feature', 'label_right', 'chr', 'start', 'end', 'strand', 'gene_cluster_ID', 'gene_phyloP', 'gene_phastCons']
+    features = feature_set(feature_set_name)
+    print(f"Feature set: {feature_set_name} "
+          f"({'all columns present' if features is None else str(len(features)) + ' features'})")
 
+    cols2drop = COLS2DROP
     # Sequence columns to preserve for misclassification analysis
-    sequence_cols = [
-        'chimeric_sequence', 'mre_sequence', 'mirna_sequence',
-        'target_id', 'query_id', 'mir_fam'
-    ]
+    sequence_cols = SEQUENCE_COLS
 
     # Load and preprocess training data
     df_raw = pd.read_csv(train_df_path)
-    df, df_with_sequences = preprocess_dataframe(df_raw, cols2drop, sequence_cols)
+    df, df_with_sequences = preprocess_dataframe(df_raw, cols2drop, sequence_cols, features)
     df_pl = pl.from_pandas(df)
 
     # Load and preprocess test data
     final_test_raw = pd.read_csv(test_df_path)
     final_test_data, final_test_with_seq = preprocess_dataframe(
-        final_test_raw, cols2drop, sequence_cols
+        final_test_raw, cols2drop, sequence_cols, features
     )
 
     final_final_test_raw = pd.read_csv(leftout_df_path)
     final_final_test_data, final_final_test_with_seq = preprocess_dataframe(
-        final_final_test_raw, cols2drop, sequence_cols
+        final_final_test_raw, cols2drop, sequence_cols, features
     )
     # Setup cross-validation
     sgkf = StratifiedGroupKFold(n_splits=n_folds, shuffle=True, random_state=42)
@@ -351,7 +363,7 @@ def main(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='K-fold AutoGluon training on the selected-feature CSVs produced by '
-                    'src/feature_extraction.py (default mode, not --all-features).')
+                    'src/feature_extraction.py.')
     parser.add_argument('--input', type=str, required=True,
                         help='Training CSV (selected features)')
     parser.add_argument('--test', type=str, required=True,
@@ -372,6 +384,14 @@ if __name__ == "__main__":
     parser.add_argument('--results_path', type=str,
                         default='results/gluon_kfold_results.txt',
                         help='Path to save evaluation results')
+    parser.add_argument('--feature-set', type=str, default='all',
+                        choices=sorted(FEATURE_SETS),
+                        help="Which columns to train on. 'all' (default) keeps every "
+                             "column in the CSV except cols2drop; 'baseline' is the "
+                             "featurewiz selection alone; 'baseline+new' adds the "
+                             "candidates featurewiz has not yet judged. With a "
+                             "default-mode CSV 'all' and 'baseline+new' coincide. "
+                             "Defined in src/feature_extraction.FEATURE_SETS.")
 
     args = parser.parse_args()
 
@@ -388,4 +408,5 @@ if __name__ == "__main__":
         misclassified_output_dir=args.misclassified_dir,
         results_output_path=args.results_path,
         n_folds=args.folds,
+        feature_set_name=args.feature_set,
     )
