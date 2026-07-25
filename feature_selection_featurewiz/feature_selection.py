@@ -69,7 +69,14 @@ def probe():
 def load(path: str) -> pd.DataFrame:
     df = pl.read_csv(path, infer_schema_length=10000)
     df = df.drop([c for c in NON_FEATURE_COLS if c in df.columns])
-    return df.to_dummies('binding_type').to_pandas()
+    # The extractor now writes both the raw `binding_type` categorical and its one-hot
+    # `binding_type_*` columns. Drop the pre-made one-hots so to_dummies can regenerate
+    # them from the raw column without colliding (regeneration is equivalent and covers
+    # every category actually present); the reindex in main() aligns test/leftout after.
+    if 'binding_type' in df.columns:
+        df = df.drop([c for c in df.columns if c.startswith('binding_type_')])
+        df = df.to_dummies('binding_type')
+    return df.to_pandas()
 
 
 def main():
