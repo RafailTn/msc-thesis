@@ -152,11 +152,17 @@ def evaluate_gluon(
     test_data: pd.DataFrame, 
     additional_test_data: Optional[List[pd.DataFrame]], 
     outf_path: str, 
-    predictor: TabularPredictor, 
+    predictor: TabularPredictor,
     fold: int,
-    decision_threshold: float|None = None 
-) -> None:
-    """Evaluate predictor on all datasets and write results to file."""
+    decision_threshold: float|None = None
+) -> Dict[str, Tuple[dict, float]]:
+    """Evaluate predictor on all datasets, write per-fold results, and return them.
+
+    The returned dict is keyed by the same dataset labels used in the per-fold lines
+    ('Train', 'Val', 'Small_test', 'Final_test_{i}'), each mapping to
+    (metric_dict, average_precision). main() accumulates these across folds to write a
+    mean/std block, so the aggregate lines line up with the per-fold ones.
+    """
     if decision_threshold:
         predictor.set_decision_threshold(decision_threshold)
     else:
@@ -165,16 +171,67 @@ def evaluate_gluon(
     train_eval, ap_score_train = evaluate_df(train_data, predictor)
     fold_eval, ap_score_eval = evaluate_df(val_data, predictor)
     test_eval, ap_score_test = evaluate_df(test_data, predictor)
-    
+
+    results: Dict[str, Tuple[dict, float]] = {
+        'Train': (train_eval, ap_score_train),
+        'Val': (fold_eval, ap_score_eval),
+        'Small_test': (test_eval, ap_score_test),
+    }
+
     with open(outf_path, 'a') as outfile:
         outfile.write(f"Train_results_fold{fold}: {train_eval}, APS: {ap_score_train}\n")
         outfile.write(f"Val_results_fold{fold}: {fold_eval}, APS: {ap_score_eval}\n")
         outfile.write(f"Small_test_results_fold{fold}: {test_eval}, APS: {ap_score_test}\n")
-        
+
         if additional_test_data:
             for i, add_test in enumerate(additional_test_data):
                 add_test_eval, ap_score_add = evaluate_df(add_test, predictor)
                 outfile.write(f"Final_test_{i}_results_fold{fold}: {add_test_eval}, APS: {ap_score_add}\n")
+                results[f'Final_test_{i}'] = (add_test_eval, ap_score_add)
+
+    return results
+
+
+def write_metric_means(
+    outf_path: str,
+    fold_results: List[Dict[str, Tuple[dict, float]]],
+) -> None:
+    """Append a cross-fold mean/std block for every metric to the results file.
+
+    `fold_results` is the per-fold output of evaluate_gluon. For each dataset and each
+    metric key, the mean and population std are taken across the folds that reported it
+    (a metric absent from a fold is skipped, not counted as zero), plus the average
+    precision. The lines mirror the per-fold format - a metric dict then `APS:` - so the
+    same parser reads both.
+    """
+    if not fold_results:
+        return
+
+    # Preserve the dataset order of the first fold rather than sorting, so the block reads
+    # train / val / test / leftout like the per-fold lines above it.
+    datasets: List[str] = list(fold_results[0].keys())
+
+    with open(outf_path, 'a') as outfile:
+        outfile.write(f"\n{'='*60}\n")
+        outfile.write(f"MEAN +/- STD ACROSS {len(fold_results)} FOLDS\n")
+        outfile.write(f"{'='*60}\n")
+        for ds in datasets:
+            metric_dicts = [fr[ds][0] for fr in fold_results if ds in fr]
+            aps_values = [fr[ds][1] for fr in fold_results if ds in fr]
+            keys = sorted({k for d in metric_dicts for k in d})
+
+            mean_dict, std_dict = {}, {}
+            for k in keys:
+                vals = [d[k] for d in metric_dicts
+                        if k in d and d[k] is not None and not pd.isna(d[k])]
+                if vals:
+                    mean_dict[k] = float(np.mean(vals))
+                    std_dict[k] = float(np.std(vals))
+
+            aps_mean = float(np.mean(aps_values)) if aps_values else float('nan')
+            aps_std = float(np.std(aps_values)) if aps_values else float('nan')
+            outfile.write(f"{ds}_mean: {mean_dict}, APS: {aps_mean}\n")
+            outfile.write(f"{ds}_std:  {std_dict}, APS: {aps_std}\n")
 
 
 def preprocess_dataframe(
@@ -266,7 +323,10 @@ def main(
         'test': [],
         'final_test': []
     }
-    
+
+    # Per-fold metric dicts, accumulated to write cross-fold means at the end.
+    fold_results: List[Dict[str, Tuple[dict, float]]] = []
+
     for fold, (train_idx, val_idx) in enumerate(sgkf.split(X, y, groups)):
         print(f"\n{'='*60}")
         print(f"FOLD {fold}")
@@ -300,15 +360,15 @@ def main(
         val_fold_pd = val_fold.to_pandas()
         
         # Evaluate and save metrics
-        evaluate_gluon(
-            train_data=train_fold_pd, 
-            val_data=val_fold_pd, 
-            test_data=final_test_data, 
-            additional_test_data=[final_final_test_data], 
-            outf_path=results_output_path, 
+        fold_results.append(evaluate_gluon(
+            train_data=train_fold_pd,
+            val_data=val_fold_pd,
+            test_data=final_test_data,
+            additional_test_data=[final_final_test_data],
+            outf_path=results_output_path,
             predictor=predictor,
             fold=fold
-        )
+        ))
         
         # Get misclassified samples for each dataset
         print(f"\nMisclassification Analysis for Fold {fold}:")
@@ -337,6 +397,9 @@ def main(
         )
         all_misclassified['final_test'].append(misclass_final)
     
+    # Cross-fold metric means, appended to the same results file as the per-fold lines.
+    write_metric_means(results_output_path, fold_results)
+
     # Aggregate results across folds
     print(f"\n{'='*60}")
     print("AGGREGATING MISCLASSIFIED SAMPLES ACROSS FOLDS")
