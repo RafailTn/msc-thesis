@@ -256,6 +256,22 @@ def main() -> int:
                         help="Path to the saved AutoGluon TabularPredictor directory")
     parser.add_argument("-o", default="./results.tsv",
                         help="Output TSV file (default: ./results.tsv)")
+    # -- Shuffle background (z-score features) ---------------------------------
+    parser.add_argument("-mirna_background",
+                        help="mirna_background.tsv so the four shuffle z-score features "
+                             "(E_z_mirna, E_hybrid_z_mirna, E_bg_mean_mirna, "
+                             "E_bg_sd_mirna) get filled. WITHOUT it they are NaN, which "
+                             "matches the model ONLY if it was trained the same way. "
+                             "Query miRNAs missing from the table are scored against its "
+                             "frozen panel by default (disable with -no_extend_background).")
+    parser.add_argument("-panel_fasta",
+                        help="Frozen panel the background table was built on "
+                             "(default: <mirna_background>_panel.fa). Any query miRNA "
+                             "missing from the table is scored on THIS panel, so its "
+                             "z-scores stay comparable to the trained ones.")
+    parser.add_argument("-no_extend_background", action="store_true",
+                        help="Do not score query miRNAs missing from the background; "
+                             "leave their z-scores NaN and only warn.")
     # -- Prediction ------------------------------------------------------------
     parser.add_argument("-threshold", type=float, default=0.5,
                         help="Probability threshold for positive interactions "
@@ -367,6 +383,36 @@ def main() -> int:
             step="best-intarna",
         )
 
+        # -- Step 4b: Shuffle-background coverage ------------------------------
+        # The query miRNAs are the "new miRNAs" case: any not in the background table
+        # would make feature_extraction emit NaN for the four z-score features, which is
+        # off-distribution for a model trained with them filled. Score the missing ones
+        # against the table's FROZEN panel so they stay comparable. On by default;
+        # -no_extend_background downgrades it to a report-only warning.
+        if args.mirna_background:
+            check_cmd = [
+                "python3", str(_HERE / "check_inference_background.py"),
+                "--input", args.query_fasta,
+                "--background", args.mirna_background,
+                "--threads", str(args.threads),
+            ]
+            if args.panel_fasta:
+                check_cmd += ["--panel-fasta", args.panel_fasta]
+            if not args.no_extend_background:
+                check_cmd += ["--auto-extend"]
+            print(f"[background-check] {' '.join(check_cmd)}")
+            # Tolerate a non-zero exit: it means some query miRNA stays NaN (missing in
+            # report-only mode, or n_bg<2 after extension). That degrades those rows but
+            # must not abort the run - and extending can be slow, so no timeout here.
+            if subprocess.run(check_cmd).returncode != 0:
+                print("Warning: some query miRNAs have no usable background; their "
+                      "z-score features will be NaN for this run.", file=sys.stderr)
+        else:
+            print("Warning: -mirna_background not given; the four shuffle z-score "
+                  "features (E_z_mirna, E_hybrid_z_mirna, E_bg_mean_mirna, "
+                  "E_bg_sd_mirna) will be NaN. This matches the model ONLY if it was "
+                  "trained without them.", file=sys.stderr)
+
         # -- Step 5: Feature extraction ----------------------------------------
         features_out = tmp_dir / "samples_4_pred.csv"
         feat_cmd = [
@@ -387,6 +433,8 @@ def main() -> int:
             feat_cmd += ["--v7", str(best_out), "--allow-missing-conservation"]
         if bigwig_path:
             feat_cmd += ["--bigwig", str(bigwig_path)]
+        if args.mirna_background:
+            feat_cmd += ["--mirna-background", args.mirna_background]
         _run(feat_cmd, step="feature-extraction")
 
         # -- Step 6: Load model + predict --------------------------------------

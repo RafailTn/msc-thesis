@@ -1,5 +1,6 @@
 import argparse
 import ast
+import json
 import sys
 import pandas as pd
 import polars as pl
@@ -281,12 +282,20 @@ def main(
     results_output_path: str,
     n_folds: int = 5,
     feature_set_name: str = 'all',
+    features_json: str = None,
 ):
     print("Starting Training...")
 
-    features = feature_set(feature_set_name)
-    print(f"Feature set: {feature_set_name} "
-          f"({'all columns present' if features is None else str(len(features)) + ' features'})")
+    if features_json is not None:
+        # A/B a fresh feature_selection.py list without first promoting it into
+        # SELECTED_FEATURES. The JSON path is the traceable record of what was compared.
+        with open(features_json) as fh:
+            features = json.load(fh)
+        print(f"Feature set: {features_json} ({len(features)} features from JSON)")
+    else:
+        features = feature_set(feature_set_name)
+        print(f"Feature set: {feature_set_name} "
+              f"({'all columns present' if features is None else str(len(features)) + ' features'})")
 
     cols2drop = COLS2DROP
     # Sequence columns to preserve for misclassification analysis
@@ -455,6 +464,11 @@ if __name__ == "__main__":
                              "candidates featurewiz has not yet judged. With a "
                              "default-mode CSV 'all' and 'baseline+new' coincide. "
                              "Defined in src/feature_extraction.FEATURE_SETS.")
+    parser.add_argument('--features-json', type=str, default=None,
+                        help="Cross-validate on exactly the list in this JSON file (a "
+                             "feature_selection.py --output). Overrides --feature-set, so "
+                             "you can A/B a fresh selection without editing "
+                             "SELECTED_FEATURES first.")
 
     args = parser.parse_args()
 
@@ -472,4 +486,5 @@ if __name__ == "__main__":
         results_output_path=args.results_path,
         n_folds=args.folds,
         feature_set_name=args.feature_set,
+        features_json=args.features_json,
     )
