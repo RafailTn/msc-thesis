@@ -1,9 +1,7 @@
 models/
 results/
 data/
-external/
 errors/
-chimeric_eclip/
 checkpoints/
 transformers/
 mamba/
