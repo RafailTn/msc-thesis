@@ -5,4 +5,7 @@ errors/
 checkpoints/
 transformers/
 mamba/
+cnn/
+src/
+intarna_ensemble/
 CLAUDE.md
