@@ -3,11 +3,7 @@ mamba/mamba_siamese.py
 results/
 data/
 errors/
-errors.tar.gz
-ENCORI_RBP_targets_HEK293T_hg38.tsv
 CLAUDE.md
-external/
-chimeric_eclip/
 transformers/
 
 __pycache__/
