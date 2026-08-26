@@ -159,19 +159,26 @@ def make_model(cfg: Cfg, device) -> nn.Module:
 
 
 @torch.no_grad()
-def predict(model, loader, device) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+def predict(model, loader, device, want_loss: bool = False):
+    """Returns (probs, labels, maxsims) or (probs, labels, maxsims, mean_loss)."""
     model.eval()
     probs, ys, maxsims = [], [], []
+    loss_sum = n = 0.0
     for m, t, y in loader:
-        s = model(m.to(device), t.to(device))
+        m, t, yd = m.to(device), t.to(device), y.to(device)
+        s = model(m, t)
+        if want_loss:
+            loss_sum += float(bce_loss(s, yd)) * len(y)
+            n += len(y)
         probs.append(torch.sigmoid(s.logit).cpu().numpy())
         maxsims.append(s.maxsim.cpu().numpy())
         ys.append(y.numpy())
-    return np.concatenate(probs), np.concatenate(ys), np.concatenate(maxsims)
+    out = (np.concatenate(probs), np.concatenate(ys), np.concatenate(maxsims))
+    return out + (loss_sum / max(n, 1.0),) if want_loss else out
 
 
 def train_one(model, train_loader, val_loader, cfg: Cfg, device, log=print,
-              wb=None, step_offset: int = 0):
+              wb=None, step_offset: int = 0, train_eval_loader=None):
     opt = torch.optim.AdamW(model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=cfg.epochs)
     best_ap, best_state, bad = -1.0, None, 0
@@ -200,13 +207,29 @@ def train_one(model, train_loader, val_loader, cfg: Cfg, device, log=print,
             n += len(y)
         sched.step()
 
-        p, yv, _ = predict(model, val_loader, device)
+        p, yv, _, vloss = predict(model, val_loader, device, want_loss=True)
         ap = average_precision_score(yv, p)
-        log(f"  epoch {ep+1:>2}  train_loss {tot/n:.4f}  val_AP {ap:.4f}")
+        auc = roc_auc_score(yv, p)
+
+        metrics = {'train/loss': tot / n,
+                   'val/loss': vloss, 'val/AP': ap, 'val/ROC_AUC': auc,
+                   'lr': opt.param_groups[0]['lr'], 'epoch': ep + 1}
+
+        # optional in-sample metrics: needs a second pass, so opt-in
+        tr_msg = ''
+        if train_eval_loader is not None:
+            tp_, ty_, _, tloss = predict(model, train_eval_loader, device, want_loss=True)
+            t_ap = average_precision_score(ty_, tp_)
+            t_auc = roc_auc_score(ty_, tp_)
+            metrics.update({'train/eval_loss': tloss, 'train/AP': t_ap,
+                            'train/ROC_AUC': t_auc,
+                            'gap/AP': t_ap - ap, 'gap/ROC_AUC': t_auc - auc})
+            tr_msg = f'  train_AP {t_ap:.4f}  train_AUC {t_auc:.4f}'
+
+        log(f"  epoch {ep+1:>2}  train_loss {tot/n:.4f}{tr_msg}"
+            f"  val_loss {vloss:.4f}  val_AP {ap:.4f}  val_AUC {auc:.4f}")
         if wb is not None:
-            wb.log({'train/loss': tot / n, 'val/AP': ap,
-                    'lr': opt.param_groups[0]['lr'], 'epoch': ep + 1},
-                   step=step_offset + ep)
+            wb.log(metrics, step=step_offset + ep)
 
         if ap > best_ap:
             best_ap, bad = ap, 0
@@ -225,12 +248,13 @@ def train_one(model, train_loader, val_loader, cfg: Cfg, device, log=print,
 def evaluate(model, df: pd.DataFrame, cfg: Cfg, device, name: str, log=print,
              wb=None) -> dict:
     loader = DataLoader(PairDataset(df), batch_size=cfg.batch_size, shuffle=False,
-                        num_workers=2, pin_memory=True)
-    p, y, maxsim = predict(model, loader, device)
+                        num_workers=0, pin_memory=True)
+    p, y, maxsim, loss = predict(model, loader, device, want_loss=True)
 
     res = {
         "set": name,
         "n": int(len(y)),
+        "loss": float(loss),
         "AP": float(average_precision_score(y, p)),
         "ROC_AUC": float(roc_auc_score(y, p)),
         "strata": {},
@@ -259,12 +283,14 @@ def evaluate(model, df: pd.DataFrame, cfg: Cfg, device, name: str, log=print,
         roles = register_profile(type("S", (), {"maxsim": torch.from_numpy(maxsim[tp])})())
         res["TP_register_profile"] = {k: float(v.mean()) for k, v in roles.items()}
 
-    log(f"[{name}] n={res['n']}  AP={res['AP']:.4f}  ROC-AUC={res['ROC_AUC']:.4f}")
+    log(f"[{name}] n={res['n']}  loss={res['loss']:.4f}  "
+        f"AP={res['AP']:.4f}  ROC-AUC={res['ROC_AUC']:.4f}")
     for st, d in res["strata"].items():
         log(f"    {st:<20} n_pos={d['n_pos']:>7}  recall@0.5={d['recall@0.5']:.4f}")
 
     if wb is not None:
-        flat = {f'{name}/AP': res['AP'], f'{name}/ROC_AUC': res['ROC_AUC']}
+        flat = {f'{name}/AP': res['AP'], f'{name}/ROC_AUC': res['ROC_AUC'],
+                f'{name}/loss': res['loss']}
         for st, d in res['strata'].items():
             flat[f'{name}/recall@0.5/{st}'] = d['recall@0.5']
             flat[f'{name}/mean_prob/{st}'] = d['mean_prob']
@@ -298,6 +324,15 @@ def main():
     ap_.add_argument("--epochs", type=int, default=8)
     ap_.add_argument("--batch-size", type=int, default=256)
     ap_.add_argument("--lr", type=float, default=3e-4)
+    ap_.add_argument("--seed", type=int, default=42)
+    ap_.add_argument("--eval-train", action="store_true",
+                     help="also compute train AP/ROC-AUC/loss each epoch "
+                          "(extra forward pass over the training split)")
+    ap_.add_argument("--eval-train-subsample", type=int, default=200_000,
+                     help="cap rows used for in-sample metrics; 0 = all")
+    ap_.add_argument("--deterministic", action="store_true",
+                     help="force deterministic cuDNN kernels (slower)")
+    ap_.add_argument("--num-workers", type=int, default=2)
     ap_.add_argument("--no-strata", action="store_true")
     ap_.add_argument("--hard-neg", choices=["off", "resample", "paired"], default="off")
     ap_.add_argument("--energy-col", default="energy",
@@ -321,12 +356,28 @@ def main():
     cfg = Cfg(epochs=args.epochs, batch_size=args.batch_size, lr=args.lr,
               hard_neg=args.hard_neg, k_neg=args.k_neg, boost=args.boost,
               max_dg_gap=args.max_dg_gap, lambda_margin=args.lambda_margin,
-              lambda_infonce=args.lambda_infonce, margin=args.margin)
+              lambda_infonce=args.lambda_infonce, margin=args.margin,
+              seed=args.seed)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    torch.manual_seed(cfg.seed)
+    import random
+    random.seed(cfg.seed)
     np.random.seed(cfg.seed)
+    torch.manual_seed(cfg.seed)
+    torch.cuda.manual_seed_all(cfg.seed)
+    if args.deterministic:
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+        torch.use_deterministic_algorithms(True, warn_only=True)
+
+    def _seed_worker(worker_id):
+        ws = torch.initial_seed() % 2**32
+        np.random.seed(ws)
+        random.seed(ws)
+
+    _gen = torch.Generator()
+    _gen.manual_seed(cfg.seed)
 
     logf = open(out / "log.txt", "w")
 
@@ -372,7 +423,19 @@ def main():
 
     def loader_for(df, shuffle):
         return DataLoader(PairDataset(df), batch_size=cfg.batch_size, shuffle=shuffle,
-                          num_workers=2, pin_memory=True, drop_last=shuffle)
+                          num_workers=args.num_workers, pin_memory=True,
+                          drop_last=shuffle, worker_init_fn=_seed_worker,
+                          generator=_gen if shuffle else None)
+
+    def train_eval_loader_for(idx: np.ndarray):
+        """Unshuffled loader over the training split, for in-sample metrics."""
+        if not args.eval_train:
+            return None
+        cap = args.eval_train_subsample
+        use = idx
+        if cap and len(idx) > cap:
+            use = np.random.default_rng(cfg.seed).choice(idx, size=cap, replace=False)
+        return loader_for(train_df.iloc[use], False)
 
     def train_loader_for(idx: np.ndarray):
         """
@@ -385,7 +448,9 @@ def main():
 
         if cfg.hard_neg == "off":
             return DataLoader(ds, batch_size=cfg.batch_size, shuffle=True,
-                              num_workers=2, pin_memory=True, drop_last=True)
+                              num_workers=args.num_workers, pin_memory=True,
+                              drop_last=True, worker_init_fn=_seed_worker,
+                              generator=_gen)
 
         local = np.arange(len(sub))
         mined = mine_hard_negatives(
@@ -396,21 +461,26 @@ def main():
         if not mined:
             log("  no hard negatives -- falling back to plain shuffling")
             return DataLoader(ds, batch_size=cfg.batch_size, shuffle=True,
-                              num_workers=2, pin_memory=True, drop_last=True)
+                              num_workers=args.num_workers, pin_memory=True,
+                              drop_last=True, worker_init_fn=_seed_worker,
+                              generator=_gen)
 
         if cfg.hard_neg == "resample":
             w = resample_weights(len(sub), mined, boost=cfg.boost)
             sampler = torch.utils.data.WeightedRandomSampler(
-                w, num_samples=len(sub), replacement=True)
+                w, num_samples=len(sub), replacement=True, generator=_gen)
             return DataLoader(ds, batch_size=cfg.batch_size, sampler=sampler,
-                              num_workers=2, pin_memory=True, drop_last=True)
+                              num_workers=args.num_workers, pin_memory=True,
+                              drop_last=True, worker_init_fn=_seed_worker,
+                              generator=_gen)
 
         apb = max(1, cfg.batch_size // (1 + cfg.k_neg))
         bs = PairedHardNegSampler(mined, k=cfg.k_neg, anchors_per_batch=apb,
-                                  seed=cfg.seed)
+                                  seed=cfg.seed + int(idx[0]))
         log(f"  paired batches: {apb} anchors x (1+{cfg.k_neg}) = {bs.batch_size} rows, "
             f"{len(bs)} batches/epoch")
-        return DataLoader(ds, batch_sampler=bs, num_workers=2, pin_memory=True)
+        return DataLoader(ds, batch_sampler=bs, num_workers=args.num_workers,
+                          pin_memory=True, worker_init_fn=_seed_worker)
 
     if args.mode == "single":
         gss = GroupShuffleSplit(n_splits=1, test_size=args.val_frac, random_state=cfg.seed)
@@ -422,7 +492,7 @@ def main():
         model = make_model(cfg, device)
         best = train_one(model, train_loader_for(tr_i),
                          loader_for(train_df.iloc[va_i], False), cfg, device, log,
-                         wb=wb)
+                         wb=wb, train_eval_loader=train_eval_loader_for(tr_i))
         log(f"best val AP {best:.4f}")
         if wb is not None:
             wb.summary['best_val_AP'] = best
@@ -444,7 +514,7 @@ def main():
             model = make_model(cfg, device)
             best = train_one(model, train_loader_for(tr_i),
                              loader_for(train_df.iloc[va_i], False), cfg, device, log,
-                             wb=wb)
+                             wb=wb, train_eval_loader=train_eval_loader_for(tr_i))
             log(f"fold {k} best val AP {best:.4f}")
             if wb is not None:
                 wb.summary['best_val_AP'] = best
