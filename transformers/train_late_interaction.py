@@ -32,6 +32,11 @@ from sklearn.metrics import average_precision_score, roc_auc_score
 from sklearn.model_selection import GroupKFold, GroupShuffleSplit
 from torch.utils.data import DataLoader, Dataset
 
+try:
+    import wandb
+except ImportError:  # optional dependency
+    wandb = None
+
 from hard_negatives import (
     PairedHardNegSampler,
     ensure_energy,
@@ -165,7 +170,8 @@ def predict(model, loader, device) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     return np.concatenate(probs), np.concatenate(ys), np.concatenate(maxsims)
 
 
-def train_one(model, train_loader, val_loader, cfg: Cfg, device, log=print):
+def train_one(model, train_loader, val_loader, cfg: Cfg, device, log=print,
+              wb=None, step_offset: int = 0):
     opt = torch.optim.AdamW(model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=cfg.epochs)
     best_ap, best_state, bad = -1.0, None, 0
@@ -197,6 +203,10 @@ def train_one(model, train_loader, val_loader, cfg: Cfg, device, log=print):
         p, yv, _ = predict(model, val_loader, device)
         ap = average_precision_score(yv, p)
         log(f"  epoch {ep+1:>2}  train_loss {tot/n:.4f}  val_AP {ap:.4f}")
+        if wb is not None:
+            wb.log({'train/loss': tot / n, 'val/AP': ap,
+                    'lr': opt.param_groups[0]['lr'], 'epoch': ep + 1},
+                   step=step_offset + ep)
 
         if ap > best_ap:
             best_ap, bad = ap, 0
@@ -212,7 +222,8 @@ def train_one(model, train_loader, val_loader, cfg: Cfg, device, log=print):
     return best_ap
 
 
-def evaluate(model, df: pd.DataFrame, cfg: Cfg, device, name: str, log=print) -> dict:
+def evaluate(model, df: pd.DataFrame, cfg: Cfg, device, name: str, log=print,
+             wb=None) -> dict:
     loader = DataLoader(PairDataset(df), batch_size=cfg.batch_size, shuffle=False,
                         num_workers=2, pin_memory=True)
     p, y, maxsim = predict(model, loader, device)
@@ -251,6 +262,16 @@ def evaluate(model, df: pd.DataFrame, cfg: Cfg, device, name: str, log=print) ->
     log(f"[{name}] n={res['n']}  AP={res['AP']:.4f}  ROC-AUC={res['ROC_AUC']:.4f}")
     for st, d in res["strata"].items():
         log(f"    {st:<20} n_pos={d['n_pos']:>7}  recall@0.5={d['recall@0.5']:.4f}")
+
+    if wb is not None:
+        flat = {f'{name}/AP': res['AP'], f'{name}/ROC_AUC': res['ROC_AUC']}
+        for st, d in res['strata'].items():
+            flat[f'{name}/recall@0.5/{st}'] = d['recall@0.5']
+            flat[f'{name}/mean_prob/{st}'] = d['mean_prob']
+        for key in ('FN_register_profile', 'TP_register_profile'):
+            for reg, v in res.get(key, {}).items():
+                flat[f'{name}/{key}/{reg}'] = v
+        wb.summary.update(flat)
     return res
 
 
@@ -289,6 +310,12 @@ def main():
     ap_.add_argument("--lambda-infonce", type=float, default=0.0)
     ap_.add_argument("--margin", type=float, default=1.0)
     ap_.add_argument("--out", default="runs/late_interaction")
+    ap_.add_argument("--wandb-project", default=None,
+                     help="enable Weights & Biases logging under this project")
+    ap_.add_argument("--wandb-entity", default=None)
+    ap_.add_argument("--wandb-name", default=None, help="run name (base name in kfold)")
+    ap_.add_argument("--wandb-mode", default="online",
+                     choices=["online", "offline", "disabled"])
     args = ap_.parse_args()
 
     cfg = Cfg(epochs=args.epochs, batch_size=args.batch_size, lr=args.lr,
@@ -310,6 +337,22 @@ def main():
         logf.flush()
 
     log(f"device={device}  mode={args.mode}  cfg={asdict(cfg)}")
+
+    use_wb = args.wandb_project is not None
+    if use_wb and wandb is None:
+        log("WARNING: --wandb-project set but wandb is not installed; continuing without it")
+        use_wb = False
+    group_tag = args.wandb_name or Path(args.out).name
+
+    def start_wb(run_name: str, extra: dict | None = None):
+        if not use_wb:
+            return None
+        cfg_d = asdict(cfg) | {'mode': args.mode, 'group_col': args.group_col,
+                               'train_file': args.train,
+                               'test_files': list(args.test)} | (extra or {})
+        return wandb.init(project=args.wandb_project, entity=args.wandb_entity,
+                          name=run_name, group=group_tag, config=cfg_d,
+                          mode=args.wandb_mode, reinit=True)
 
     train_df = load(args.train, not args.no_strata)
     test_dfs = {Path(p).name: load(p, not args.no_strata) for p in args.test}
@@ -375,15 +418,21 @@ def main():
         log(f"single run: train={len(tr_i)}  val={len(va_i)} "
             f"({len(set(groups[va_i]))} held-out families)")
 
+        wb = start_wb(args.wandb_name or 'single')
         model = make_model(cfg, device)
         best = train_one(model, train_loader_for(tr_i),
-                         loader_for(train_df.iloc[va_i], False), cfg, device, log)
+                         loader_for(train_df.iloc[va_i], False), cfg, device, log,
+                         wb=wb)
         log(f"best val AP {best:.4f}")
+        if wb is not None:
+            wb.summary['best_val_AP'] = best
         torch.save(model.state_dict(), out / "model.pt")
 
-        results.append(evaluate(model, train_df.iloc[va_i], cfg, device, "val", log))
+        results.append(evaluate(model, train_df.iloc[va_i], cfg, device, "val", log, wb))
         for name, df in test_dfs.items():
-            results.append(evaluate(model, df, cfg, device, name, log))
+            results.append(evaluate(model, df, cfg, device, name, log, wb))
+        if wb is not None:
+            wb.finish()
 
     else:
         gkf = GroupKFold(n_splits=args.folds)
@@ -391,19 +440,28 @@ def main():
         for k, (tr_i, va_i) in enumerate(gkf.split(train_df, groups=groups), 1):
             log(f"\n=== fold {k}/{args.folds}  train={len(tr_i)} val={len(va_i)} "
                 f"({len(set(groups[va_i]))} held-out families) ===")
+            wb = start_wb(f'{group_tag}-fold{k}', {'fold': k})
             model = make_model(cfg, device)
             best = train_one(model, train_loader_for(tr_i),
-                             loader_for(train_df.iloc[va_i], False), cfg, device, log)
+                             loader_for(train_df.iloc[va_i], False), cfg, device, log,
+                             wb=wb)
             log(f"fold {k} best val AP {best:.4f}")
+            if wb is not None:
+                wb.summary['best_val_AP'] = best
             torch.save(model.state_dict(), out / f"model_fold{k}.pt")
 
             p, _, _ = predict(model, loader_for(train_df.iloc[va_i], False), device)
             oof[va_i] = p
 
-            r = evaluate(model, train_df.iloc[va_i], cfg, device, f"fold{k}_val", log)
+            r = evaluate(model, train_df.iloc[va_i], cfg, device, 'val', log, wb)
+            r['set'] = f'fold{k}_val'
             results.append(r)
             for name, df in test_dfs.items():
-                results.append(evaluate(model, df, cfg, device, f"fold{k}_{name}", log))
+                rt = evaluate(model, df, cfg, device, name, log, wb)
+                rt['set'] = f'fold{k}_{name}'
+                results.append(rt)
+            if wb is not None:
+                wb.finish()
 
         train_df["oof_pred"] = oof
         train_df[["noncodingRNA", "gene", "label", "oof_pred"]
@@ -411,14 +469,21 @@ def main():
                  ].to_csv(out / "oof_predictions.tsv.gz", sep="\t", index=False)
 
         y = train_df["label"].to_numpy()
-        log(f"\n=== OOF overall  AP={average_precision_score(y, oof):.4f}  "
-            f"ROC-AUC={roc_auc_score(y, oof):.4f} ===")
+        oof_ap = average_precision_score(y, oof)
+        oof_auc = roc_auc_score(y, oof)
+        log(f"\n=== OOF overall  AP={oof_ap:.4f}  ROC-AUC={oof_auc:.4f} ===")
+        oof_flat = {'oof/AP': float(oof_ap), 'oof/ROC_AUC': float(oof_auc)}
         if "seed_stratum" in train_df:
             for st in sorted(train_df["seed_stratum"].unique()):
                 m = (train_df["seed_stratum"] == st).to_numpy() & (y == 1)
                 if m.sum() >= 50:
-                    log(f"    OOF {st:<20} n_pos={m.sum():>7}  "
-                        f"recall@0.5={(oof[m] >= 0.5).mean():.4f}")
+                    rec = float((oof[m] >= 0.5).mean())
+                    log(f"    OOF {st:<20} n_pos={m.sum():>7}  recall@0.5={rec:.4f}")
+                    oof_flat[f'oof/recall@0.5/{st}'] = rec
+        if use_wb:
+            wb = start_wb(f'{group_tag}-oof', {'fold': 'oof'})
+            wb.summary.update(oof_flat)
+            wb.finish()
 
     with open(out / "results.json", "w") as fh:
         json.dump(results, fh, indent=2)
